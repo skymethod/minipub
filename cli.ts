@@ -22,11 +22,19 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
     await fn(args.slice(1), options);
 }
 
-async function generate(_args: (string | number)[], _options: Record<string, unknown>) {
+async function generate(_args: (string | number)[], options: Record<string, unknown>) {
+    const json = Object.keys(options).includes('json');
+
     const key = await generateExportableRsaKeyPair();
     
-    console.log(await exportKeyToPem(key.privateKey, 'private'));
-    console.log(await exportKeyToPem(key.publicKey, 'public'));
+    const privatePemText = await exportKeyToPem(key.privateKey, 'private');
+    const publicPemText = await exportKeyToPem(key.publicKey, 'public');
+    if (json) {
+        console.log(JSON.stringify({ privatePemText, publicPemText }, undefined, 2));
+    } else {
+        console.log(privatePemText);
+        console.log(publicPemText);
+    }
 }
 
 async function reply(_args: (string | number)[], options: Record<string, unknown>) {

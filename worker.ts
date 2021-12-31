@@ -1,5 +1,5 @@
-import { computeHttpSignatureHeaders, importKeyFromPem, rsaSign, rsaVerify, validateHttpSignature } from './crypto.ts';
-import { Bytes, DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
+import { computeHttpSignatureHeaders, importKeyFromPem, validateHttpSignature } from './crypto.ts';
+import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
 import { isReplyRequest } from './rpc.ts';
 export { StorageDO } from './storage_do.ts';
 
