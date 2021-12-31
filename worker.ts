@@ -1,4 +1,4 @@
-import { APPLICATION_JRD_JSON, APPLICATION_JSON_UTF8, APPLICATION_LD_JSON_PROFILE_ACTIVITYSTREAMS, TEXT_PLAIN_UTF8 } from './content_types.ts';
+import { APPLICATION_JRD_JSON, APPLICATION_JSON_UTF8, APPLICATION_ACTIVITY_JSON_UTF8, TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './content_types.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem, validateHttpSignature } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
 import { isReplyRequest } from './rpc.ts';
@@ -68,7 +68,7 @@ export default {
                         publicKeyPem: testUser1PublicKeyPem,
                     }
                 };
-                return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_LD_JSON_PROFILE_ACTIVITYSTREAMS } });
+                return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON_UTF8 } });
             }
 
             // webfinger endpoint
@@ -147,7 +147,7 @@ async function sendReply(opts: { origin: string, actorId: string, inReplyTo: str
     const url = inbox;
     const keyId = `${actorId}#main-key`;
     const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId });
-    const headers = new Headers({ date, signature, digest, 'content-type': APPLICATION_LD_JSON_PROFILE_ACTIVITYSTREAMS });
+    const headers = new Headers({ date, signature, digest, 'content-type': APPLICATION_ACTIVITY_JSON });
     console.log(`EXTERNAL FETCH ${method} ${url}`);
     console.log('headers:');
     console.log([...headers].map(v => v.join(': ')).join('\n'));
