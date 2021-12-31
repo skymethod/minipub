@@ -1,3 +1,4 @@
+import { APPLICATION_JRD_JSON, APPLICATION_JSON_UTF8, APPLICATION_LD_JSON_PROFILE_ACTIVITYSTREAMS, TEXT_PLAIN_UTF8 } from './content_types.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem, validateHttpSignature } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
 import { isReplyRequest } from './rpc.ts';
@@ -41,9 +42,9 @@ export default {
                         await sendReply({ inReplyTo, inbox, content, origin, actorId: testUser1Id, to, privateKey });
                         // TODO save to storage
                     }
-                    return new Response(JSON.stringify({ status: 'sent' }));
+                    return new Response(JSON.stringify({ status: 'sent' }), { headers: { 'content-type': APPLICATION_JSON_UTF8 } });
                 } catch (e) {
-                    return new Response(`${e}`, { status: 400 });
+                    return new Response(`${e}`, { status: 400, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
                 }
             }
             
@@ -67,7 +68,7 @@ export default {
                         publicKeyPem: testUser1PublicKeyPem,
                     }
                 };
-                return new Response(JSON.stringify(res, undefined, 2));
+                return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_LD_JSON_PROFILE_ACTIVITYSTREAMS } });
             }
 
             // webfinger endpoint
@@ -87,12 +88,12 @@ export default {
                             }
                         ]
                     }
-                    return new Response(JSON.stringify(res, undefined, 2));
+                    return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_JRD_JSON } });
                 }
             }
             await Promise.resolve();
         }
-        return new Response('not found', { status: 404 });
+        return new Response('not found', { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
     }
 
 }
@@ -146,7 +147,7 @@ async function sendReply(opts: { origin: string, actorId: string, inReplyTo: str
     const url = inbox;
     const keyId = `${actorId}#main-key`;
     const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId });
-    const headers = new Headers({ date, signature, digest });
+    const headers = new Headers({ date, signature, digest, 'content-type': APPLICATION_LD_JSON_PROFILE_ACTIVITYSTREAMS });
     console.log(`EXTERNAL FETCH ${method} ${url}`);
     console.log('headers:');
     console.log([...headers].map(v => v.join(': ')).join('\n'));

@@ -1,3 +1,4 @@
+import { APPLICATION_JSON_UTF8 } from './content_types.ts';
 import { computeHttpSignatureHeaders, exportKeyToPem, generateExportableRsaKeyPair, importKeyFromPem } from './crypto.ts';
 import { parseFlags } from './deps_cli.ts';
 import { ReplyRequest } from './rpc.ts';
@@ -62,7 +63,7 @@ async function reply(_args: (string | number)[], options: Record<string, unknown
     const url = `${origin}/rpc`;
     const keyId = 'admin';
     const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId })
-    const headers = new Headers({ date, signature, digest });
+    const headers = new Headers({ date, signature, digest, 'content-type': APPLICATION_JSON_UTF8 });
     console.log([...headers].map(v => v.join(': ')).join('\n'));
     console.log(stringToSign);
 
