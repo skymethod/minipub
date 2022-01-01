@@ -1,7 +1,7 @@
 import { APPLICATION_JSON_UTF8 } from './content_types.ts';
 import { computeHttpSignatureHeaders, exportKeyToPem, generateExportableRsaKeyPair, importKeyFromPem } from './crypto.ts';
 import { parseFlags } from './deps_cli.ts';
-import { ReplyRequest } from './rpc.ts';
+import { ReplyRequest, RpcRequest, UpdateProfileRequest } from './rpc.ts';
 
 const args = parseFlags(Deno.args);
 if (args._.length > 0) {
@@ -15,7 +15,7 @@ Deno.exit(1);
 
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { generate, reply }[command];
+    const fn = { generate, reply, updateProfile }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
@@ -38,18 +38,33 @@ async function generate(_args: (string | number)[], options: Record<string, unkn
     }
 }
 
+async function updateProfile(_args: (string | number)[], options: Record<string, unknown>) {
+    const { origin, inbox } = options;
+    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
+    if (typeof inbox !== 'string') throw new Error('Provide inbox, e.g. --inbox https://example.social/users/someone/inbox');
+    const dryRun = computeDryRun(options);
+
+    const privateKey = await readPrivateKey(options);
+
+    const req: UpdateProfileRequest = { 
+        kind: 'update-profile', 
+        inbox,
+        dryRun,
+    };
+    await sendRpc(req, origin, privateKey);
+}
+
 async function reply(_args: (string | number)[], options: Record<string, unknown>) {
-    const { pem, origin, inReplyTo, content, inbox, to } = options;
-    if (typeof pem !== 'string') throw new Error('Provide path to admin pem, e.g. --pem /path/to/admin.private.pem');
+    const { origin, inReplyTo, content, inbox, to } = options;
+    
     if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
     if (typeof inReplyTo !== 'string') throw new Error('Provide inReplyTo, e.g. --inReplyTo https://example.social/users/someone/statuses/123123123123123123');
     if (typeof content !== 'string') throw new Error('Provide content, e.g. --content "<p>Hello world</p>"');
     if (typeof inbox !== 'string') throw new Error('Provide inbox, e.g. --inbox https://example.social/users/someone/inbox');
     if (typeof to !== 'string') throw new Error('Provide to, e.g. --inbox https://example.social/users/someone');
+    const dryRun = computeDryRun(options);
 
-    const privatePemText = (await Deno.readTextFile(pem)).trim();
-    const privateKey = await importKeyFromPem(privatePemText, 'private');
-    console.log(privateKey);
+    const privateKey = await readPrivateKey(options);
 
     const req: ReplyRequest = { 
         kind: 'reply', 
@@ -57,8 +72,24 @@ async function reply(_args: (string | number)[], options: Record<string, unknown
         content,
         inbox,
         to,
+        dryRun,
     };
-    const body = JSON.stringify(req);
+    await sendRpc(req, origin, privateKey);
+}
+
+function computeDryRun(options: Record<string, unknown>) {
+    return Object.keys(options).includes('dryRun');
+}
+
+async function readPrivateKey(options: Record<string, unknown>) {
+    const { pem } = options;
+    if (typeof pem !== 'string') throw new Error('Provide path to admin pem, e.g. --pem /path/to/admin.private.pem');
+    const privatePemText = (await Deno.readTextFile(pem)).trim();
+    return await importKeyFromPem(privatePemText, 'private');
+}
+
+async function sendRpc(request: RpcRequest, origin: string, privateKey: CryptoKey) {
+    const body = JSON.stringify(request);
     const method = 'POST';
     const url = `${origin}/rpc`;
     const keyId = 'admin';

@@ -1,7 +1,7 @@
 import { APPLICATION_JRD_JSON, APPLICATION_JSON_UTF8, APPLICATION_ACTIVITY_JSON_UTF8, TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './content_types.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem, validateHttpSignature } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
-import { isReplyRequest } from './rpc.ts';
+import { isReplyRequest, isUpdateProfileRequest } from './rpc.ts';
 export { StorageDO } from './storage_do.ts';
 
 export default {
@@ -34,15 +34,26 @@ export default {
                     console.log(`admin request sent ${diffMillis} millis ago`);
                     const obj = JSON.parse(bodyText);
                     console.log(JSON.stringify(obj, undefined, 2));
+
                     if (isReplyRequest(obj)) {
                         // issue activity pub federation call
-                        const { inReplyTo, content, inbox, to } = obj;
+                        const { inReplyTo, content, inbox, to, dryRun } = obj;
                         const privateKey = await importKeyFromPem(testUser1PrivateKeyPem, 'private');
                         
-                        await sendReply({ inReplyTo, inbox, content, origin, actorId: testUser1Id, to, privateKey });
+                        await sendReply({ inReplyTo, inbox, content, origin, actorId: testUser1Id, to, privateKey, dryRun });
                         // TODO save to storage
+                        return new Response(JSON.stringify({ status: dryRun ? 'unsent' : 'sent' }), { headers: { 'content-type': APPLICATION_JSON_UTF8 } });
                     }
-                    return new Response(JSON.stringify({ status: 'sent' }), { headers: { 'content-type': APPLICATION_JSON_UTF8 } });
+                    if (isUpdateProfileRequest(obj)) {
+                        // issue activity pub federation call
+                        const { inbox, dryRun } = obj;
+                        const privateKey = await importKeyFromPem(testUser1PrivateKeyPem, 'private');
+                        
+                        const object = computeActorObject(testUser1Id, testUser1Name, testUser1PublicKeyPem);
+                        await sendUpdateProfile({ inbox, origin, actorId: testUser1Id, privateKey, object, dryRun });
+                        return new Response(JSON.stringify({ status: dryRun ? 'unsent' : 'sent' }), { headers: { 'content-type': APPLICATION_JSON_UTF8 } });
+                    }
+                    throw new Error(`Unknown rpc request: ${JSON.stringify(obj)}`);
                 } catch (e) {
                     return new Response(`${e}`, { status: 400, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
                 }
@@ -50,23 +61,12 @@ export default {
             
             // actor endpoint
             if (url.pathname === `/actors/${testUser1Slug}`) {
-                const id = testUser1Id;
                 const res = {
                     '@context': [
                         'https://www.w3.org/ns/activitystreams',
                         'https://w3id.org/security/v1',
                     ],
-                
-                    id,
-                    type: 'Person',
-                    preferredUsername: testUser1Name,
-                    inbox: `${id}/inbox`,
-                
-                    publicKey: {
-                        id: `${id}#main-key`,
-                        owner: id,
-                        publicKeyPem: testUser1PublicKeyPem,
-                    }
+                    ...computeActorObject(testUser1Id, testUser1Name, testUser1PublicKeyPem)
                 };
                 return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON_UTF8 } });
             }
@@ -98,6 +98,24 @@ export default {
 
 }
 
+function computeActorObject(actorId: string, preferredUsername: string, publicKeyPem: string) {
+    return {
+        id: actorId,
+        type: 'Person',
+        preferredUsername, // mastodon: Used for Webfinger lookup. Must be unique on the domain, and must correspond to a Webfinger acct: URI.
+        inbox: `${actorId}/inbox`,
+    
+        // mastodon: Required for signatures.
+        publicKey: { 
+            id: `${actorId}#main-key`,
+            owner: actorId,
+            publicKeyPem,
+        },
+
+        name: undefined, // mastodon: Used as profile display name.
+    }
+}
+
 //
 
 export interface WorkerEnv {
@@ -119,8 +137,8 @@ function newSlug(): string {
     return crypto.randomUUID().toLowerCase().replaceAll('-', '');
 }
 
-async function sendReply(opts: { origin: string, actorId: string, inReplyTo: string, content: string, to: string, inbox: string, privateKey: CryptoKey }) {
-    const { origin, actorId, inReplyTo, content, to, inbox, privateKey } = opts;
+async function sendReply(opts: { origin: string, actorId: string, inReplyTo: string, content: string, to: string, inbox: string, privateKey: CryptoKey, dryRun?: boolean }) {
+    const { origin, actorId, inReplyTo, content, to, inbox, privateKey, dryRun } = opts;
     const activityId = `${origin}/activities/${newSlug()}`;
     const objectId = `${origin}/objects/${newSlug()}`;
 
@@ -141,11 +159,33 @@ async function sendReply(opts: { origin: string, actorId: string, inReplyTo: str
             to,
         }
     };
-
-    const body = JSON.stringify(req, undefined, 2);
-    const method = 'POST';
     const url = inbox;
     const keyId = `${actorId}#main-key`;
+    await sendServerToServerActivityPub({ req, url, keyId, privateKey, dryRun });
+}
+
+async function sendUpdateProfile(opts: { origin: string, actorId: string, inbox: string, privateKey: CryptoKey, object: unknown, dryRun?: boolean }) {
+    const { origin, actorId, inbox, privateKey, object, dryRun } = opts;
+    const activityId = `${origin}/activities/${newSlug()}`;
+
+    const req = {
+        '@context': 'https://www.w3.org/ns/activitystreams',
+
+        id: activityId,
+        type: 'Update',
+        actor: actorId,
+
+        object,
+    };
+    const url = inbox;
+    const keyId = `${actorId}#main-key`;
+    await sendServerToServerActivityPub({ req, url, keyId, privateKey, dryRun });
+}
+
+async function sendServerToServerActivityPub(opts: { req: unknown, url: string, keyId: string, privateKey: CryptoKey, dryRun?: boolean }) {
+    const { req, url, keyId, privateKey, dryRun } = opts;
+    const body = JSON.stringify(req, undefined, 2);
+    const method = 'POST';
     const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId });
     const headers = new Headers({ date, signature, digest, 'content-type': APPLICATION_ACTIVITY_JSON });
     console.log(`EXTERNAL FETCH ${method} ${url}`);
@@ -155,7 +195,11 @@ async function sendReply(opts: { origin: string, actorId: string, inReplyTo: str
     console.log(stringToSign);
     console.log('body:');
     console.log(body);
-    const request = new Request(inbox, { method, headers, body });
+    if (dryRun) {
+        console.log('DRY RUN!');
+        return;
+    }
+    const request = new Request(url, { method, headers, body });
     const res = await fetch(request);
     console.log(res);
     console.log(await res.text());
