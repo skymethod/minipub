@@ -4,9 +4,9 @@ import { CreateUserRequest } from '../rpc_model.ts';
 import { isValidUuid } from '../uuid.ts';
 import { computeActor } from './actor_endpoint.ts';
 import { makeInMemoryStorage } from '../in_memory_storage.ts';
-import { APPLICATION_ACTIVITY_JSON } from '../content_types.ts';
+import { APPLICATION_ACTIVITY_JSON } from '../media_types.ts';
 
-Deno.test('endpoints', async () => {
+Deno.test('computeActor', async () => {
     const req: CreateUserRequest = {
         kind: 'create-user',
         username: 'alice',

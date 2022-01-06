@@ -1,7 +1,7 @@
 import { checkCreateUserRequest, checkUpdateUserRequest, RpcResponse, UpdateUserRequest, UpdateUserResponse } from '../rpc_model.ts';
-import { APPLICATION_JSON_UTF8 } from '../content_types.ts';
+import { APPLICATION_JSON_UTF8 } from '../media_types.ts';
 import { BackendStorage } from '../storage.ts';
-import { computeCreateUser } from "../rpc/create_user.ts";
+import { computeCreateUser } from '../rpc/create_user.ts';
 
 export const matchRpc = (method: string, pathname: string) => method === 'POST' && pathname === '/rpc';
 

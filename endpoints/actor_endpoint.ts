@@ -1,4 +1,4 @@
-import { APPLICATION_ACTIVITY_JSON } from '../content_types.ts';
+import { APPLICATION_ACTIVITY_JSON } from '../media_types.ts';
 import { BackendStorage, getRecord } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
 

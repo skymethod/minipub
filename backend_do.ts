@@ -1,6 +1,7 @@
 import { isStringRecord } from './check.ts';
 import { ColoFromTrace, DurableObjectState, DurableObjectStorage, DurableObjectStorageTransaction, DurableObjectStorageValue } from './deps.ts';
 import { computeActor, matchActor } from './endpoints/actor_endpoint.ts';
+import { computeBlob, matchBlob } from './endpoints/blob_endpoint.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { BackendStorage, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
@@ -29,6 +30,7 @@ export class BackendDO {
             const storage = Tx.makeStorage(state.storage);
             if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage);
             const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
+            const blob = matchBlob(method, pathname); if (blob) return await computeBlob(blob.actorUuid, blob.blobUuid, blob.ext, storage);
             throw new Error('Not implemented');
         } catch (e) {
             return new Response(`${e}`, { status: 500 });

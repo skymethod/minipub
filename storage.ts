@@ -19,6 +19,12 @@ export async function getRecord(tx: BackendStorageTransaction, domain: string, k
     throw new Error(`Bad stored value for ${domain} ${key}: expected record, found ${value}`);
 }
 
+export async function getUint8Array(tx: BackendStorageTransaction, domain: string, key: string): Promise<Uint8Array | undefined> {
+    const value = await tx.get(domain, key);
+    if (value === undefined || value instanceof Uint8Array) return value;
+    throw new Error(`Bad stored value for ${domain} ${key}: expected Uint8Array, found ${value}`);
+}
+
 export async function putIfNotExists(tx: BackendStorageTransaction, domain: string, key: string, value: BackendStorageValue): Promise<boolean> {
     const existing = await tx.get(domain, key);
     if (existing) return false;

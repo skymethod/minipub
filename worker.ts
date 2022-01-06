@@ -1,7 +1,8 @@
-import { TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './content_types.ts';
+import { TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './media_types.ts';
 import { computeHttpSignatureHeaders } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
 import { matchActor } from './endpoints/actor_endpoint.ts';
+import { matchBlob } from './endpoints/blob_endpoint.ts';
 import { matchRpc } from './endpoints/rpc_endpoint.ts';
 import { newUuid } from './uuid.ts';
 export { BackendDO } from './backend_do.ts';
@@ -34,6 +35,13 @@ export default {
                 doHeaders.set('do-name', backendName);
                 return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
             }
+
+            if (matchBlob(method, pathname)) {
+                const doHeaders = new Headers(headers);
+                doHeaders.set('do-name', backendName);
+                return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
+            }
+
 /*
             const testUser1Id = `${origin}/actors/${testUser1Slug}`;
 

@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 import { check, isNonEmpty, isValidUrl } from './check.ts';
+import { BlobReference } from './domain_model.ts';
 import { isValidUuid } from './uuid.ts';
 
 export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | ReplyRequest | SendActivityRequest;
@@ -109,6 +110,7 @@ export function checkCreateUserRequest(obj: any): obj is CreateUserRequest {
 export interface CreateUserResponse {
     readonly kind: 'create-user';
     readonly uuid: string;
+    readonly blobReferences: Record<string, BlobReference>;
 }
 
 // update-user
