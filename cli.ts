@@ -1,7 +1,7 @@
 import { APPLICATION_JSON_UTF8 } from './content_types.ts';
 import { computeHttpSignatureHeaders, exportKeyToPem, generateExportableRsaKeyPair, importKeyFromPem } from './crypto.ts';
 import { parseFlags } from './deps_cli.ts';
-import { ReplyRequest, RpcRequest, UpdateProfileRequest } from './rpc.ts';
+import { CreateUserRequest, RpcRequest } from './rpc_model.ts';
 
 const args = parseFlags(Deno.args);
 if (args._.length > 0) {
@@ -15,7 +15,7 @@ Deno.exit(1);
 
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { generate, reply, updateProfile }[command];
+    const fn = { generate, reply, updateProfile, createUser }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
@@ -38,6 +38,20 @@ async function generate(_args: (string | number)[], options: Record<string, unkn
     }
 }
 
+async function createUser(_args: (string | number)[], options: Record<string, unknown>) {
+    const { origin, username } = options;
+    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
+    if (typeof username !== 'string') throw new Error('Provide username, e.g. --username alice');
+
+    const privateKey = await readPrivateKey(options);
+
+    const req: CreateUserRequest = {
+        kind: 'create-user',
+        username,
+    };
+    await sendRpc(req, origin, privateKey);
+}
+
 async function updateProfile(_args: (string | number)[], options: Record<string, unknown>) {
     const { origin, inbox } = options;
     if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
@@ -46,12 +60,13 @@ async function updateProfile(_args: (string | number)[], options: Record<string,
 
     const privateKey = await readPrivateKey(options);
 
-    const req: UpdateProfileRequest = { 
-        kind: 'update-profile', 
-        inbox,
-        dryRun,
-    };
-    await sendRpc(req, origin, privateKey);
+    throw new Error('TODO');
+    // const req: UpdateProfileRequest = { 
+    //     kind: 'update-profile', 
+    //     inbox,
+    //     dryRun,
+    // };
+    // await sendRpc(req, origin, privateKey);
 }
 
 async function reply(_args: (string | number)[], options: Record<string, unknown>) {
@@ -62,19 +77,18 @@ async function reply(_args: (string | number)[], options: Record<string, unknown
     if (typeof content !== 'string') throw new Error('Provide content, e.g. --content "<p>Hello world</p>"');
     if (typeof inbox !== 'string') throw new Error('Provide inbox, e.g. --inbox https://example.social/users/someone/inbox');
     if (typeof to !== 'string') throw new Error('Provide to, e.g. --inbox https://example.social/users/someone');
-    const dryRun = computeDryRun(options);
 
     const privateKey = await readPrivateKey(options);
 
-    const req: ReplyRequest = { 
-        kind: 'reply', 
-        inReplyTo,
-        content,
-        inbox,
-        to,
-        dryRun,
-    };
-    await sendRpc(req, origin, privateKey);
+    throw new Error('TODO');
+    // const req: ReplyRequest = { 
+    //     kind: 'reply', 
+    //     inReplyTo,
+    //     content,
+    //     inbox,
+    //     to,
+    // };
+    // await sendRpc(req, origin, privateKey);
 }
 
 function computeDryRun(options: Record<string, unknown>) {

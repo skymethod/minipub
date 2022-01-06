@@ -25,12 +25,14 @@ export class BackendDO {
         const durableObjectName = headers.get('do-name');
         console.log('logprops:', { colo, durableObjectClass: 'BackendDO', durableObjectId: state.id.toString(), durableObjectName });
 
-        const storage = Tx.makeStorage(state.storage);
-        if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage);
-        const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
-        
-
-        throw new Error('Not implemented');
+        try {
+            const storage = Tx.makeStorage(state.storage);
+            if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage);
+            const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
+            throw new Error('Not implemented');
+        } catch (e) {
+            return new Response(`${e}`, { status: 500 });
+        }
     }
     
 }
