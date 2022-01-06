@@ -1,7 +1,8 @@
 import { TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './content_types.ts';
 import { computeHttpSignatureHeaders } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
-import { matchRpc } from './rpc_endpoint.ts';
+import { matchActor } from './endpoints/actor_endpoint.ts';
+import { matchRpc } from './endpoints/rpc_endpoint.ts';
 import { newUuid } from './uuid.ts';
 export { BackendDO } from './backend_do.ts';
 
@@ -23,6 +24,12 @@ export default {
             console.log('whitelisted', whitelisted);
 
             if (matchRpc(method, pathname) && whitelisted) {
+                const doHeaders = new Headers(headers);
+                doHeaders.set('do-name', backendName);
+                return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
+            }
+
+            if (matchActor(method, pathname)) {
                 const doHeaders = new Headers(headers);
                 doHeaders.set('do-name', backendName);
                 return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
@@ -65,18 +72,6 @@ export default {
                 } catch (e) {
                     return new Response(`${e}`, { status: 400, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
                 }
-            }
-            
-            // actor endpoint
-            if (url.pathname === `/actors/${testUser1Slug}`) {
-                const res = {
-                    '@context': [
-                        'https://www.w3.org/ns/activitystreams',
-                        'https://w3id.org/security/v1',
-                    ],
-                    ...computeActorObject(testUser1Id, testUser1Name, testUser1PublicKeyPem)
-                };
-                return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON_UTF8 } });
             }
 
             // webfinger endpoint

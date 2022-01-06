@@ -1,9 +1,9 @@
-import { checkCreateUserRequest, checkUpdateUserRequest, CreateUserRequest, CreateUserResponse, LangString, RpcResponse, UpdateUserRequest, UpdateUserResponse } from './rpc_model.ts';
-import { APPLICATION_JSON_UTF8 } from './content_types.ts';
-import { BackendStorage, putIfNotExists } from './storage.ts';
-import { newUuid } from './uuid.ts';
-import { exportKeyToPem, generateExportableRsaKeyPair } from './crypto.ts';
-import { Bytes } from './deps.ts';
+import { checkCreateUserRequest, checkUpdateUserRequest, CreateUserRequest, CreateUserResponse, LangString, RpcResponse, UpdateUserRequest, UpdateUserResponse } from '../rpc_model.ts';
+import { APPLICATION_JSON_UTF8 } from '../content_types.ts';
+import { BackendStorage, putIfNotExists } from '../storage.ts';
+import { newUuid } from '../uuid.ts';
+import { exportKeyToPem, generateExportableRsaKeyPair } from '../crypto.ts';
+import { Bytes } from '../deps.ts';
 
 export const matchRpc = (method: string, pathname: string) => method === 'POST' && pathname === '/rpc';
 
