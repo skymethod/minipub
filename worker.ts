@@ -1,25 +1,33 @@
-import { APPLICATION_JRD_JSON, APPLICATION_JSON_UTF8, APPLICATION_ACTIVITY_JSON_UTF8, TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './content_types.ts';
-import { computeHttpSignatureHeaders, importKeyFromPem, validateHttpSignature } from './crypto.ts';
+import { TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './content_types.ts';
+import { computeHttpSignatureHeaders } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
-import { isReplyRequest, isUpdateProfileRequest } from './rpc.ts';
-export { StorageDO } from './storage_do.ts';
+import { matchRpc } from './rpc_endpoint.ts';
+import { newUuid } from './uuid.ts';
+export { BackendDO } from './backend_do.ts';
 
 export default {
 
     async fetch(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
-        const { method } = request;
-        console.log(`${method} ${request.url}`);
-        const url = new URL(request.url);
-        const signature = request.headers.get('signature');
+        const { url, method, headers } = request;
+        console.log(`${method} ${url}`);
+        const { pathname } = new URL(url);
+        const signature = headers.get('signature');
         if (signature) console.log(`signature: ${signature}`);
         const bodyText = request.body ? await request.text() : undefined;
         if (bodyText) {
             console.log(bodyText);
         }
-        const { origin, testUser1Slug, testUser1Name, testUser1PublicKeyPem, testUser1PrivateKeyPem, adminIp, adminPublicKeyPem } = env;
-        if (origin && testUser1Slug && testUser1Name && testUser1PublicKeyPem && testUser1PrivateKeyPem && adminIp && adminPublicKeyPem) {
-            const whitelisted = ((request.headers.get('cf-connecting-ip') || '') + ',').startsWith(`${adminIp},`);
+        const { origin, adminIp, adminPublicKeyPem, backendNamespace, backendName } = env;
+        if (origin && adminIp && adminPublicKeyPem && backendNamespace && backendName) {
+            const whitelisted = ((headers.get('cf-connecting-ip') || '') + ',').startsWith(`${adminIp},`);
             console.log('whitelisted', whitelisted);
+
+            if (matchRpc(method, pathname) && whitelisted) {
+                const doHeaders = new Headers(headers);
+                doHeaders.set('do-name', backendName);
+                return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
+            }
+/*
             const testUser1Id = `${origin}/actors/${testUser1Slug}`;
 
             // rpc endpoint
@@ -91,29 +99,11 @@ export default {
                     return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_JRD_JSON } });
                 }
             }
-            await Promise.resolve();
+            */
         }
         return new Response('not found', { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
     }
 
-}
-
-function computeActorObject(actorId: string, preferredUsername: string, publicKeyPem: string) {
-    return {
-        id: actorId,
-        type: 'Person',
-        preferredUsername, // mastodon: Used for Webfinger lookup. Must be unique on the domain, and must correspond to a Webfinger acct: URI.
-        inbox: `${actorId}/inbox`,
-    
-        // mastodon: Required for signatures.
-        publicKey: { 
-            id: `${actorId}#main-key`,
-            owner: actorId,
-            publicKeyPem,
-        },
-
-        name: undefined, // mastodon: Used as profile display name.
-    }
 }
 
 //
@@ -122,25 +112,18 @@ export interface WorkerEnv {
     readonly version?: string;
     readonly pushId?: string;
     readonly origin?: string;
-    readonly storageNamespace?: DurableObjectNamespace;
-    readonly testUser1Name?: string;
-    readonly testUser1Slug?: string;
-    readonly testUser1PublicKeyPem?: string;
-    readonly testUser1PrivateKeyPem?: string;
+    readonly backendNamespace?: DurableObjectNamespace;
+    readonly backendName?: string;
     readonly adminIp?: string;
     readonly adminPublicKeyPem?: string;
 }
 
 //
 
-function newSlug(): string {
-    return crypto.randomUUID().toLowerCase().replaceAll('-', '');
-}
-
 async function sendReply(opts: { origin: string, actorId: string, inReplyTo: string, content: string, to: string, inbox: string, privateKey: CryptoKey, dryRun?: boolean }) {
     const { origin, actorId, inReplyTo, content, to, inbox, privateKey, dryRun } = opts;
-    const activityId = `${origin}/activities/${newSlug()}`;
-    const objectId = `${origin}/objects/${newSlug()}`;
+    const activityId = `${origin}/activities/${newUuid()}`;
+    const objectId = `${origin}/objects/${newUuid()}`;
 
     const req = {
         '@context': 'https://www.w3.org/ns/activitystreams',
@@ -166,7 +149,7 @@ async function sendReply(opts: { origin: string, actorId: string, inReplyTo: str
 
 async function sendUpdateProfile(opts: { origin: string, actorId: string, inbox: string, privateKey: CryptoKey, object: unknown, dryRun?: boolean }) {
     const { origin, actorId, inbox, privateKey, object, dryRun } = opts;
-    const activityId = `${origin}/activities/${newSlug()}`;
+    const activityId = `${origin}/activities/${newUuid()}`;
 
     const req = {
         '@context': 'https://www.w3.org/ns/activitystreams',
