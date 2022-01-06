@@ -1,110 +1,64 @@
 import { TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './media_types.ts';
-import { computeHttpSignatureHeaders } from './crypto.ts';
+import { computeHttpSignatureHeaders, importKeyFromPem, validateHttpSignature } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
 import { matchActor } from './endpoints/actor_endpoint.ts';
 import { matchBlob } from './endpoints/blob_endpoint.ts';
 import { matchRpc } from './endpoints/rpc_endpoint.ts';
 import { newUuid } from './uuid.ts';
+import { matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 export { BackendDO } from './backend_do.ts';
 
 export default {
 
     async fetch(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
         const { url, method, headers } = request;
-        console.log(`${method} ${url}`);
-        const { pathname } = new URL(url);
+        const urlObj = new URL(url);
+        const { pathname, searchParams } = urlObj;
         const signature = headers.get('signature');
         if (signature) console.log(`signature: ${signature}`);
-        const bodyText = request.body ? await request.text() : undefined;
-        if (bodyText) {
-            console.log(bodyText);
-        }
-        const { origin, adminIp, adminPublicKeyPem, backendNamespace, backendName } = env;
-        if (origin && adminIp && adminPublicKeyPem && backendNamespace && backendName) {
-            const whitelisted = ((headers.get('cf-connecting-ip') || '') + ',').startsWith(`${adminIp},`);
-            console.log('whitelisted', whitelisted);
-
-            if (matchRpc(method, pathname) && whitelisted) {
-                const doHeaders = new Headers(headers);
-                doHeaders.set('do-name', backendName);
-                return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
+        try {
+            const bodyText = request.body ? await request.text() : undefined;
+            if (bodyText) {
+                console.log(bodyText);
             }
+            const { origin, adminIp, adminPublicKeyPem, backendNamespace, backendName } = env;
+            if (origin && adminIp && adminPublicKeyPem && backendNamespace && backendName) {
+                const whitelisted = ((headers.get('cf-connecting-ip') || '') + ',').startsWith(`${adminIp},`);
+                console.log('whitelisted', whitelisted);
+                let canonicalUrl = url;
+                if (urlObj.origin !== origin) {
+                    canonicalUrl = url.replace(urlObj.origin, origin);
+                    console.log('canonicalUrl', canonicalUrl);
+                }
 
-            if (matchActor(method, pathname)) {
-                const doHeaders = new Headers(headers);
-                doHeaders.set('do-name', backendName);
-                return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
-            }
-
-            if (matchBlob(method, pathname)) {
-                const doHeaders = new Headers(headers);
-                doHeaders.set('do-name', backendName);
-                return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(url, { method, headers: doHeaders, body: bodyText });
-            }
-
-/*
-            const testUser1Id = `${origin}/actors/${testUser1Slug}`;
-
-            // rpc endpoint
-            if (url.pathname === '/rpc' && whitelisted && request.method === 'POST' && bodyText) {
-                const adminPublicKey = await importKeyFromPem(adminPublicKeyPem, 'public');
-                const publicKeyProvider = (keyId: string) => {
-                    if (keyId !== 'admin') throw new Error(`Unsupported keyId: ${keyId}`);
-                    return adminPublicKey;
-                };
-                try {
+                const isRpc = whitelisted && bodyText && matchRpc(method, pathname);
+                if (isRpc) {
+                    // auth is required (admin)
+                    // check http signature
+                    const adminPublicKey = await importKeyFromPem(adminPublicKeyPem, 'public');
+                    const publicKeyProvider = (keyId: string) => {
+                        if (keyId !== 'admin') throw new Error(`Unsupported keyId: ${keyId}`);
+                        return adminPublicKey;
+                    };
                     const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider });
                     console.log(`admin request sent ${diffMillis} millis ago`);
-                    const obj = JSON.parse(bodyText);
-                    console.log(JSON.stringify(obj, undefined, 2));
+                }
+                const routeToDurableObject = isRpc
+                    || matchActor(method, pathname)
+                    || matchBlob(method, pathname)
+                    || matchWebfinger(method, pathname, searchParams)
+                    ;
 
-                    if (isReplyRequest(obj)) {
-                        // issue activity pub federation call
-                        const { inReplyTo, content, inbox, to, dryRun } = obj;
-                        const privateKey = await importKeyFromPem(testUser1PrivateKeyPem, 'private');
-                        
-                        await sendReply({ inReplyTo, inbox, content, origin, actorId: testUser1Id, to, privateKey, dryRun });
-                        // TODO save to storage
-                        return new Response(JSON.stringify({ status: dryRun ? 'unsent' : 'sent' }), { headers: { 'content-type': APPLICATION_JSON_UTF8 } });
-                    }
-                    if (isUpdateProfileRequest(obj)) {
-                        // issue activity pub federation call
-                        const { inbox, dryRun } = obj;
-                        const privateKey = await importKeyFromPem(testUser1PrivateKeyPem, 'private');
-                        
-                        const object = computeActorObject(testUser1Id, testUser1Name, testUser1PublicKeyPem);
-                        await sendUpdateProfile({ inbox, origin, actorId: testUser1Id, privateKey, object, dryRun });
-                        return new Response(JSON.stringify({ status: dryRun ? 'unsent' : 'sent' }), { headers: { 'content-type': APPLICATION_JSON_UTF8 } });
-                    }
-                    throw new Error(`Unknown rpc request: ${JSON.stringify(obj)}`);
-                } catch (e) {
-                    return new Response(`${e}`, { status: 400, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
+                if (routeToDurableObject) {
+                    const doHeaders = new Headers(headers);
+                    doHeaders.set('do-name', backendName);
+                    return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(canonicalUrl, { method, headers: doHeaders, body: bodyText });
                 }
             }
-
-            // webfinger endpoint
-            if (url.pathname === '/.well-known/webfinger') {
-                // /.well-known/webfinger?resource=acct:bob@my-example.com
-                const resource = url.searchParams.get('resource');
-                const testUser1Account = `acct:${testUser1Name}@${new URL(origin).hostname}`;
-                console.log(resource, testUser1Account);
-                if (resource === testUser1Account) {
-                    const res = {
-                        subject: testUser1Account,
-                        links: [
-                            {
-                                rel: 'self',
-                                type: 'application/activity+json',
-                                href: testUser1Id,
-                            }
-                        ]
-                    }
-                    return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_JRD_JSON } });
-                }
-            }
-            */
+            return new Response('not found', { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
+        } catch (e) {
+            return new Response(`${e}`, { status: 500, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
         }
-        return new Response('not found', { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
     }
 
 }

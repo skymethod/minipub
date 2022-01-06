@@ -9,7 +9,7 @@ export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserRe
 
 // validation
 
-function isValidUsername(username: string) {
+export function isValidUsername(username: string) {
     return /^[a-z0-9]{4,15}$/.test(username);
 }
 

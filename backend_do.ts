@@ -3,6 +3,7 @@ import { ColoFromTrace, DurableObjectState, DurableObjectStorage, DurableObjectS
 import { computeActor, matchActor } from './endpoints/actor_endpoint.ts';
 import { computeBlob, matchBlob } from './endpoints/blob_endpoint.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
+import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { BackendStorage, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
 export class BackendDO {
@@ -21,16 +22,17 @@ export class BackendDO {
 
     async fetch(request: Request): Promise<Response> {
         const { method, url, headers } = request;
-        const { pathname, origin } = new URL(url);
+        const { pathname, origin, searchParams } = new URL(url);
         const { colo, state } = this;
         const durableObjectName = headers.get('do-name');
         console.log('logprops:', { colo, durableObjectClass: 'BackendDO', durableObjectId: state.id.toString(), durableObjectName });
 
         try {
             const storage = Tx.makeStorage(state.storage);
-            if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage);
+            if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage); // assumes auth happened earlier
             const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
             const blob = matchBlob(method, pathname); if (blob) return await computeBlob(blob.actorUuid, blob.blobUuid, blob.ext, storage);
+            const webfinger = matchWebfinger(method, pathname, searchParams); if (webfinger) return await computeWebfinger(webfinger.username, webfinger.domain, origin, storage);
             throw new Error('Not implemented');
         } catch (e) {
             return new Response(`${e}`, { status: 500 });
