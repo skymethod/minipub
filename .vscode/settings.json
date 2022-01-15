@@ -4,5 +4,13 @@
     "deno.unstable": true,
     "deno.suggest.imports.hosts": {
         "https://deno.land": false
-    }
+    },
+
+    // change default for json in this project
+    "[json]": {
+        "editor.tabSize": 2
+    },
+
+    // This one forces the tab to be **space**
+    "editor.insertSpaces": true
 }

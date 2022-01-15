@@ -1,0 +1,92 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1",
+    {
+      "manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
+      "toot": "http://joinmastodon.org/ns#",
+      "featured": {
+        "@id": "toot:featured",
+        "@type": "@id"
+      },
+      "featuredTags": {
+        "@id": "toot:featuredTags",
+        "@type": "@id"
+      },
+      "alsoKnownAs": {
+        "@id": "as:alsoKnownAs",
+        "@type": "@id"
+      },
+      "movedTo": {
+        "@id": "as:movedTo",
+        "@type": "@id"
+      },
+      "schema": "http://schema.org#",
+      "PropertyValue": "schema:PropertyValue",
+      "value": "schema:value",
+      "discoverable": "toot:discoverable",
+      "Device": "toot:Device",
+      "Ed25519Signature": "toot:Ed25519Signature",
+      "Ed25519Key": "toot:Ed25519Key",
+      "Curve25519Key": "toot:Curve25519Key",
+      "EncryptedMessage": "toot:EncryptedMessage",
+      "publicKeyBase64": "toot:publicKeyBase64",
+      "deviceId": "toot:deviceId",
+      "claim": {
+        "@type": "@id",
+        "@id": "toot:claim"
+      },
+      "fingerprintKey": {
+        "@type": "@id",
+        "@id": "toot:fingerprintKey"
+      },
+      "identityKey": {
+        "@type": "@id",
+        "@id": "toot:identityKey"
+      },
+      "devices": {
+        "@type": "@id",
+        "@id": "toot:devices"
+      },
+      "messageFranking": "toot:messageFranking",
+      "messageType": "toot:messageType",
+      "cipherText": "toot:cipherText",
+      "suspended": "toot:suspended",
+      "focalPoint": {
+        "@container": "@list",
+        "@id": "toot:focalPoint"
+      }
+    }
+  ],
+  "id": "https://example.social/users/alice",
+  "type": "Person",
+  "following": "https://example.social/users/alice/following",
+  "followers": "https://example.social/users/alice/followers",
+  "inbox": "https://example.social/users/alice/inbox",
+  "outbox": "https://example.social/users/alice/outbox",
+  "featured": "https://example.social/users/alice/collections/featured",
+  "featuredTags": "https://example.social/users/alice/collections/tags",
+  "preferredUsername": "alice",
+  "name": "Alice Doe",
+  "summary": "<p>This is a summary</p>",
+  "url": "https://example.social/@alice",
+  "manuallyApprovesFollowers": false,
+  "discoverable": false,
+  "published": "2020-09-14T00:00:00Z",
+  "devices": "https://example.social/users/alice/collections/devices",
+  "publicKey": {
+    "id": "https://example.social/users/alice#main-key",
+    "owner": "https://example.social/users/alice",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyif/epQQt9qiGtNmL7qK\nN6lR4JiLpM49QOX3yEvPcyuN87oQamV4VL5HkxJooDkR1brJ5lMcDTgn7mEXPBUl\nviN2g/pS5iUWH9vL4fCVHViJ4hY8+7E7/H7s/avc+2AEei4md5z+hx7CBVoQtkFr\n4i6PvsMdOdhnaviTIuBL8a73UkHIlAHENCp9UYQmjZgyFZzSKoINxXTql432Ts1H\nfInfVHUPa7ktqjQvyX2rhlwkz5usMEV3bcxuXWtCmTpkaPG+bN79Fi+l2Q2oRjGy\ncHsweGXVQJB7tBmbx4Qm24hn5RJblbs2iRu2K5WNitdOxQPrTpZ8+A99ozD/lhaH\n/QIDAQAB\n-----END PUBLIC KEY-----"
+  },
+  "tag": [],
+  "attachment": [],
+  "endpoints": {
+    "sharedInbox": "https://example.social/inbox"
+  },
+  "icon": {
+    "type": "Image",
+    "mediaType": "image/jpeg",
+    "url": "https://cdn.example.social/50c248aa-f56b-4b4d-b7e7-47e984ad28da.jpg"
+  }
+}

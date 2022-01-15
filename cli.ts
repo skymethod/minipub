@@ -3,6 +3,7 @@ import { computeHttpSignatureHeaders, exportKeyToPem, generateExportableRsaKeyPa
 import { parseFlags, extname } from './deps_cli.ts';
 import { CreateUserRequest, Icon, RpcRequest } from './rpc_model.ts';
 import { Bytes } from './deps.ts';
+import { activityPub } from './cli_activity_pub.ts';
 
 const args = parseFlags(Deno.args);
 if (args._.length > 0) {
@@ -16,7 +17,7 @@ Deno.exit(1);
 
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { generate, reply, updateProfile, createUser }[command];
+    const fn = { generate, reply, updateProfile, createUser, activityPub, ap: activityPub }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
@@ -25,7 +26,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
 }
 
 async function generate(_args: (string | number)[], options: Record<string, unknown>) {
-    const json = Object.keys(options).includes('json');
+    const json = !!options.json;
 
     const key = await generateExportableRsaKeyPair();
     

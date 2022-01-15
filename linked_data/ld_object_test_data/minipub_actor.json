@@ -1,0 +1,23 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1"
+  ],
+  "id": "https://example.social/actors/a4f59a23eea6452599724e64aaf0e1ee",
+  "type": "Person",
+  "preferredUsername": "alice",
+  "inbox": "https://example.social/actors/a4f59a23eea6452599724e64aaf0e1ee/inbox",
+  "publicKey": {
+    "id": "https://example.social/actors/a4f59a23eea6452599724e64aaf0e1ee#main-key",
+    "owner": "https://example.social/actors/a4f59a23eea6452599724e64aaf0e1ee",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyif/epQQt9qiGtNmL7qK\nN6lR4JiLpM49QOX3yEvPcyuN87oQamV4VL5HkxJooDkR1brJ5lMcDTgn7mEXPBUl\nviN2g/pS5iUWH9vL4fCVHViJ4hY8+7E7/H7s/avc+2AEei4md5z+hx7CBVoQtkFr\n4i6PvsMdOdhnaviTIuBL8a73UkHIlAHENCp9UYQmjZgyFZzSKoINxXTql432Ts1H\nfInfVHUPa7ktqjQvyX2rhlwkz5usMEV3bcxuXWtCmTpkaPG+bN79Fi+l2Q2oRjGy\ncHsweGXVQJB7tBmbx4Qm24hn5RJblbs2iRu2K5WNitdOxQPrTpZ8+A99ozD/lhaH\n/QIDAQAB\n-----END PUBLIC KEY-----"
+  },
+  "icon": {
+    "type": "Image",
+    "url": "https://example.social/actors/a4f59a23eea6452599724e64aaf0e1ee/blobs/434bc090541440b2b24da9a03e1b7dbd.jpg",
+    "width": 150,
+    "height": 150,
+    "mediaType": "image/jpeg"
+  },
+  "published": "2022-01-06T19:30:46.408Z"
+}
