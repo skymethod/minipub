@@ -18,11 +18,13 @@ Deno.test('ApObject', () => {
     // round trips
     const obj1 = { type: 'Person' };
     for (const obj of [ obj1, minipubActor, mastodonActor ]) {
-        const ldo = ApObject.parseObj(obj);
-        assertEquals(ldo.toObj(), obj);
+        const apo = ApObject.parseObj(obj);
+        assertEquals(apo.toObj(), obj);
     }
 
     // type resolution
     assertStrictEquals(ApObject.parseObj({ type: 'Person' }).type.toString(), 'https://www.w3.org/ns/activitystreams#Person');
 
+    // get by expanded property
+    // assert(ApObject.parseObj(mastodonActor).get('http://joinmastodon.org/ns#featured') instanceof Iri);
 });

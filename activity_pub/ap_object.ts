@@ -24,8 +24,21 @@ export class ApObject {
 
     static parseObj(obj: any): ApObject {
         if (!isStringRecord(obj)) throw new Error(`Bad obj: expected object, found ${JSON.stringify(obj)}`);
-        if (typeof obj.type !== 'string') throw new Error(`ActivityPub objects must have a 'type' property`);
+
         const context = ApContext.parse(obj['@context']);
+
+        for (const [ name, _value ] of Object.entries(obj)) {
+            if (name === '@context') {
+                // parsed above
+            } else if (name.startsWith('@')) {
+                throw new Error(`Unimplemented property ${name}`);
+            } else {
+                context.resolve(name);
+            }
+        }
+
+        if (typeof obj.type !== 'string') throw new Error(`ActivityPub objects must have a 'type' property`);
+        
         const type = context.resolveIri(obj.type);
         return new ApObject(type, context, obj);
     }
