@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { Iri } from './iri.ts';
 import { ApContext } from './ap_context.ts';
+import { isStringRecord } from '../check.ts';
 
 // https://www.w3.org/TR/activitypub/#obj
 
@@ -22,7 +23,7 @@ export class ApObject {
     }
 
     static parseObj(obj: any): ApObject {
-        if (typeof obj !== 'object' || Array.isArray(obj) || obj === null || obj.constructor !== Object) throw new Error(`Bad obj: expected object, found ${JSON.stringify(obj)}`);
+        if (!isStringRecord(obj)) throw new Error(`Bad obj: expected object, found ${JSON.stringify(obj)}`);
         if (typeof obj.type !== 'string') throw new Error(`ActivityPub objects must have a 'type' property`);
         const context = ApContext.parse(obj['@context']);
         const type = context.resolveIri(obj.type);

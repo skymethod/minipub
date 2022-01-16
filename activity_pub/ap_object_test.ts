@@ -1,6 +1,7 @@
 import { assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
+import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
 
 Deno.test('ApObject', () => {
 
@@ -16,7 +17,7 @@ Deno.test('ApObject', () => {
 
     // round trips
     const obj1 = { type: 'Person' };
-    for (const obj of [ obj1, minipubActor ]) {
+    for (const obj of [ obj1, minipubActor, mastodonActor ]) {
         const ldo = ApObject.parseObj(obj);
         assertEquals(ldo.toObj(), obj);
     }

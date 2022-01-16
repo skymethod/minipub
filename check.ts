@@ -25,7 +25,7 @@ export function isValidUrl(url: string) {
 
 // deno-lint-ignore no-explicit-any
 export function isStringRecord(obj: any): obj is Record<string, unknown> {
-    return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
 export function isValidSha256(sha256: string) {

@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { Iri } from './iri.ts';
 import activityStreams from './activitystreams.json' assert { type: 'json' };
+import { isStringRecord } from '../check.ts';
 
 export class ApContext {
 
@@ -29,8 +30,10 @@ export class ApContext {
                 for (const item of context) {
                     if (typeof item === 'string') {
                         contexts.push(item);
+                    } else if (isStringRecord(item)) {
+                        contexts.push(item);
                     } else {
-                        throw new Error(`Unimplemented item: ${item}`);
+                        throw new Error(`Unimplemented item: ${JSON.stringify(item)}`);
                     }
                 }
             } else {
