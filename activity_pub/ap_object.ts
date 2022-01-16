@@ -2,49 +2,18 @@
 import { Iri } from './iri.ts';
 import { ApContext } from './ap_context.ts';
 import { isStringRecord } from '../check.ts';
+import { ApObjectValue, checkProperties } from './ap_object_value.ts';
 
 // https://www.w3.org/TR/activitypub/#obj
 
-export class ApObject {
+// top-level activity-pub object, usually parsed from a JSON document with media type: application/activity+json
+export class ApObject extends ApObjectValue {
 
     readonly type: Iri;
 
-    private readonly context: ApContext;
-    private readonly record: Record<string, unknown>;
-
     private constructor(type: Iri, context: ApContext, record: Record<string, unknown>) {
+        super(context, record);
         this.type = type;
-        this.context = context;
-        this.record = record;
-    }
-
-    get(property: string): Iri | string {
-        const expanded = this.context.resolve(property).target;
-        for (const [ name, value ] of Object.entries(this.record)) {
-            if (name !== '@context') {
-                const resolution = this.context.resolve(name);
-                if (resolution) {
-                    if (resolution.target.toString() === expanded.toString()) {
-                        if (resolution.type === '@id') {
-                            if (typeof value === 'string') {
-                                return this.context.resolveIri(value);
-                            } else {
-                                throw new Error(`get: Unimplemented iri value ${JSON.stringify(value)}`);
-                            }
-                        } else if (resolution.type === 'xsd:dateTime') {
-                            if (typeof value === 'string') {
-                                return value;
-                            } else {
-                                throw new Error(`get: Unimplemented date value ${JSON.stringify(value)}`);
-                            }
-                        } else {
-                            throw new Error(`get: Unimplemented resolution ${JSON.stringify(resolution)}`);
-                        }
-                    }
-                }
-            }
-        }
-        throw new Error(`Property not found: ${property}`);
     }
 
     static parseJson(json: string): ApObject {
@@ -56,15 +25,7 @@ export class ApObject {
 
         const context = ApContext.parse(obj['@context']);
 
-        for (const name of Object.keys(obj)) {
-            if (name === '@context') {
-                // parsed above
-            } else if (name.startsWith('@')) {
-                throw new Error(`Unimplemented property ${name}`);
-            } else {
-                context.resolve(name);
-            }
-        }
+        checkProperties(obj, context);
 
         if (typeof obj.type !== 'string') throw new Error(`ActivityPub objects must have a 'type' property`);
         

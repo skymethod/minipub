@@ -1,8 +1,9 @@
-import { assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
+import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
 import { Iri } from './iri.ts';
+import { ApObjectValue } from './ap_object_value.ts';
 
 Deno.test('ApObject', () => {
 
@@ -33,8 +34,19 @@ Deno.test('ApObject', () => {
     // get iri value by compact property name
     assertStrictEquals(ApObject.parseObj(mastodonActor).get('featured').toString(), new Iri('https://example.social/users/alice/collections/featured').toString());
     // get date value
-    assertStrictEquals(ApObject.parseObj(mastodonActor).get('published').toString(), '2020-09-14T00:00:00Z');
+    assertStrictEquals(ApObject.parseObj(mastodonActor).get('published'), '2020-09-14T00:00:00Z');
     // get type by property name
     assertStrictEquals(ApObject.parseObj({ type: 'Person' }).get('type').toString(), 'https://www.w3.org/ns/activitystreams#Person');
+    // get string value
+    assertStrictEquals(ApObject.parseObj(mastodonActor).get('name'), 'Alice Doe');
+    // get boolean value
+    assertStrictEquals(ApObject.parseObj(mastodonActor).get('discoverable'), false);
 
+    // get subobject
+    assert(ApObject.parseObj(mastodonActor).get('endpoints') instanceof ApObjectValue);
+    assert(!(ApObject.parseObj(mastodonActor).get('endpoints') instanceof ApObject));
+
+    // get subobject value
+    assert(ApObject.parseObj(mastodonActor).get('endpoints') instanceof ApObjectValue);
+    assert((ApObject.parseObj(mastodonActor).get('endpoints') as ApObjectValue).get('as:sharedInbox').toString(), 'https://example.social/inbox');
 });
