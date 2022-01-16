@@ -18,6 +18,35 @@ export class ApObject {
         this.record = record;
     }
 
+    get(property: string): Iri | string {
+        const expanded = this.context.resolve(property).target;
+        for (const [ name, value ] of Object.entries(this.record)) {
+            if (name !== '@context') {
+                const resolution = this.context.resolve(name);
+                if (resolution) {
+                    if (resolution.target.toString() === expanded.toString()) {
+                        if (resolution.type === '@id') {
+                            if (typeof value === 'string') {
+                                return this.context.resolveIri(value);
+                            } else {
+                                throw new Error(`get: Unimplemented iri value ${JSON.stringify(value)}`);
+                            }
+                        } else if (resolution.type === 'xsd:dateTime') {
+                            if (typeof value === 'string') {
+                                return value;
+                            } else {
+                                throw new Error(`get: Unimplemented date value ${JSON.stringify(value)}`);
+                            }
+                        } else {
+                            throw new Error(`get: Unimplemented resolution ${JSON.stringify(resolution)}`);
+                        }
+                    }
+                }
+            }
+        }
+        throw new Error(`Property not found: ${property}`);
+    }
+
     static parseJson(json: string): ApObject {
         return JSON.parse(json);
     }
@@ -27,7 +56,7 @@ export class ApObject {
 
         const context = ApContext.parse(obj['@context']);
 
-        for (const [ name, _value ] of Object.entries(obj)) {
+        for (const name of Object.keys(obj)) {
             if (name === '@context') {
                 // parsed above
             } else if (name.startsWith('@')) {

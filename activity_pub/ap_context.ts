@@ -19,24 +19,27 @@ export class ApContext {
     resolveIri(value: string): Iri  {
         const contexts = computeContexts(this.context);
         const rt = resolve(value, contexts);
-        if (!(rt instanceof Iri)) throw new Error(`Bad value: ${value}, expected iri`);
-        return rt;
+        if (!(rt.target instanceof Iri)) throw new Error(`Bad value: ${value}, expected iri, found: ${rt.target}`);
+        return rt.target;
     }
 
-    resolve(value: string): IriOrKeyword {
+    resolve(value: string): Resolution {
         const contexts = computeContexts(this.context);
         return resolve(value, contexts);
     }
 
 }
 
+export interface Resolution {
+    readonly target: Iri | '@type' | '@id';
+    readonly type?: string;
+}
+
 //
 
-type IriOrKeyword = Iri | '@type' | '@id';
-
-function resolve(value: string, contexts: any[]): IriOrKeyword {
+function resolve(value: string, contexts: any[]): Resolution {
     // https://json-ld.org/spec/FCGS/json-ld-api/20180607/#algorithm-1
-    if (value === '@id' || value === '@type') return value;
+    if (value === '@id' || value === '@type') return { target: value, type: '@id' };
 
     const knownContexts = new Map<string, any>([ 
         [ 'https://www.w3.org/ns/activitystreams', activityStreams['@context'] ],
@@ -47,33 +50,35 @@ function resolve(value: string, contexts: any[]): IriOrKeyword {
         for (const item of contexts) {
             const knownContext = knownContexts.get(item);
             if (knownContext) {
-                const rt = tryResolveValue(value, knownContext, contexts);
+                const rt = tryResolve(value, knownContext, contexts);
                 if (rt === undefined) continue;
                 return rt;
             } else if (isStringRecord(item)) {
-                const rt = tryResolveValue(value, item, contexts);
+                const rt = tryResolve(value, item, contexts);
                 if (rt === undefined) continue;
                 return rt;
             } else {
                 throw new Error(`resolve(${value}): Unimplemented item: ${JSON.stringify(item)}`);
             }
         }
-        return value === '@type' ? '@type' : value === '@id' ? '@id' : new Iri(value);
+        return value === '@type' || value === '@id' ? { target: value, type: '@id' } : { target: new Iri(value) };
     } else {
         const prefix = value.substring(0, i);
         const suffix = value.substring(i + 1);
-        if (prefix === '_' || suffix.startsWith('//')) return new Iri(value);
+        if (prefix === '_' || suffix.startsWith('//')) return { target: new Iri(value) };
 
         for (const item of contexts) {
             const knownContext = knownContexts.get(item);
             if (knownContext) {
-                const rt = tryResolveValue(prefix, knownContext, contexts);
+                const rt = tryResolve(prefix, knownContext, contexts);
                 if (rt === undefined) continue;
-                return new Iri(`${rt}${suffix}`);
+                if (!(rt.target instanceof Iri)) throw new Error(`Expected iri for resolved prefix ${prefix}, found: ${rt.target}`);
+                return { target: new Iri(`${rt.target}${suffix}`) };
             } else if (isStringRecord(item)) {
-                const rt = tryResolveValue(prefix, item, contexts);
+                const rt = tryResolve(prefix, item, contexts);
                 if (rt === undefined) continue;
-                return new Iri(`${rt}${suffix}`);
+                if (!(rt.target instanceof Iri)) throw new Error(`Expected iri for resolved prefix ${prefix}, found: ${rt.target}`);
+                return { target: new Iri(`${rt.target}${suffix}`) };
             } else {
                 throw new Error(`resolve(${value}): Unimplemented item: ${JSON.stringify(item)}`);
             }
@@ -82,7 +87,7 @@ function resolve(value: string, contexts: any[]): IriOrKeyword {
     }
 }
 
-function tryResolveValue(value: string, context: Record<string, unknown>, contexts: any[]): IriOrKeyword | undefined {
+function tryResolve(value: string, context: Record<string, unknown>, contexts: any[]): Resolution | undefined {
     const contextValue = context[value];
     if (contextValue === undefined) {
         return undefined;
@@ -91,9 +96,11 @@ function tryResolveValue(value: string, context: Record<string, unknown>, contex
     } else if (isStringRecord(contextValue) && typeof contextValue['@type'] === 'string' && typeof contextValue['@id'] === 'string') {
         // {"@id":"ldp:inbox","@type":"@id"}
         // {"@id":"as:published","@type":"xsd:dateTime"}
-        return resolve(contextValue['@id'], contexts);
+        const res = resolve(contextValue['@id'], contexts);
+        if (res === undefined) return undefined;
+        return { target: res.target, type: contextValue['@type'] };
     } else {
-        throw new Error(`tryResolveValue: Unimplemented contextValue: ${JSON.stringify(contextValue)}`);
+        throw new Error(`tryResolve: Unimplemented contextValue: ${JSON.stringify(contextValue)}`);
     }
 }
 

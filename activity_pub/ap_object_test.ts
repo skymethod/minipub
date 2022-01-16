@@ -2,6 +2,7 @@ import { assertEquals, assertStrictEquals, assertThrows } from 'https://deno.lan
 import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
+import { Iri } from './iri.ts';
 
 Deno.test('ApObject', () => {
 
@@ -25,6 +26,15 @@ Deno.test('ApObject', () => {
     // type resolution
     assertStrictEquals(ApObject.parseObj({ type: 'Person' }).type.toString(), 'https://www.w3.org/ns/activitystreams#Person');
 
-    // get by expanded property
-    // assert(ApObject.parseObj(mastodonActor).get('http://joinmastodon.org/ns#featured') instanceof Iri);
+    // get iri value by expanded property iri
+    assertStrictEquals(ApObject.parseObj(mastodonActor).get('http://joinmastodon.org/ns#featured').toString(), new Iri('https://example.social/users/alice/collections/featured').toString());
+    // get iri value by prefixed property iri
+    assertStrictEquals(ApObject.parseObj(mastodonActor).get('toot:featured').toString(), new Iri('https://example.social/users/alice/collections/featured').toString());
+    // get iri value by compact property name
+    assertStrictEquals(ApObject.parseObj(mastodonActor).get('featured').toString(), new Iri('https://example.social/users/alice/collections/featured').toString());
+    // get date value
+    assertStrictEquals(ApObject.parseObj(mastodonActor).get('published').toString(), '2020-09-14T00:00:00Z');
+    // get type by property name
+    assertStrictEquals(ApObject.parseObj({ type: 'Person' }).get('type').toString(), 'https://www.w3.org/ns/activitystreams#Person');
+
 });
