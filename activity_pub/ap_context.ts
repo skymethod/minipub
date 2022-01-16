@@ -33,6 +33,7 @@ export class ApContext {
 export interface Resolution {
     readonly target: Iri | '@type' | '@id';
     readonly type?: string;
+    readonly languageMap?: boolean;
 }
 
 //
@@ -93,15 +94,19 @@ function tryResolve(value: string, context: Record<string, unknown>, contexts: a
         return undefined;
     } else if (typeof contextValue === 'string') {
         return resolve(contextValue, contexts);
-    } else if (isStringRecord(contextValue) && typeof contextValue['@type'] === 'string' && typeof contextValue['@id'] === 'string') {
-        // {"@id":"ldp:inbox","@type":"@id"}
-        // {"@id":"as:published","@type":"xsd:dateTime"}
+    } else if (isStringRecord(contextValue) && typeof contextValue['@id'] === 'string') {
         const res = resolve(contextValue['@id'], contexts);
         if (res === undefined) return undefined;
-        return { target: res.target, type: contextValue['@type'] };
-    } else {
-        throw new Error(`tryResolve: Unimplemented contextValue: ${JSON.stringify(contextValue)}`);
+        if (typeof contextValue['@type'] === 'string') {
+            // {"@id":"ldp:inbox","@type":"@id"}
+            // {"@id":"as:published","@type":"xsd:dateTime"}
+            return { target: res.target, type: contextValue['@type'] };
+        } else if (contextValue['@container'] === '@language') {
+            // {"@id":"as:content","@container":"@language"}
+            return { target: res.target, languageMap: true };
+        }
     }
+    throw new Error(`tryResolve: Unimplemented contextValue: ${JSON.stringify(contextValue)}`);
 }
 
 function computeContexts(context: any) {

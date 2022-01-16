@@ -1,0 +1,62 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    {
+      "ostatus": "http://ostatus.org#",
+      "atomUri": "ostatus:atomUri",
+      "inReplyToAtomUri": "ostatus:inReplyToAtomUri",
+      "conversation": "ostatus:conversation",
+      "sensitive": "as:sensitive",
+      "toot": "http://joinmastodon.org/ns#",
+      "votersCount": "toot:votersCount",
+      "blurhash": "toot:blurhash",
+      "focalPoint": {
+        "@container": "@list",
+        "@id": "toot:focalPoint"
+      }
+    }
+  ],
+  "id": "https://example.social/users/alice/statuses/123456123456123456",
+  "type": "Note",
+  "summary": null,
+  "inReplyTo": null,
+  "published": "2021-10-29T17:08:37Z",
+  "url": "https://example.social/@alice/107185918284627417",
+  "attributedTo": "https://example.social/users/alice",
+  "to": [
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "cc": [
+    "https://example.social/users/alice/followers"
+  ],
+  "sensitive": false,
+  "atomUri": "https://example.social/users/alice/statuses/123456123456123456",
+  "inReplyToAtomUri": null,
+  "conversation": "tag:example.social,2021-10-29:objectId=123456:objectType=Conversation",
+  "content": "<p>The content</p>",
+  "contentMap": {
+    "en": "<p>The content</p>"
+  },
+  "attachment": [
+    {
+      "type": "Document",
+      "mediaType": "image/jpeg",
+      "url": "https://cdn.example.social/adsf.jpeg",
+      "name": "",
+      "blurhash": "asdfasdfasdf",
+      "width": 1024,
+      "height": 768
+    }
+  ],
+  "tag": [],
+  "replies": {
+    "id": "https://example.social/users/alice/statuses/123456123456123456/replies",
+    "type": "Collection",
+    "first": {
+      "type": "CollectionPage",
+      "next": "https://example.social/users/alice/statuses/123456123456123456/replies?only_other_accounts=true&page=true",
+      "partOf": "https://example.social/users/alice/statuses/123456123456123456/replies",
+      "items": []
+    }
+  }
+}

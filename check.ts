@@ -31,3 +31,7 @@ export function isStringRecord(obj: any): obj is Record<string, unknown> {
 export function isValidSha256(sha256: string) {
     return /^[0-9a-f]{64}$/.test(sha256);
 }
+
+export function isValidLang(lang: string) {
+    return /^[a-zA-Z]+(-[a-zA-Z]+)*$/.test(lang);
+}

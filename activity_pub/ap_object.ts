@@ -1,8 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
 import { Iri } from './iri.ts';
 import { ApContext } from './ap_context.ts';
-import { isStringRecord } from '../check.ts';
-import { ApObjectValue, checkProperties } from './ap_object_value.ts';
+import { check, isStringRecord, isValidLang } from '../check.ts';
+import { ApObjectValue } from './ap_object_value.ts';
 
 // https://www.w3.org/TR/activitypub/#obj
 
@@ -41,4 +41,30 @@ export class ApObject extends ApObjectValue {
         return JSON.stringify(this.toObj(), undefined, space);
     }
     
+}
+
+//
+
+function checkProperties(obj: Record<string, unknown>, context: ApContext) {
+    for (const [name, value] of Object.entries(obj)) {
+        if (name === '@context') {
+            // assume handled separately
+        } else if (name.startsWith('@')) {
+            throw new Error(`checkProperties: Unimplemented property ${name}`);
+        } else {
+            const res = context.resolve(name);
+            if (isStringRecord(value)) {
+                if (res.languageMap) {
+                    for (const [ lang, langValue ] of Object.entries(value)) {
+                        check('lang', lang, isValidLang);
+                        if (isStringRecord(langValue)) {
+                            checkProperties(langValue, context);
+                        }
+                    }
+                } else {
+                    checkProperties(value, context);
+                }
+            }
+        }
+    }
 }

@@ -2,8 +2,9 @@ import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://
 import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
+import mastodonStatus from './ap_object_test_data/mastodon_status.json' assert { type: 'json' };
 import { Iri } from './iri.ts';
-import { ApObjectValue } from './ap_object_value.ts';
+import { ApObjectValue, LanguageMap } from './ap_object_value.ts';
 
 Deno.test('ApObject', () => {
 
@@ -19,7 +20,7 @@ Deno.test('ApObject', () => {
 
     // round trips
     const obj1 = { type: 'Person' };
-    for (const obj of [ obj1, minipubActor, mastodonActor ]) {
+    for (const obj of [ obj1, minipubActor, mastodonActor, mastodonStatus ]) {
         const apo = ApObject.parseObj(obj);
         assertEquals(apo.toObj(), obj);
     }
@@ -49,4 +50,8 @@ Deno.test('ApObject', () => {
     // get subobject value
     assert(ApObject.parseObj(mastodonActor).get('endpoints') instanceof ApObjectValue);
     assert((ApObject.parseObj(mastodonActor).get('endpoints') as ApObjectValue).get('as:sharedInbox').toString(), 'https://example.social/inbox');
+
+    // content map
+    assert(ApObject.parseObj(mastodonStatus).get('contentMap') instanceof LanguageMap);
+    assertStrictEquals((ApObject.parseObj(mastodonStatus).get('contentMap') as LanguageMap).get('en'), ApObject.parseObj(mastodonStatus).get('content'));
 });
