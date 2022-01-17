@@ -1,0 +1,103 @@
+{
+  "type": "Note",
+  "id": "https://example.social/videos/watch/ff397f7a-5aa2-4231-aef0-150375bae9f6/comments/12345",
+  "content": "The content",
+  "inReplyTo": "https://example.social/videos/watch/ff397f7a-5aa2-4231-aef0-150375bae9f6",
+  "updated": "2021-12-20T11:26:01.243Z",
+  "published": "2021-12-20T11:26:01.237Z",
+  "url": "https://example.social/videos/watch/ff397f7a-5aa2-4231-aef0-150375bae9f6/comments/12345",
+  "attributedTo": "https://example.social/accounts/alice",
+  "tag": [],
+  "to": [
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "cc": [
+    "https://example.social/accounts/alice/followers"
+  ],
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1",
+    {
+      "RsaSignature2017": "https://w3id.org/security#RsaSignature2017"
+    },
+    {
+      "pt": "https://joinpeertube.org/ns#",
+      "sc": "http://schema.org#",
+      "Hashtag": "as:Hashtag",
+      "uuid": "sc:identifier",
+      "category": "sc:category",
+      "licence": "sc:license",
+      "subtitleLanguage": "sc:subtitleLanguage",
+      "sensitive": "as:sensitive",
+      "language": "sc:inLanguage",
+      "Infohash": "pt:Infohash",
+      "Playlist": "pt:Playlist",
+      "PlaylistElement": "pt:PlaylistElement",
+      "originallyPublishedAt": "sc:datePublished",
+      "views": {
+        "@type": "sc:Number",
+        "@id": "pt:views"
+      },
+      "state": {
+        "@type": "sc:Number",
+        "@id": "pt:state"
+      },
+      "size": {
+        "@type": "sc:Number",
+        "@id": "pt:size"
+      },
+      "fps": {
+        "@type": "sc:Number",
+        "@id": "pt:fps"
+      },
+      "startTimestamp": {
+        "@type": "sc:Number",
+        "@id": "pt:startTimestamp"
+      },
+      "stopTimestamp": {
+        "@type": "sc:Number",
+        "@id": "pt:stopTimestamp"
+      },
+      "position": {
+        "@type": "sc:Number",
+        "@id": "pt:position"
+      },
+      "commentsEnabled": {
+        "@type": "sc:Boolean",
+        "@id": "pt:commentsEnabled"
+      },
+      "downloadEnabled": {
+        "@type": "sc:Boolean",
+        "@id": "pt:downloadEnabled"
+      },
+      "waitTranscoding": {
+        "@type": "sc:Boolean",
+        "@id": "pt:waitTranscoding"
+      },
+      "support": {
+        "@type": "sc:Text",
+        "@id": "pt:support"
+      },
+      "likes": {
+        "@id": "as:likes",
+        "@type": "@id"
+      },
+      "dislikes": {
+        "@id": "as:dislikes",
+        "@type": "@id"
+      },
+      "playlists": {
+        "@id": "pt:playlists",
+        "@type": "@id"
+      },
+      "shares": {
+        "@id": "as:shares",
+        "@type": "@id"
+      },
+      "comments": {
+        "@id": "as:comments",
+        "@type": "@id"
+      }
+    }
+  ]
+}

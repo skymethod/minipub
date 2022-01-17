@@ -1,0 +1,107 @@
+{
+  "type": "Person",
+  "id": "https://example.social/accounts/alice",
+  "following": "https://example.social/accounts/alice/following",
+  "followers": "https://example.social/accounts/alice/followers",
+  "playlists": "https://example.social/accounts/alice/playlists",
+  "inbox": "https://example.social/accounts/alice/inbox",
+  "outbox": "https://example.social/accounts/alice/outbox",
+  "preferredUsername": "alice",
+  "url": "https://example.social/accounts/alice",
+  "name": "Alice Doe",
+  "endpoints": {
+    "sharedInbox": "https://example.social/inbox"
+  },
+  "publicKey": {
+    "id": "https://example.social/accounts/alice#main-key",
+    "owner": "https://example.social/accounts/alice",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArBOogwFWSVDUKm0Bgwo/\n1SBrhnRPJ2c12AWWPMAQBSESyB8VbIjEtRcRUsqstFzG6YYHZlUs3cO7Rh7SmYf2\nvQ6db4pgkJYmgf2b0fcWLMJc3FbgTOplv6gInYGmyFOzq4lN8rCrvKBZC9QROZSt\nF3erULgdwlaEJQG/mABvVMt91MOxBbETPlUO5vAsrnMj4g0BvuplE0KGG9ydCnzR\nUluMPhtp4Sa55QKaupxfhoeTXbrdPsauV6MIijx6NITH6vuiAhoGY6IFjm+uTuR0\nJrtJ6mo1FrX6ElSvxc/paDw4uIAsZEEsNltH22ziAJG4BJlrgh8c01FmFFgwGZgt\nEQIDAQAB\n-----END PUBLIC KEY-----"
+  },
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1",
+    {
+      "RsaSignature2017": "https://w3id.org/security#RsaSignature2017"
+    },
+    {
+      "pt": "https://joinpeertube.org/ns#",
+      "sc": "http://schema.org#",
+      "Hashtag": "as:Hashtag",
+      "uuid": "sc:identifier",
+      "category": "sc:category",
+      "licence": "sc:license",
+      "subtitleLanguage": "sc:subtitleLanguage",
+      "sensitive": "as:sensitive",
+      "language": "sc:inLanguage",
+      "Infohash": "pt:Infohash",
+      "Playlist": "pt:Playlist",
+      "PlaylistElement": "pt:PlaylistElement",
+      "originallyPublishedAt": "sc:datePublished",
+      "views": {
+        "@type": "sc:Number",
+        "@id": "pt:views"
+      },
+      "state": {
+        "@type": "sc:Number",
+        "@id": "pt:state"
+      },
+      "size": {
+        "@type": "sc:Number",
+        "@id": "pt:size"
+      },
+      "fps": {
+        "@type": "sc:Number",
+        "@id": "pt:fps"
+      },
+      "startTimestamp": {
+        "@type": "sc:Number",
+        "@id": "pt:startTimestamp"
+      },
+      "stopTimestamp": {
+        "@type": "sc:Number",
+        "@id": "pt:stopTimestamp"
+      },
+      "position": {
+        "@type": "sc:Number",
+        "@id": "pt:position"
+      },
+      "commentsEnabled": {
+        "@type": "sc:Boolean",
+        "@id": "pt:commentsEnabled"
+      },
+      "downloadEnabled": {
+        "@type": "sc:Boolean",
+        "@id": "pt:downloadEnabled"
+      },
+      "waitTranscoding": {
+        "@type": "sc:Boolean",
+        "@id": "pt:waitTranscoding"
+      },
+      "support": {
+        "@type": "sc:Text",
+        "@id": "pt:support"
+      },
+      "likes": {
+        "@id": "as:likes",
+        "@type": "@id"
+      },
+      "dislikes": {
+        "@id": "as:dislikes",
+        "@type": "@id"
+      },
+      "playlists": {
+        "@id": "pt:playlists",
+        "@type": "@id"
+      },
+      "shares": {
+        "@id": "as:shares",
+        "@type": "@id"
+      },
+      "comments": {
+        "@id": "as:comments",
+        "@type": "@id"
+      }
+    }
+  ],
+  "summary": null
+}
