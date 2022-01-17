@@ -132,7 +132,7 @@ export interface UpdateUserRequest {
 
 export function checkUpdateUserRequest(obj: any): obj is UpdateUserRequest {
     return typeof obj === 'object' 
-        && check('kind', obj.kind, v => v === 'create-user')
+        && check('kind', obj.kind, v => v === 'update-user')
         && check('uuid', obj.uuid, v => typeof v === 'string' && isValidUuid(v))
         && check('username', obj.username, v => v === undefined || v === null || typeof v === 'string' && isValidUserName(v))
         && check('name', obj.name, v => v === undefined || v === null || typeof v === 'string' && isValidUserName(v))

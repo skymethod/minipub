@@ -4,6 +4,7 @@ import { parseFlags } from './deps_cli.ts';
 import { RpcRequest } from './rpc_model.ts';
 import { activityPub } from './cli_activity_pub.ts';
 import { createUser } from './cli_create_user.ts';
+import { updateUser } from './cli_update_user.ts';
 
 export async function readPrivateKey(options: Record<string, unknown>) {
     const { pem } = options;
@@ -31,7 +32,7 @@ export async function sendRpc(request: RpcRequest, origin: string, privateKey: C
 
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { generate, reply, createUser, activityPub, ap: activityPub }[command];
+    const fn = { generate, reply, createUser, updateUser, activityPub, ap: activityPub }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
