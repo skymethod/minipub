@@ -40,6 +40,12 @@ Deno.test('ApObject', () => {
         assertEquals(apo.toObj(), obj);
     }
 
+    // non-round trip (strips undefined properties)
+    const obj2 = { type: 'Person', name: undefined };
+    assertEquals(ApObject.parseObj(obj2).toObj(), { type: 'Person' });
+    const obj3 = { type: 'Note', contentMap: { 'en': undefined } };
+    assertEquals(ApObject.parseObj(obj3).toObj(), { type: 'Note', contentMap: {} });
+
     // type resolution
     assertStrictEquals(ApObject.parseObj({ type: 'Person' }).type.toString(), 'https://www.w3.org/ns/activitystreams#Person');
 

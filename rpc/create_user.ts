@@ -5,6 +5,7 @@ import { exportKeyToPem, generateExportableRsaKeyPair } from '../crypto.ts';
 import { Bytes } from '../deps.ts';
 import { Actor, BlobKey, BlobReference, packBlobKey } from '../domain_model.ts';
 import { getExtForMediaType } from '../media_types.ts';
+import { ApObject } from '../activity_pub/ap_object.ts';
 
 export async function computeCreateUser(req: CreateUserRequest, origin: string, storage: BackendStorage): Promise<CreateUserResponse> {
     // generate uuid, keypair
@@ -55,7 +56,7 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
             otherContext['value'] = 'schema:value';
         }
 
-        const ld: Record<string, unknown> = {
+        let activityPub: Record<string, unknown> = {
             '@context': [
                 'https://www.w3.org/ns/activitystreams',
                 'https://w3id.org/security/v1', // for publicKey
@@ -105,12 +106,14 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
             published,
         };
 
+        activityPub = ApObject.parseObj(activityPub).toObj(); // strip undefined values
+
         // save actor info (actor:<uuid>,json), including private fields and ld json to be returned as is
         const actor: Actor = {
             uuid,
             privateKeyPem,
             blobReferences,
-            ld,
+            activityPub,
         }
         await txn.put('actor', uuid, actor);
 

@@ -25,6 +25,8 @@ export class ApObject extends ApObjectValue {
 
         const context = ApContext.parse(obj['@context']);
 
+        obj = stripUndefinedValues(obj); // ActivityPub does not support explicitly undefined values
+
         checkProperties(obj, context, callback);
 
         if (typeof obj.type !== 'string') throw new Error(`ActivityPub objects must have a 'type' property`);
@@ -53,8 +55,13 @@ const DEFAULT_PARSE_CALLBACK: ParseCallback = {
     onUnresolvedProperty: (name, value) => { throw new Error(`Unresolved property: "${name}": ${JSON.stringify(value)}`); }
 }
 
+function stripUndefinedValues(obj: Record<string, unknown>): Record<string, unknown> {
+    return Object.fromEntries(Object.entries(obj).filter(v => v[1] !== undefined).map(v => [ v[0], isStringRecord(v[1]) ? stripUndefinedValues(v[1]) : v[1]])); 
+}
+
 function checkProperties(obj: Record<string, unknown>, context: ApContext, callback: ParseCallback) {
     for (const [name, value] of Object.entries(obj)) {
+        if (value === undefined) throw new Error(`ActivityPub does not allow explicitly undefined values`);
         if (name === '@context') {
             // assume handled separately
         } else if (name.startsWith('@')) {

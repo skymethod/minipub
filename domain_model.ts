@@ -44,7 +44,7 @@ export interface Actor extends Record<string, unknown> {
     readonly uuid: string;
     readonly privateKeyPem: string;
     readonly blobReferences: Record<string, BlobReference>; // key = blob uuid
-    readonly ld: Record<string, unknown>;
+    readonly activityPub: Record<string, unknown>;
 }
 
 export function checkActor(obj: any): obj is Actor {
@@ -52,7 +52,7 @@ export function checkActor(obj: any): obj is Actor {
         && check('uuid', obj.uuid, v => typeof v === 'string' && isValidUuid(v))
         && check('privateKeyPem', obj.privateKeyPem, v => typeof v === 'string' && isNonEmpty(v))
         && check('blobReferences', obj.blobReferences, v => isStringRecord(v) && isValidBlobReferences(v))
-        && check('ld', obj.ld, v => isStringRecord(v))
+        && check('activityPub', obj.activityPub, v => isStringRecord(v))
         ;
 }
 
