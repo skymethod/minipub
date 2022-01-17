@@ -1,0 +1,61 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    {
+      "atomUri": "ostatus:atomUri",
+      "conversation": "ostatus:conversation",
+      "inReplyToAtomUri": "ostatus:inReplyToAtomUri",
+      "ostatus": "http://ostatus.org#",
+      "sensitive": "as:sensitive",
+      "toot": "http://joinmastodon.org/ns#",
+      "votersCount": "toot:votersCount"
+    }
+  ],
+  "actor": "https://example.social/users/alice",
+  "cc": [],
+  "id": "https://example.social/users/alice/statuses/123456123456123456/activity",
+  "object": {
+    "atomUri": "https://example.social/users/alice/statuses/123456123456123456",
+    "attachment": [],
+    "attributedTo": "https://example.social/users/alice",
+    "cc": [],
+    "content": "<p><span class=\"h-card\"><a href=\"https://example2.social/actors/55915da0c2864e09be3e399a777db9c8\" class=\"u-url mention\">@<span>bob<\/span><\/a><\/span> who are you<\/p>",
+    "contentMap": {
+      "en": "<p><span class=\"h-card\"><a href=\"https://example2.social/actors/55915da0c2864e09be3e399a777db9c8\" class=\"u-url mention\">@<span>bob<\/span><\/a><\/span> who are you<\/p>"
+    },
+    "conversation": "tag:example.social,2021-12-30:objectId=1234567:objectType=Conversation",
+    "id": "https://example.social/users/alice/statuses/123456123456123456",
+    "inReplyTo": null,
+    "inReplyToAtomUri": null,
+    "published": "2021-12-30T01:22:55Z",
+    "replies": {
+      "first": {
+        "items": [],
+        "next": "https://example.social/users/alice/statuses/123456123456123456/replies?only_other_accounts=true&page=true",
+        "partOf": "https://example.social/users/alice/statuses/123456123456123456/replies",
+        "type": "CollectionPage"
+      },
+      "id": "https://example.social/users/alice/statuses/123456123456123456/replies",
+      "type": "Collection"
+    },
+    "sensitive": false,
+    "summary": null,
+    "tag": [
+      {
+        "href": "https://example2.social/actors/55915da0c2864e09be3e399a777db9c8",
+        "name": "@bob@example2.social",
+        "type": "Mention"
+      }
+    ],
+    "to": [
+      "https://example2.social/actors/55915da0c2864e09be3e399a777db9c8"
+    ],
+    "type": "Note",
+    "url": "https://example.social/@alice/123456123456123456"
+  },
+  "published": "2021-12-30T01:22:55Z",
+  "to": [
+    "https://example2.social/actors/55915da0c2864e09be3e399a777db9c8"
+  ],
+  "type": "Create"
+}

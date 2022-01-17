@@ -3,6 +3,7 @@ import { ApObject, ParseCallback } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
 import mastodonStatus from './ap_object_test_data/mastodon_status.json' assert { type: 'json' };
+import mastodonMessage from './ap_object_test_data/mastodon_message.json' assert { type: 'json' };
 import pleromaNote from './ap_object_test_data/pleroma_note.json' assert { type: 'json' };
 import peertubeNote from './ap_object_test_data/peertube_note.json' assert { type: 'json' };
 import peertubeActor from './ap_object_test_data/peertube_actor.json' assert { type: 'json' };
@@ -34,7 +35,7 @@ Deno.test('ApObject', () => {
 
     // round trips
     const obj1 = { type: 'Person' };
-    for (const obj of [ obj1, minipubActor, mastodonActor, mastodonStatus, pleromaNote, peertubeNote, peertubeActor ]) {
+    for (const obj of [ obj1, minipubActor, mastodonActor, mastodonStatus, mastodonMessage, pleromaNote, peertubeNote, peertubeActor ]) {
         const apo = ApObject.parseObj(obj, parseCallback);
         assertEquals(apo.toObj(), obj);
     }
