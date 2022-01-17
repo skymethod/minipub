@@ -149,7 +149,7 @@ export function checkUpdateUserRequest(obj: any): obj is UpdateUserRequest {
 export interface UpdateUserResponse {
     readonly kind: 'update-user';
     readonly uuid: string;
-    readonly updated: boolean;
+    readonly modified: boolean;
 }
 
 // delete-user

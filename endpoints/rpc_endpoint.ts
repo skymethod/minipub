@@ -1,7 +1,8 @@
-import { checkCreateUserRequest, checkUpdateUserRequest, RpcResponse, UpdateUserRequest, UpdateUserResponse } from '../rpc_model.ts';
+import { checkCreateUserRequest, checkUpdateUserRequest, RpcResponse } from '../rpc_model.ts';
 import { APPLICATION_JSON_UTF8 } from '../media_types.ts';
 import { BackendStorage } from '../storage.ts';
 import { computeCreateUser } from '../rpc/create_user.ts';
+import { computeUpdateUser } from '../rpc/update_user.ts';
 
 export const matchRpc = (method: string, pathname: string) => method === 'POST' && pathname === '/rpc';
 
@@ -10,12 +11,8 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
     const body: any = await request.json();
     const { kind } = body;
     if (kind === 'create-user' && checkCreateUserRequest(body)) return json(await computeCreateUser(body, origin, storage));
-    if (kind === 'update-user' && checkUpdateUserRequest(body)) return json(await computeUpdateUser(body));
+    if (kind === 'update-user' && checkUpdateUserRequest(body)) return json(await computeUpdateUser(body, storage));
     throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
-}
-
-export function computeUpdateUser(_req: UpdateUserRequest): Promise<UpdateUserResponse> {
-    throw new Error('computeUpdateUser: TODO');
 }
 
 //
