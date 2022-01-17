@@ -2,11 +2,12 @@
 import { Iri } from './iri.ts';
 import activityStreams from './activitystreams.json' assert { type: 'json' };
 import security from './security.json' assert { type: 'json' };
+import litepub from './litepub.json' assert { type: 'json' };
 import { isStringRecord } from '../check.ts';
 
 export class ApContext {
 
-    private readonly context: any;
+    private readonly context: any; // the raw @context value
 
     private constructor(context: any) {
         this.context = context;
@@ -28,6 +29,13 @@ export class ApContext {
         return resolve(value, contexts);
     }
 
+    isPleromaContext() {
+        const stringContexts = computeContexts(this.context).filter(v => typeof v === 'string');
+        return stringContexts.length === 2 
+            && stringContexts[0] === 'https://www.w3.org/ns/activitystreams' 
+            && isLitepubNamespace(stringContexts[1]);
+    }
+    
 }
 
 export interface Resolution {
@@ -36,20 +44,44 @@ export interface Resolution {
     readonly languageMap?: boolean;
 }
 
+export class UnresolvedIriError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'UnresolvedIriError';
+    }
+}
+
+export function isLitepubNamespace(value: string) {
+    return value.endsWith('/schemas/litepub-0.1.jsonld') && (value.startsWith('https:') || value.startsWith('http:'));
+}
+
 //
+
+// pleroma serves under every instance!  e.g. https://example.social/schemas/litepub-0.1.jsonld
+// use a made-up canonical namespace (current gitlab source link)
+const litepubNamespace = 'https://git.pleroma.social/pleroma/pleroma/-/blob/develop/priv/static/schemas/litepub-0.1.jsonld';
+
+const knownContexts = new Map<string, any>([ 
+    [ 'https://www.w3.org/ns/activitystreams', activityStreams['@context'] ],
+    [ 'https://w3id.org/security/v1', security['@context'] ],
+    [ litepubNamespace, litepub['@context'] ],
+]);
+
+function findKnownContext(context: any) {
+    if (typeof context === 'string' && isLitepubNamespace(context)) {
+        context = litepubNamespace;
+    }
+    return knownContexts.get(context);
+}
 
 function resolve(value: string, contexts: any[]): Resolution {
     // https://json-ld.org/spec/FCGS/json-ld-api/20180607/#algorithm-1
     if (value === '@id' || value === '@type') return { target: value, type: '@id' };
 
-    const knownContexts = new Map<string, any>([ 
-        [ 'https://www.w3.org/ns/activitystreams', activityStreams['@context'] ],
-        [ 'https://w3id.org/security/v1', security['@context'] ],
-    ]);
     const i = value.indexOf(':');
     if (i < 0) {
         for (const item of contexts) {
-            const knownContext = knownContexts.get(item);
+            const knownContext = findKnownContext(item);
             if (knownContext) {
                 const rt = tryResolve(value, knownContext, contexts);
                 if (rt === undefined) continue;
@@ -62,14 +94,15 @@ function resolve(value: string, contexts: any[]): Resolution {
                 throw new Error(`resolve(${value}): Unimplemented item: ${JSON.stringify(item)}`);
             }
         }
-        return value === '@type' || value === '@id' ? { target: value, type: '@id' } : { target: new Iri(value) };
+        if (value === '@type' || value === '@id') return { target: value, type: '@id' };
+        throw new UnresolvedIriError(`Unable to resolve iri for value: ${value}`);
     } else {
         const prefix = value.substring(0, i);
         const suffix = value.substring(i + 1);
         if (prefix === '_' || suffix.startsWith('//')) return { target: new Iri(value) };
 
         for (const item of contexts) {
-            const knownContext = knownContexts.get(item);
+            const knownContext = findKnownContext(item);
             if (knownContext) {
                 const rt = tryResolve(prefix, knownContext, contexts);
                 if (rt === undefined) continue;
@@ -88,25 +121,47 @@ function resolve(value: string, contexts: any[]): Resolution {
     }
 }
 
-function tryResolve(value: string, context: Record<string, unknown>, contexts: any[]): Resolution | undefined {
-    const contextValue = context[value];
-    if (contextValue === undefined) {
-        return undefined;
-    } else if (typeof contextValue === 'string') {
-        return resolve(contextValue, contexts);
-    } else if (isStringRecord(contextValue) && typeof contextValue['@id'] === 'string') {
-        const res = resolve(contextValue['@id'], contexts);
-        if (res === undefined) return undefined;
-        if (typeof contextValue['@type'] === 'string') {
-            // {"@id":"ldp:inbox","@type":"@id"}
-            // {"@id":"as:published","@type":"xsd:dateTime"}
-            return { target: res.target, type: contextValue['@type'] };
-        } else if (contextValue['@container'] === '@language') {
-            // {"@id":"as:content","@container":"@language"}
-            return { target: res.target, languageMap: true };
+function tryResolve(value: string, context: any, contexts: any[]): Resolution | undefined {
+    const contextArr = [];
+    if (Array.isArray(context)) {
+        contextArr.push(...context);
+    } else if (isStringRecord(context)) {
+        contextArr.push(context);
+    } else {
+        throw new Error(`tryResolve: Unimplemented context: ${JSON.stringify(context)}`);
+    }
+   
+    for (const context of contextArr) {
+        if (isStringRecord(context)) {
+            const contextValue = context[value];
+            if (contextValue === undefined) {
+                return undefined;
+            } else if (typeof contextValue === 'string') {
+                return resolve(contextValue, contexts);
+            } else if (isStringRecord(contextValue) && typeof contextValue['@id'] === 'string') {
+                const res = resolve(contextValue['@id'], contexts);
+                if (res === undefined) return undefined;
+                if (typeof contextValue['@type'] === 'string') {
+                    // {"@id":"ldp:inbox","@type":"@id"}
+                    // {"@id":"as:published","@type":"xsd:dateTime"}
+                    return { target: res.target, type: contextValue['@type'] };
+                } else if (contextValue['@container'] === '@language') {
+                    // {"@id":"as:content","@container":"@language"}
+                    return { target: res.target, languageMap: true };
+                }
+            }
+            throw new Error(`tryResolve: Unimplemented contextValue: ${JSON.stringify(contextValue)}`);
+        } else if (typeof context === 'string') {
+            const knownContext = findKnownContext(context);
+            if (knownContext) {
+                const rt = tryResolve(value, knownContext, contexts);
+                if (rt === undefined) continue;
+                return rt;
+            }
+        } else {
+            throw new Error(`tryResolve: Unimplemented context: ${JSON.stringify(context)}`);
         }
     }
-    throw new Error(`tryResolve: Unimplemented contextValue: ${JSON.stringify(contextValue)}`);
 }
 
 function computeContexts(context: any) {

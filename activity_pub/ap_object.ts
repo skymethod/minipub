@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { Iri } from './iri.ts';
-import { ApContext } from './ap_context.ts';
+import { ApContext, UnresolvedIriError } from './ap_context.ts';
 import { check, isStringRecord, isValidLang } from '../check.ts';
 import { ApObjectValue } from './ap_object_value.ts';
 
@@ -20,12 +20,12 @@ export class ApObject extends ApObjectValue {
         return JSON.parse(json);
     }
 
-    static parseObj(obj: any): ApObject {
+    static parseObj(obj: any, callback: ParseCallback = DEFAULT_PARSE_CALLBACK): ApObject {
         if (!isStringRecord(obj)) throw new Error(`Bad obj: expected object, found ${JSON.stringify(obj)}`);
 
         const context = ApContext.parse(obj['@context']);
 
-        checkProperties(obj, context);
+        checkProperties(obj, context, callback);
 
         if (typeof obj.type !== 'string') throw new Error(`ActivityPub objects must have a 'type' property`);
         
@@ -43,26 +43,41 @@ export class ApObject extends ApObjectValue {
     
 }
 
+export interface ParseCallback {
+    onUnresolvedProperty(name: string, value: any, context: ApContext): void;
+}
+
 //
 
-function checkProperties(obj: Record<string, unknown>, context: ApContext) {
+const DEFAULT_PARSE_CALLBACK: ParseCallback = {
+    onUnresolvedProperty: (name, value) => { throw new Error(`Unresolved property: "${name}": ${JSON.stringify(value)}`); }
+}
+
+function checkProperties(obj: Record<string, unknown>, context: ApContext, callback: ParseCallback) {
     for (const [name, value] of Object.entries(obj)) {
         if (name === '@context') {
             // assume handled separately
         } else if (name.startsWith('@')) {
             throw new Error(`checkProperties: Unimplemented property ${name}`);
         } else {
-            const res = context.resolve(name);
+            let res; try { res = context.resolve(name); } catch (e) {
+                if (e instanceof UnresolvedIriError) {
+                    callback.onUnresolvedProperty(name, value, context);
+                    continue;
+                } else {
+                    throw e;
+                }
+            }
             if (isStringRecord(value)) {
                 if (res.languageMap) {
                     for (const [ lang, langValue ] of Object.entries(value)) {
                         check('lang', lang, isValidLang);
                         if (isStringRecord(langValue)) {
-                            checkProperties(langValue, context);
+                            checkProperties(langValue, context, callback);
                         }
                     }
                 } else {
-                    checkProperties(value, context);
+                    checkProperties(value, context, callback);
                 }
             }
         }

@@ -1,8 +1,9 @@
 import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
-import { ApObject } from './ap_object.ts';
+import { ApObject, ParseCallback } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
 import mastodonStatus from './ap_object_test_data/mastodon_status.json' assert { type: 'json' };
+import pleromaNote from './ap_object_test_data/pleroma_note.json' assert { type: 'json' };
 import { Iri } from './iri.ts';
 import { ApObjectValue, LanguageMap } from './ap_object_value.ts';
 
@@ -18,10 +19,21 @@ Deno.test('ApObject', () => {
         assertThrows(() => ApObject.parseObj(invalid), undefined, undefined, `ApObject.parseObj(${JSON.stringify(invalid)})`);
     }
 
+    // slightly more lenient property policy
+    const parseCallback: ParseCallback = {
+        onUnresolvedProperty: (name, value, context) => {
+            if (name === 'repliesCount' && typeof value === 'number' && context.isPleromaContext()) {
+                // found unknown "repliesCount" in Pleroma Note objects
+            } else {
+                throw new Error(`Unknown unresolved property: "${name}": ${JSON.stringify(value)}`);
+            }
+        }
+    };
+
     // round trips
     const obj1 = { type: 'Person' };
-    for (const obj of [ obj1, minipubActor, mastodonActor, mastodonStatus ]) {
-        const apo = ApObject.parseObj(obj);
+    for (const obj of [ obj1, minipubActor, mastodonActor, mastodonStatus, pleromaNote ]) {
+        const apo = ApObject.parseObj(obj, parseCallback);
         assertEquals(apo.toObj(), obj);
     }
 

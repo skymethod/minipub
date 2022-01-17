@@ -1,0 +1,40 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://example.social/schemas/litepub-0.1.jsonld",
+    {
+      "@language": "und"
+    }
+  ],
+  "actor": "https://example.social/users/alice",
+  "attachment": [],
+  "attributedTo": "https://example.social/users/alice",
+  "cc": [
+    "https://example.social/users/alice/followers"
+  ],
+  "content": "The content",
+  "context": "https://example.social/contexts/2d7d1e06-ed3b-4a2c-afe9-751f8a7b419f",
+  "conversation": "https://example.social/contexts/2d7d1e06-ed3b-4a2c-afe9-751f8a7b419f",
+  "id": "https://example.social/objects/30596f81-5447-4d06-b7c7-dff33d9714c4",
+  "published": "2021-10-26T13:19:26.085697Z",
+  "repliesCount": 1,
+  "sensitive": false,
+  "source": "The source",
+  "summary": "",
+  "tag": [
+    {
+      "href": "https://example.social/tags/truecrime",
+      "name": "#truecrime",
+      "type": "Hashtag"
+    },
+    {
+      "href": "https://example.social/tags/podcast",
+      "name": "#podcast",
+      "type": "Hashtag"
+    }
+  ],
+  "to": [
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "type": "Note"
+}
