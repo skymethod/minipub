@@ -10,6 +10,7 @@ export interface BackendStorageTransaction {
     rollback(): void;
     get(domain: string, key: string): Promise<BackendStorageValue | undefined>;
     put(domain: string, key: string, value: BackendStorageValue): Promise<void>;
+    delete(domain: string, key: string): Promise<void>;
     putAll(domainsToKeysToValues: Record<string, Record<string, BackendStorageValue>>): Promise<void>;
 }
 

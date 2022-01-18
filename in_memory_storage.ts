@@ -49,4 +49,10 @@ class InMemoryStorageTransaction implements BackendStorageTransaction {
         throw new Error();
     }
 
+    delete(domain: string, key: string): Promise<void> {
+        if (DEBUG) console.log(`delete ${domain} ${key}`);
+        this.values.delete(packKey(domain, key));
+        return Promise.resolve();
+    }
+
 }

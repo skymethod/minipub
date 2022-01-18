@@ -1,11 +1,10 @@
 import { CreateUserRequest, CreateUserResponse, LangString } from '../rpc_model.ts';
-import { BackendStorage, putIfNotExists } from '../storage.ts';
+import { BackendStorage } from '../storage.ts';
 import { newUuid } from '../uuid.ts';
 import { exportKeyToPem, generateExportableRsaKeyPair } from '../crypto.ts';
-import { Bytes } from '../deps.ts';
-import { Actor, BlobKey, BlobReference, packBlobKey } from '../domain_model.ts';
-import { getExtForMediaType } from '../media_types.ts';
+import { Actor, BlobReference } from '../domain_model.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
+import { computeBlobInfo, computeImage, saveBlobIfNecessary } from './blob_info.ts';
 
 export async function computeCreateUser(req: CreateUserRequest, origin: string, storage: BackendStorage): Promise<CreateUserResponse> {
     // generate uuid, keypair
@@ -27,18 +26,8 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
         const exists = (await txn.get('i-username-uuid', username)) !== undefined;
         if (exists) throw new Error(`Username ${username} is unavailable`);
 
-        const saveBlobIfNecessary = async (tag: string, info: BlobInfo | undefined) => {
-            if (info) {
-                // save blob if new (blob:<sha256>.<ext>, bytes)
-                const { key, bytes } = info;
-                await putIfNotExists(txn, 'blob', packBlobKey(key), bytes);
-                const blobUuid = newUuid();
-                blobReferences[blobUuid] = { key, tag };
-                return blobUuid;
-            }
-        }
-        const iconBlobUuid = await saveBlobIfNecessary('icon', iconBlobInfo);
-        const imageBlobUuid = await saveBlobIfNecessary('image', imageBlobInfo);
+        const iconBlobUuid = await saveBlobIfNecessary('icon', iconBlobInfo, txn, blobReferences);
+        const imageBlobUuid = await saveBlobIfNecessary('image', imageBlobInfo, txn, blobReferences);
         // now we have urls for image,icon (https://example.social/blobs/<blob-uuid>.<ext>)
 
         const published = new Date().toISOString();
@@ -125,34 +114,11 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
 
 //
 
-const MAX_STORAGE_VALUE = 128 * 1024; // 128kb is max size for a single DO storage value
-
-async function computeBlobInfo(tag: string, opts: { bytesBase64: string, mediaType: string }): Promise<BlobInfo> {
-    const { bytesBase64, mediaType } = opts;
-    const bytes = Bytes.ofBase64(bytesBase64);
-    if (bytes.length > MAX_STORAGE_VALUE) throw new Error(`Bad ${tag} byte length: ${bytes.length} is too large`);
-    const sha = (await bytes.sha256()).hex();
-    const ext = getExtForMediaType(mediaType); if (!ext) throw new Error(`Bad ${tag} media type: ${mediaType}`);
-    const key = { sha, ext };
-    return { key, bytes: bytes.array() };
-}
-
 function computeLangStringMap(langString: LangString | undefined): Record<string, string> | undefined {
     if (!langString) return undefined;
     const rt: Record<string, string>  = {};
     rt[langString.lang] = langString.value;
     return rt;
-}
-
-function computeImage(opts: { actorUuid: string, blobUuid: string, width: number, height: number, ext: string, mediaType: string, origin: string }) {
-    const { actorUuid, blobUuid, width, height, ext, mediaType, origin } = opts;
-    return {
-        type: 'Image',
-        url: `${origin}/actors/${actorUuid}/blobs/${blobUuid}.${ext}`,
-        width,
-        height,
-        mediaType,
-    }
 }
 
 function computeAttachment(metadata?: Record<string, string>): Attachment[] | undefined {
@@ -166,7 +132,5 @@ function computeAttachment(metadata?: Record<string, string>): Attachment[] | un
 }
 
 //
-
-type BlobInfo = { key: BlobKey, bytes: Uint8Array };
 
 type Attachment = { name: string, type: string, value: string };

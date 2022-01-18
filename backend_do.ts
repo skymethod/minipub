@@ -97,4 +97,8 @@ class Tx implements BackendStorageTransaction {
         await this.transaction.put(values);
     }
 
+    async delete(domain: string, key: string): Promise<void> {
+        await this.transaction.delete(packKey(domain, key));
+    }
+
 }

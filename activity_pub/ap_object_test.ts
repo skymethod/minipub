@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
-import { ApObject, ParseCallback } from './ap_object.ts';
+import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
 import mastodonStatus from './ap_object_test_data/mastodon_status.json' assert { type: 'json' };
@@ -9,6 +9,7 @@ import peertubeNote from './ap_object_test_data/peertube_note.json' assert { typ
 import peertubeActor from './ap_object_test_data/peertube_actor.json' assert { type: 'json' };
 import { Iri } from './iri.ts';
 import { ApObjectValue, LanguageMap } from './ap_object_value.ts';
+import { ParseCallback } from './ap_context.ts';
 
 Deno.test('ApObject', () => {
 

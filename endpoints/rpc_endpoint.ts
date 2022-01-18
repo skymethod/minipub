@@ -11,7 +11,7 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
     const body: any = await request.json();
     const { kind } = body;
     if (kind === 'create-user' && checkCreateUserRequest(body)) return json(await computeCreateUser(body, origin, storage));
-    if (kind === 'update-user' && checkUpdateUserRequest(body)) return json(await computeUpdateUser(body, storage));
+    if (kind === 'update-user' && checkUpdateUserRequest(body)) return json(await computeUpdateUser(body, origin, storage));
     throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
 }
 

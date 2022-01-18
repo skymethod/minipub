@@ -1,5 +1,5 @@
-import { check, isStringRecord, isValidIso8601 } from '../check.ts';
-import { ApContext, Resolution } from './ap_context.ts';
+import { check, isStringRecord, isValidIso8601, isValidLang } from '../check.ts';
+import { ApContext, Resolution, UnresolvedIriError } from './ap_context.ts';
 import { Iri } from './iri.ts';
 
 // common behavior for both top-level AP objects and subobjects (object property values);
@@ -65,7 +65,7 @@ export class ApObjectValue {
         return true;
     }
 
-    set(property: string, value: string): boolean {
+    set(property: string, value: string | Record<string, unknown>): boolean {
         check('property', property, !property.includes(':'));
 
         const prop = findProperty(property, this.context, this.record);
@@ -85,11 +85,55 @@ export class ApObjectValue {
             this.record[property] = value;
             this._modified = true;
             return true;
+        } else if (resolution.type === '@id' && isStringRecord(value)) {
+            value = stripUndefinedValues(value);
+            checkProperties(value, this.context);
+            this.record[property] = value;
+            this._modified = true;
+            return true;
         } else {
             throw new Error(`set: Unimplemented resolution ${JSON.stringify(resolution)}`);
         }
     }
 
+}
+
+//
+
+export function stripUndefinedValues(obj: Record<string, unknown>): Record<string, unknown> {
+    return Object.fromEntries(Object.entries(obj).filter(v => v[1] !== undefined).map(v => [ v[0], isStringRecord(v[1]) ? stripUndefinedValues(v[1]) : v[1]])); 
+}
+
+export function checkProperties(obj: Record<string, unknown>, context: ApContext) {
+    for (const [name, value] of Object.entries(obj)) {
+        if (value === undefined) throw new Error(`ActivityPub does not allow explicitly undefined values`);
+        if (name === '@context') {
+            // assume handled separately
+        } else if (name.startsWith('@')) {
+            throw new Error(`checkProperties: Unimplemented property ${name}`);
+        } else {
+            let res; try { res = context.resolve(name); } catch (e) {
+                if (e instanceof UnresolvedIriError) {
+                    context.parseCallback.onUnresolvedProperty(name, value, context);
+                    continue;
+                } else {
+                    throw e;
+                }
+            }
+            if (isStringRecord(value)) {
+                if (res.languageMap) {
+                    for (const [ lang, langValue ] of Object.entries(value)) {
+                        check('lang', lang, isValidLang);
+                        if (isStringRecord(langValue)) {
+                            checkProperties(langValue, context);
+                        }
+                    }
+                } else {
+                    checkProperties(value, context);
+                }
+            }
+        }
+    }
 }
 
 //

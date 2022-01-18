@@ -5,9 +5,23 @@ import { getMediaTypeForExt } from './media_types.ts';
 import { CreateUserRequest, Icon } from './rpc_model.ts';
 
 export async function createUser(_args: (string | number)[], options: Record<string, unknown>) {
-    const { origin, username, icon, iconSize } = options;
-    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
+    const { origin, privateKey, username, name, icon } = await parseUserOptions(options);
     if (typeof username !== 'string') throw new Error('Provide username, e.g. --username alice');
+
+    const req: CreateUserRequest = {
+        kind: 'create-user',
+        username,
+        name,
+        icon,
+    };
+    await sendRpc(req, origin, privateKey);
+}
+
+export async function parseUserOptions(options: Record<string, unknown>): Promise<{ origin: string; privateKey: CryptoKey, username?: string; name?: string; icon?: Icon; iconSize?: number; }> {
+    const { origin, username, name, icon, iconSize } = options;
+    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
+    if (username !== undefined && typeof username !== 'string') throw new Error('Username should be a string, e.g. --username alice');
+    if (name !== undefined && typeof name !== 'string') throw new Error('Name should be a string, e.g. --name "Alice Doe"');
     if (icon !== undefined && typeof icon !== 'string') throw new Error('Icon should be file path, e.g. --icon /path/to/alice.jpg');
     if (iconSize !== undefined && typeof iconSize !== 'number') throw new Error('Icon size should be number, e.g. --icon-size 150');
 
@@ -28,11 +42,5 @@ export async function createUser(_args: (string | number)[], options: Record<str
         }
     }
     const icon_ = await computeIcon();
-
-    const req: CreateUserRequest = {
-        kind: 'create-user',
-        username,
-        icon: icon_,
-    };
-    await sendRpc(req, origin, privateKey);
+    return { origin, privateKey, username, name, icon: icon_, iconSize };
 }

@@ -7,14 +7,17 @@ import { isStringRecord } from '../check.ts';
 
 export class ApContext {
 
+    readonly parseCallback: ParseCallback;
+
     private readonly context: any; // the raw @context value
 
-    private constructor(context: any) {
+    private constructor(context: any, parseCallback: ParseCallback) {
         this.context = context;
+        this.parseCallback = parseCallback;
     }
     
-    static parse(context: any) {
-        return new ApContext(context);
+    static parse(context: any, parseCallback: ParseCallback = DEFAULT_PARSE_CALLBACK) {
+        return new ApContext(context, parseCallback);
     }
 
     resolveIri(value: string): Iri  {
@@ -38,6 +41,10 @@ export class ApContext {
     
 }
 
+export interface ParseCallback {
+    onUnresolvedProperty(name: string, value: any, context: ApContext): void;
+}
+
 export interface Resolution {
     readonly target: Iri | '@type' | '@id';
     readonly type?: string;
@@ -56,6 +63,10 @@ export function isLitepubNamespace(value: string) {
 }
 
 //
+
+const DEFAULT_PARSE_CALLBACK: ParseCallback = {
+    onUnresolvedProperty: (name, value) => { throw new Error(`Unresolved property: "${name}": ${JSON.stringify(value)}`); }
+}
 
 // pleroma serves under every instance!  e.g. https://example.social/schemas/litepub-0.1.jsonld
 // use a made-up canonical namespace (current gitlab source link)
