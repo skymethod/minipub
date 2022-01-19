@@ -1,5 +1,6 @@
 import { isStringRecord } from './check.ts';
 import { ColoFromTrace, DurableObjectState, DurableObjectStorage, DurableObjectStorageTransaction, DurableObjectStorageValue } from './deps.ts';
+import { computeActivity, matchActivity } from './endpoints/activity_endpoint.ts';
 import { computeActor, matchActor } from './endpoints/actor_endpoint.ts';
 import { computeBlob, matchBlob } from './endpoints/blob_endpoint.ts';
 import { computeObject, matchObject } from './endpoints/object_endpoint.ts';
@@ -34,6 +35,7 @@ export class BackendDO {
             if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage); // assumes auth happened earlier
             const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
             const object = matchObject(method, pathname); if (object) return await computeObject(object.actorUuid, object.objectUuid, storage);
+            const activity = matchActivity(method, pathname); if (activity) return await computeActivity(activity.actorUuid, activity.activityUuid, storage);
             const blob = matchBlob(method, pathname); if (blob) return await computeBlob(blob.actorUuid, blob.blobUuid, blob.ext, storage);
             const webfinger = matchWebfinger(method, pathname, searchParams); if (webfinger) return await computeWebfinger(webfinger.username, webfinger.domain, origin, storage);
             throw new Error('Not implemented');

@@ -1,4 +1,4 @@
-import { TEXT_PLAIN_UTF8, APPLICATION_ACTIVITY_JSON } from './media_types.ts';
+import { APPLICATION_ACTIVITY_JSON } from './media_types.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem, validateHttpSignature } from './crypto.ts';
 import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
 import { matchActor } from './endpoints/actor_endpoint.ts';
@@ -8,6 +8,7 @@ import { newUuid } from './uuid.ts';
 import { matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { matchObject } from './endpoints/object_endpoint.ts';
 import { makeErrorResponse, makeNotFoundResponse } from './endpoints/responses.ts';
+import { matchActivity } from './endpoints/activity_endpoint.ts';
 export { BackendDO } from './backend_do.ts';
 
 export default {
@@ -48,6 +49,7 @@ export default {
                 const routeToDurableObject = isRpc
                     || matchActor(method, pathname)
                     || matchObject(method, pathname)
+                    || matchActivity(method, pathname)
                     || matchBlob(method, pathname)
                     || matchWebfinger(method, pathname, searchParams)
                     ;
