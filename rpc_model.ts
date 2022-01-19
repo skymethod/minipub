@@ -109,7 +109,7 @@ export function checkCreateUserRequest(obj: any): obj is CreateUserRequest {
 
 export interface CreateUserResponse {
     readonly kind: 'create-user';
-    readonly uuid: string;
+    readonly actorUuid: string;
     readonly blobReferences: Record<string, BlobReference>;
 }
 
@@ -117,7 +117,7 @@ export interface CreateUserResponse {
 
 export interface UpdateUserRequest {
     readonly kind: 'update-user',
-    readonly uuid: string,
+    readonly actorUuid: string,
   
     readonly username?: string,
     readonly name?: string | null, // null to clear
@@ -133,7 +133,7 @@ export interface UpdateUserRequest {
 export function checkUpdateUserRequest(obj: any): obj is UpdateUserRequest {
     return typeof obj === 'object' 
         && check('kind', obj.kind, v => v === 'update-user')
-        && check('uuid', obj.uuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v))
         && check('username', obj.username, v => v === undefined || v === null || typeof v === 'string' && isValidUserName(v))
         && check('name', obj.name, v => v === undefined || v === null || typeof v === 'string' && isValidUserName(v))
         && check('summary', obj.summary, v => v === undefined || v === null || checkLangString(v))
@@ -148,7 +148,7 @@ export function checkUpdateUserRequest(obj: any): obj is UpdateUserRequest {
 
 export interface UpdateUserResponse {
     readonly kind: 'update-user';
-    readonly uuid: string;
+    readonly actorUuid: string;
     readonly modified: boolean;
 }
 
@@ -156,12 +156,12 @@ export interface UpdateUserResponse {
 
 export interface DeleteUserRequest {
     readonly kind: 'delete-user',
-    readonly uuid: string,
+    readonly actorUuid: string,
 }
 
 export interface DeleteUserResponse {
     readonly kind: 'delete-user';
-    readonly uuid: string;
+    readonly actorUuid: string;
     readonly deleted: boolean;
 }
 
@@ -172,8 +172,6 @@ export interface CreateNoteRequest {
     readonly actorUuid: string;
     readonly inReplyTo?: string; // e.g. https://example.social/users/someone/statuses/123123123123123123
     readonly content: LangString; // e.g. <p>Hello world</p>
-    readonly inbox: string; // e.g. https://example.social/users/someone/inbox
-    readonly sharedInbox?: string; // e.g. https://example.social/inbox
     readonly to: readonly string[]; // e.g. https://example.social/users/someone
     readonly cc: readonly string[]; // e.g. https://www.w3.org/ns/activitystreams#Public
 }
@@ -184,8 +182,6 @@ export function checkCreateNoteRequest(obj: any): obj is CreateNoteRequest {
         && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v))
         && check('inReplyTo', obj.inReplyTo, v => v === undefined || typeof v === 'string' && isValidUrl(v))
         && check('content', obj.content, v => checkLangString(v))
-        && check('inbox', obj.inbox, v => typeof v === 'string' && isValidUrl(v))
-        && check('sharedInbox', obj.sharedInbox, v => v === undefined || typeof v === 'string' && isValidUrl(v))
         && check('to', obj.to, v => Array.isArray(v) && v.every(w => typeof w === 'string' && isValidUrl(w)))
         && check('cc', obj.cc, v => Array.isArray(v) && v.every(w => typeof w === 'string' && isValidUrl(w)))
         ;

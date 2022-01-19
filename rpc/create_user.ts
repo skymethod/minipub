@@ -23,8 +23,8 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
     
     // in a single transaction:
     await storage.transaction(async txn => {
-        // validate username is valid and unique (check i-username-uuid:<username> not exists)
-        const exists = (await txn.get('i-username-uuid', username)) !== undefined;
+        // validate username is valid and unique (check not exists)
+        const exists = (await txn.get('i-username-actor', username)) !== undefined;
         if (exists) throw new Error(`Username ${username} is unavailable`);
 
         const iconBlobUuid = await saveBlobIfNecessary('icon', iconBlobInfo, txn, blobReferences);
@@ -100,17 +100,17 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
 
         // save actor info (actor:<uuid>,json), including private fields and ld json to be returned as is
         const actor: ActorRecord = {
-            uuid: actorUuid,
+            actorUuid,
             privateKeyPem,
             blobReferences,
             activityPub,
         }
         await txn.put('actor', actorUuid, actor);
 
-        // save username->actor-uuid index (i-username-uuid:<username>, actor-uuid)
-        await txn.put('i-username-uuid', username, { uuid: actorUuid });
+        // save username->actor-uuid index (i-username-actor:<username>, actor-uuid)
+        await txn.put('i-username-actor', username, { actorUuid });
     });
-    return { kind: 'create-user', uuid: actorUuid, blobReferences };
+    return { kind: 'create-user', actorUuid, blobReferences };
 }
 
 //

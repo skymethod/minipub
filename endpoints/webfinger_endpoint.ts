@@ -1,4 +1,5 @@
 import { APPLICATION_JRD_JSON } from '../media_types.ts';
+import { computeActorId } from '../rpc/urls.ts';
 import { isValidUsername } from '../rpc_model.ts';
 import { BackendStorage, getRecord } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
@@ -21,10 +22,10 @@ export function matchWebfinger(method: string, pathname: string, searchParams: U
 export async function computeWebfinger(username: string, domain: string, origin: string, storage: BackendStorage): Promise<Response> {
     const originHost = new URL(origin).host;
     if (domain === originHost && isValidUsername(username)) {
-        const { uuid } = await storage.transaction(async txn => {
-            return await getRecord(txn, 'i-username-uuid', username);
+        const { actorUuid } = await storage.transaction(async txn => {
+            return await getRecord(txn, 'i-username-actor', username);
         }) || {};
-        if (typeof uuid === 'string' && isValidUuid(uuid)) {
+        if (typeof actorUuid === 'string' && isValidUuid(actorUuid)) {
             const subject = `acct:${username}@${originHost}`;
             const res = {
                 subject,
@@ -32,7 +33,7 @@ export async function computeWebfinger(username: string, domain: string, origin:
                     {
                         rel: 'self',
                         type: 'application/activity+json',
-                        href: `${origin}/actors/${uuid}`,
+                        href: computeActorId({ origin, actorUuid }),
                     }
                 ]
             }

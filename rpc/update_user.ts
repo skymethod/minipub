@@ -5,7 +5,7 @@ import { ApObject } from '../activity_pub/ap_object.ts';
 import { computeBlobInfo, computeImage, saveBlobIfNecessary } from './blob_info.ts';
 
 export async function computeUpdateUser(req: UpdateUserRequest, origin: string, storage: BackendStorage): Promise<UpdateUserResponse> {
-    const { uuid, name, username, icon, image } = req;
+    const { actorUuid, name, username, icon, image } = req;
 
      // compute icon,image hash
      const iconBlobInfo = icon ? await computeBlobInfo('icon', icon) : undefined;
@@ -17,13 +17,13 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
 
     // in a single transaction:
     await storage.transaction(async txn => {
-        const actor = await txn.get('actor', uuid);
-        if (actor === undefined) throw new Error(`computeUpdateUser: Actor ${uuid} not found`);
-        if (!checkActorRecord(actor)) throw new Error(`computeUpdateUser: Actor ${uuid} data is not valid`);
+        const actor = await txn.get('actor', actorUuid);
+        if (actor === undefined) throw new Error(`computeUpdateUser: Actor ${actorUuid} not found`);
+        if (!checkActorRecord(actor)) throw new Error(`computeUpdateUser: Actor ${actorUuid} data is not valid`);
 
         if (username) {
-            // validate username is valid and unique (check i-username-uuid:<username> not exists)
-            const exists = (await txn.get('i-username-uuid', username)) !== undefined;
+            // validate username is valid and unique (check i-username-actor:<username> not exists)
+            const exists = (await txn.get('i-username-actor', username)) !== undefined;
             if (exists) throw new Error(`Username ${username} is unavailable`);
         }
 
@@ -47,7 +47,7 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
         if (icon === null) {
             apo.delete('icon');
         } else if (icon !== undefined) {
-            const apIcon = iconBlobInfo && iconBlobUuid ? computeImage({ actorUuid: uuid, blobUuid: iconBlobUuid, width: icon.size, height: icon.size, ext: iconBlobInfo.key.ext, mediaType: icon.mediaType, origin }) : undefined;
+            const apIcon = iconBlobInfo && iconBlobUuid ? computeImage({ actorUuid, blobUuid: iconBlobUuid, width: icon.size, height: icon.size, ext: iconBlobInfo.key.ext, mediaType: icon.mediaType, origin }) : undefined;
             if (apIcon) {
                 apo.set('icon', apIcon);
             }
@@ -55,7 +55,7 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
         if (image === null) {
             apo.delete('image');
         } else if (image !== undefined) {
-            const apImage = imageBlobInfo && imageBlobUuid ? computeImage({ actorUuid: uuid, blobUuid: imageBlobUuid, width: image.width, height: image.height, ext: imageBlobInfo.key.ext, mediaType: image.mediaType, origin }) : undefined;
+            const apImage = imageBlobInfo && imageBlobUuid ? computeImage({ actorUuid, blobUuid: imageBlobUuid, width: image.width, height: image.height, ext: imageBlobInfo.key.ext, mediaType: image.mediaType, origin }) : undefined;
             if (apImage) {
                 apo.set('image', apImage);
             }
@@ -63,17 +63,17 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
         if (apo.modified) {
             apo.set('updated', new Date().toISOString());
             actor.activityPub = apo.toObj();
-            await txn.put('actor', uuid, actor);
+            await txn.put('actor', actorUuid, actor);
             
             if (username && oldUsername) {
-                // save username->actor-uuid index (i-username-uuid:<username>, actor-uuid)
-                await txn.delete('i-username-uuid', oldUsername)
-                await txn.put('i-username-uuid', username, { uuid });
+                // save username->actor index (i-username-actor:<username>, actor-uuid)
+                await txn.delete('i-username-actor', oldUsername)
+                await txn.put('i-username-actor', username, { actorUuid });
             }
 
             modified = true;
         }
 
     });
-    return { kind: 'update-user', uuid, modified };
+    return { kind: 'update-user', actorUuid, modified };
 }

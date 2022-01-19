@@ -1,5 +1,5 @@
 import { isStringRecord } from './check.ts';
-import { BackendStorage, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
+import { BackendStorage, BackendStorageListOptions, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
 const DEBUG = false;
 
@@ -53,6 +53,24 @@ class InMemoryStorageTransaction implements BackendStorageTransaction {
         if (DEBUG) console.log(`delete ${domain} ${key}`);
         this.values.delete(packKey(domain, key));
         return Promise.resolve();
+    }
+
+    list(domain: string, opts: BackendStorageListOptions = {}): Promise<Map<string, BackendStorageValue>> {
+        if (DEBUG) console.log(`list ${domain} ${JSON.stringify(opts)}`);
+        if (opts.start !== undefined) throw new Error(`InMemoryStorage: implement list start`);
+        if (opts.end !== undefined) throw new Error(`InMemoryStorage: implement list end`);
+        if (opts.prefix !== undefined) throw new Error(`InMemoryStorage: implement list prefix`);
+        if (opts.reverse !== undefined) throw new Error(`InMemoryStorage: implement list reverse`);
+        if (opts.limit !== undefined) throw new Error(`InMemoryStorage: implement list limit`);
+        const prefix = domain + ':';
+        const rt = new Map<string, BackendStorageValue>();
+        for (const key of [...this.values.keys()].sort()) {
+            if (key.startsWith(prefix)) {
+                const value = this.values.get(key)!;
+                rt.set(key.substring(prefix.length), value);
+            }
+        }
+        return Promise.resolve(rt);
     }
 
 }

@@ -37,7 +37,7 @@ Deno.test('ApObject', () => {
     // round trips
     const obj1 = { type: 'Person' };
     for (const obj of [ obj1, minipubActor, mastodonActor, mastodonStatus, mastodonMessage, pleromaNote, peertubeNote, peertubeActor ]) {
-        const apo = ApObject.parseObj(obj, parseCallback);
+        const apo = ApObject.parseObj(obj, { callback: parseCallback });
         assertEquals(apo.toObj(), obj);
     }
 

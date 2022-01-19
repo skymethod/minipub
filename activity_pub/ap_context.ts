@@ -175,10 +175,10 @@ function tryResolve(value: string, context: any, contexts: any[]): Resolution | 
     }
 }
 
-function computeContexts(context: any) {
+function computeContexts(context: any): any[] {
     const contexts: any[] = [];
     if (context === undefined) {
-        contexts.push('https://www.w3.org/ns/activitystreams');
+        // noop
     } else if (typeof context === 'string') {
         contexts.push(context);
     } else if (Array.isArray(context)) {

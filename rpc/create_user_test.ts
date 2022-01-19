@@ -10,6 +10,6 @@ Deno.test('computeCreateUser', async () => {
         username: 'alice',
     };
     const storage = makeInMemoryStorage();
-    const { uuid } = await computeCreateUser(req, 'https://example.social', storage);
-    assertStrictEquals(isValidUuid(uuid), true);
+    const { actorUuid } = await computeCreateUser(req, 'https://example.social', storage);
+    assertStrictEquals(isValidUuid(actorUuid), true);
 });

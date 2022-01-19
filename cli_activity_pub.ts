@@ -1,4 +1,5 @@
-import { ApObject, ParseCallback } from './activity_pub/ap_object.ts';
+import { ParseCallback } from './activity_pub/ap_context.ts';
+import { ApObject } from './activity_pub/ap_object.ts';
 
 export async function activityPub(args: (string | number)[], options: Record<string, unknown>) {
     const [ url ] = args;
@@ -17,13 +18,13 @@ export async function activityPub(args: (string | number)[], options: Record<str
         console.log(JSON.stringify(obj, undefined, 2));
         if (parse) {
             let warnings = false;
-            const parseCallback: ParseCallback = {
+            const callback: ParseCallback = {
                 onUnresolvedProperty: (name, value, _context) => {
                     console.warn(`Unresolved property: "${name}": ${JSON.stringify(value)}`);
                     warnings = true;
                 }
             };
-            ApObject.parseObj(obj, parseCallback);
+            ApObject.parseObj(obj, { callback });
             console.log(warnings ? 'Parsed ApObject with warnings' : 'Parsed ApObject ✅');
         }
     } else {

@@ -20,10 +20,21 @@ export class ApObject extends ApObjectValue {
         return JSON.parse(json);
     }
 
-    static parseObj(obj: any, callback?: ParseCallback): ApObject {
+    static parseObj(obj: any, opts: { callback?: ParseCallback, includeDefaultContext?: boolean } = {}): ApObject {
+        const { callback, includeDefaultContext } = opts;
         if (!isStringRecord(obj)) throw new Error(`Bad obj: expected object, found ${JSON.stringify(obj)}`);
 
-        const context = ApContext.parse(obj['@context'], callback);
+        if (includeDefaultContext) {
+            const rawContext = obj['@context'];
+            if (rawContext === undefined) {
+                const newObj: Record<string, unknown> = { '@context': 'https://www.w3.org/ns/activitystreams' };
+                for (const [ name, value ] of Object.entries(obj)) {
+                    newObj[name] = value;
+                }
+                obj = newObj;
+            }
+        }
+        const context = ApContext.parse( obj['@context'], callback);
 
         obj = stripUndefinedValues(obj); // ActivityPub does not support explicitly undefined values
 

@@ -19,12 +19,12 @@ Deno.test('computeBlob', async () => {
         }
     };
     const storage = makeInMemoryStorage();
-    const { uuid, blobReferences } = await computeCreateUser(req, 'https://example.social', storage);
-    assertStrictEquals(isValidUuid(uuid), true);
+    const { actorUuid, blobReferences } = await computeCreateUser(req, 'https://example.social', storage);
+    assertStrictEquals(isValidUuid(actorUuid), true);
     const [ blobUuid ] = Object.entries(blobReferences).find(v => v[1].tag === 'icon') || [];
     if (!blobUuid ) throw new Error('icon not found');
 
-    const res = await computeBlob(uuid, blobUuid, 'png', storage);
+    const res = await computeBlob(actorUuid, blobUuid, 'png', storage);
     assertStrictEquals(res.status, 200);
     assertStrictEquals(res.headers.get('content-type'), IMAGE_PNG);
     const b64 = new Bytes(new Uint8Array(await res.arrayBuffer())).base64();

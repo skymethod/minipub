@@ -8,10 +8,10 @@ import { Bytes } from '../deps.ts';
 import { isStringRecord } from '../check.ts';
 
 Deno.test('computeUpdateUser', async () => {
-    const uuid = newUuid();
+    const actorUuid = newUuid();
     const storage = makeInMemoryStorage();
     const actor: ActorRecord = {
-        uuid,
+        actorUuid,
         privateKeyPem: 'asdf',
         blobReferences: {},
         activityPub: {
@@ -19,12 +19,12 @@ Deno.test('computeUpdateUser', async () => {
         },
     };
     await storage.transaction(async txn => {
-        await txn.put('actor', uuid, actor);
+        await txn.put('actor', actorUuid, actor);
     });
 
     const req: UpdateUserRequest = {
         kind: 'update-user',
-        uuid,
+        actorUuid,
         name: 'Alice Doe',
     };
     
@@ -36,13 +36,13 @@ Deno.test('computeUpdateUser', async () => {
 
     const req2: UpdateUserRequest = {
         kind: 'update-user',
-        uuid,
+        actorUuid,
         icon: { bytesBase64: Bytes.ofUtf8('(not actually a png').base64(), size: 1, mediaType: 'image/png' },
     };
     await computeUpdateUser(req2, 'https://example.social', storage);
 
     const ap = await storage.transaction(async txn => {
-        const tmp = await txn.get('actor', uuid);
+        const tmp = await txn.get('actor', actorUuid);
         return tmp && isStringRecord(tmp) && isStringRecord(tmp.activityPub) ? tmp.activityPub : undefined;
     });
     assert(ap !== undefined && isStringRecord(ap.icon) && ap.icon.type === 'Image' && ap.icon.width === 1, JSON.stringify(ap));

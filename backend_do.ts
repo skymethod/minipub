@@ -4,7 +4,7 @@ import { computeActor, matchActor } from './endpoints/actor_endpoint.ts';
 import { computeBlob, matchBlob } from './endpoints/blob_endpoint.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
-import { BackendStorage, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
+import { BackendStorage, BackendStorageListOptions, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
 export class BackendDO {
 
@@ -99,6 +99,21 @@ class Tx implements BackendStorageTransaction {
 
     async delete(domain: string, key: string): Promise<void> {
         await this.transaction.delete(packKey(domain, key));
+    }
+
+    async list(domain: string, opts: BackendStorageListOptions = {}): Promise<Map<string, BackendStorageValue>> {
+        if (opts.start !== undefined) throw new Error(`InMemoryStorage: implement list start`);
+        if (opts.end !== undefined) throw new Error(`InMemoryStorage: implement list end`);
+        if (opts.prefix !== undefined) throw new Error(`InMemoryStorage: implement list prefix`);
+        if (opts.reverse !== undefined) throw new Error(`InMemoryStorage: implement list reverse`);
+        if (opts.limit !== undefined) throw new Error(`InMemoryStorage: implement list limit`);
+        const prefix = domain + ':';
+        const values = await this.transaction.list({ prefix });
+        const rt = new Map<string, BackendStorageValue>();
+        for (const [ key, value ] of values) {
+            rt.set(key.substring(prefix.length), unpackValue(value));
+        }
+        return rt;
     }
 
 }

@@ -15,11 +15,11 @@ export function matchActor(method: string, pathname: string): { actorUuid: strin
 }
 
 export async function computeActor(actorUuid: string, storage: BackendStorage): Promise<Response> {
-    const ld = await storage.transaction(async txn => {
+    const activityPub = await storage.transaction(async txn => {
         const actor = await getRecord(txn, 'actor', actorUuid);
         return actor ? actor.activityPub : undefined;
     });
-    if (ld) return json(ld);
+    if (activityPub) return json(activityPub);
     return new Response('not found', { status: 404 });
 }
 

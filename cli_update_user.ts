@@ -11,7 +11,7 @@ export async function updateUser(args: (string | number)[], options: Record<stri
 
     const req: UpdateUserRequest = {
         kind: 'update-user',
-        uuid,
+        actorUuid: uuid,
         username,
         name,
         icon,

@@ -12,6 +12,24 @@ export interface BackendStorageTransaction {
     put(domain: string, key: string, value: BackendStorageValue): Promise<void>;
     delete(domain: string, key: string): Promise<void>;
     putAll(domainsToKeysToValues: Record<string, Record<string, BackendStorageValue>>): Promise<void>;
+    list(domain: string, opts?: BackendStorageListOptions): Promise<Map<string, BackendStorageValue>>;
+}
+
+export interface BackendStorageListOptions {
+    /** Key at which the list results should start, inclusive. */
+    readonly start?: string;
+
+    /** Key at which the list results should end, exclusive. */
+    readonly end?: string;
+
+    /** Restricts results to only include key-value pairs whose keys begin with the prefix. */
+    readonly prefix?: string;
+
+    /** If true, return results in descending lexicographic order instead of the default ascending order. */
+    readonly reverse?: boolean;
+
+    /** Maximum number of key-value pairs to return.  */
+    readonly limit?: number;
 }
 
 export async function getRecord(tx: BackendStorageTransaction, domain: string, key: string): Promise<Record<string, unknown> | undefined> {

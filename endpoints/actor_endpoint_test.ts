@@ -12,12 +12,12 @@ Deno.test('computeActor', async () => {
         username: 'alice',
     };
     const storage = makeInMemoryStorage();
-    const { uuid } = await computeCreateUser(req, 'https://example.social', storage);
-    assertStrictEquals(isValidUuid(uuid), true);
+    const { actorUuid } = await computeCreateUser(req, 'https://example.social', storage);
+    assertStrictEquals(isValidUuid(actorUuid), true);
 
-    const res = await computeActor(uuid, storage);
+    const res = await computeActor(actorUuid, storage);
     assertStrictEquals(res.status, 200);
     assertStrictEquals(res.headers.get('content-type'), APPLICATION_ACTIVITY_JSON);
     const obj = await res.json();
-    assertStrictEquals(obj.id, `https://example.social/actors/${uuid}`);
+    assertStrictEquals(obj.id, `https://example.social/actors/${actorUuid}`);
 });
