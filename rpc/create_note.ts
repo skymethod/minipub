@@ -7,9 +7,10 @@ import { computeActivityId, computeActorId, computeObjectId } from './urls.ts';
 import { computeTimestamp } from './timestamp.ts';
 
 export async function computeCreateNote(req: CreateNoteRequest, origin: string, storage: BackendStorage): Promise<CreateNoteResponse> {
-    const { actorUuid, inReplyTo, content, to, cc } = req;
+    const { actorUuid, inReplyTo, content, to, cc: optCc } = req;
+    const cc = optCc && optCc.length > 0 ? optCc : undefined;
 
-    if (to.length === 0 && cc.length === 0) throw new Error(`Notes must have either a to or cc`);
+    if (to.length === 0) throw new Error(`Notes must have a 'to'`);
 
     const objectUuid = newUuid();
     const objectId = computeObjectId({ origin, actorUuid, objectUuid });
@@ -52,6 +53,7 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
         const activityRecord: ActivityRecord = {
             activityUuid,
             actorUuid,
+            objectUuid,
             activityPub: activityApo.toObj(),   
         }
         await txn.put('activity', activityUuid, activityRecord);
@@ -66,5 +68,5 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
     // federate activity
 //   add to user's server-inbox index (i:user-server-inboxes:<actor-uuid>:sha(<inbox-url>),inbox-url)
 
-    return { kind: 'create-note', objectId, activityId };
+    return { kind: 'create-note', objectUuid, activityUuid };
 }

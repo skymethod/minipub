@@ -1,6 +1,7 @@
-import { APPLICATION_ACTIVITY_JSON } from '../media_types.ts';
+import { checkActorRecord } from '../domain_model.ts';
 import { BackendStorage, getRecord } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
+import { makeActivityPubResponse, makeNotFoundResponse } from './responses.ts';
 
 export function matchActor(method: string, pathname: string): { actorUuid: string } | undefined {
     if (method === 'GET') {
@@ -15,17 +16,9 @@ export function matchActor(method: string, pathname: string): { actorUuid: strin
 }
 
 export async function computeActor(actorUuid: string, storage: BackendStorage): Promise<Response> {
-    const activityPub = await storage.transaction(async txn => {
-        const actor = await getRecord(txn, 'actor', actorUuid);
-        return actor ? actor.activityPub : undefined;
-    });
-    if (activityPub) return json(activityPub);
-    return new Response('not found', { status: 404 });
-}
-
-//
-
-// deno-lint-ignore no-explicit-any
-function json(res: any): Response {
-    return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON } });
+    const actor = await storage.transaction(async txn => await getRecord(txn, 'actor', actorUuid));
+    if (actor && checkActorRecord(actor)) {
+        return makeActivityPubResponse(actor.activityPub);
+    }
+    return makeNotFoundResponse();
 }

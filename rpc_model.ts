@@ -173,7 +173,7 @@ export interface CreateNoteRequest {
     readonly inReplyTo?: string; // e.g. https://example.social/users/someone/statuses/123123123123123123
     readonly content: LangString; // e.g. <p>Hello world</p>
     readonly to: readonly string[]; // e.g. https://example.social/users/someone
-    readonly cc: readonly string[]; // e.g. https://www.w3.org/ns/activitystreams#Public
+    readonly cc?: readonly string[]; // e.g. https://www.w3.org/ns/activitystreams#Public
 }
 
 export function checkCreateNoteRequest(obj: any): obj is CreateNoteRequest {
@@ -183,12 +183,12 @@ export function checkCreateNoteRequest(obj: any): obj is CreateNoteRequest {
         && check('inReplyTo', obj.inReplyTo, v => v === undefined || typeof v === 'string' && isValidUrl(v))
         && check('content', obj.content, v => checkLangString(v))
         && check('to', obj.to, v => Array.isArray(v) && v.every(w => typeof w === 'string' && isValidUrl(w)))
-        && check('cc', obj.cc, v => Array.isArray(v) && v.every(w => typeof w === 'string' && isValidUrl(w)))
+        && check('cc', obj.cc, v => v === undefined || Array.isArray(v) && v.every(w => typeof w === 'string' && isValidUrl(w)))
         ;
 }
 
 export interface CreateNoteResponse {
     readonly kind: 'create-note';
-    readonly objectId: string,
-    readonly activityId: string,
+    readonly objectUuid: string,
+    readonly activityUuid: string,
 }

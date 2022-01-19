@@ -6,6 +6,8 @@ import { matchBlob } from './endpoints/blob_endpoint.ts';
 import { matchRpc } from './endpoints/rpc_endpoint.ts';
 import { newUuid } from './uuid.ts';
 import { matchWebfinger } from './endpoints/webfinger_endpoint.ts';
+import { matchObject } from './endpoints/object_endpoint.ts';
+import { makeErrorResponse, makeNotFoundResponse } from './endpoints/responses.ts';
 export { BackendDO } from './backend_do.ts';
 
 export default {
@@ -45,6 +47,7 @@ export default {
                 }
                 const routeToDurableObject = isRpc
                     || matchActor(method, pathname)
+                    || matchObject(method, pathname)
                     || matchBlob(method, pathname)
                     || matchWebfinger(method, pathname, searchParams)
                     ;
@@ -55,9 +58,9 @@ export default {
                     return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(canonicalUrl, { method, headers: doHeaders, body: bodyText });
                 }
             }
-            return new Response('not found', { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
+            return makeNotFoundResponse();
         } catch (e) {
-            return new Response(`${e}`, { status: 500, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
+            return makeErrorResponse(e);
         }
     }
 
