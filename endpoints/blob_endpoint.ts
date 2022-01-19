@@ -1,5 +1,5 @@
 import { check } from '../check.ts';
-import { checkActor, isValidExt, packBlobKey } from '../domain_model.ts';
+import { checkActorRecord, isValidExt, packBlobKey } from '../domain_model.ts';
 import { getMediaTypeForExt } from '../media_types.ts';
 import { BackendStorage, getRecord, getUint8Array } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
@@ -23,7 +23,7 @@ export async function computeBlob(actorUuid: string, blobUuid: string, ext: stri
 
     const bytes = await storage.transaction(async txn => {
         const actor = await getRecord(txn, 'actor', actorUuid);
-        if (actor && checkActor(actor)) {
+        if (actor && checkActorRecord(actor)) {
             const ref = actor.blobReferences[blobUuid];
             if (ref) {
                 if (ref.key.ext === ext) {

@@ -1,8 +1,9 @@
-import { checkCreateUserRequest, checkUpdateUserRequest, RpcResponse } from '../rpc_model.ts';
+import { checkCreateNoteRequest, checkCreateUserRequest, checkUpdateUserRequest, RpcResponse } from '../rpc_model.ts';
 import { APPLICATION_JSON_UTF8 } from '../media_types.ts';
 import { BackendStorage } from '../storage.ts';
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { computeUpdateUser } from '../rpc/update_user.ts';
+import { computeCreateNote } from '../rpc/create_note.ts';
 
 export const matchRpc = (method: string, pathname: string) => method === 'POST' && pathname === '/rpc';
 
@@ -12,6 +13,7 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
     const { kind } = body;
     if (kind === 'create-user' && checkCreateUserRequest(body)) return json(await computeCreateUser(body, origin, storage));
     if (kind === 'update-user' && checkUpdateUserRequest(body)) return json(await computeUpdateUser(body, origin, storage));
+    if (kind === 'create-note' && checkCreateNoteRequest(body)) return json(await computeCreateNote(body, origin, storage));
     throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
 }
 

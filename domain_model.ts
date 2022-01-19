@@ -40,15 +40,15 @@ export function checkBlobReference(obj: any): obj is BlobReference {
         ;
 }
 
-export interface Actor extends Record<string, unknown> {
+export interface ActorRecord extends Record<string, unknown> {
     readonly uuid: string;
     readonly privateKeyPem: string;
     readonly blobReferences: Record<string, BlobReference>; // key = blob uuid
     activityPub: Record<string, unknown>;
 }
 
-export function checkActor(obj: any): obj is Actor {
-    return typeof obj === 'object'
+export function checkActorRecord(obj: any): obj is ActorRecord {
+    return isStringRecord(obj)
         && check('uuid', obj.uuid, v => typeof v === 'string' && isValidUuid(v))
         && check('privateKeyPem', obj.privateKeyPem, v => typeof v === 'string' && isNonEmpty(v))
         && check('blobReferences', obj.blobReferences, v => isStringRecord(v) && isValidBlobReferences(v))
@@ -63,4 +63,32 @@ function isValidBlobReferences(obj: any): boolean {
         checkBlobReference(blobReference);
         return true;
     });
+}
+
+export interface ObjectRecord extends Record<string, unknown> {
+    readonly uuid: string;
+    readonly actorUuid: string;
+    readonly activityPub: Record<string, unknown>;
+}
+
+export function checkObjectRecord(obj: any): obj is ObjectRecord {
+    return isStringRecord(obj)
+        && check('uuid', obj.uuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v) && v !== obj.uuid)
+        && check('activityPub', obj.activityPub, v => isStringRecord(v))
+        ;
+}
+
+export interface ActivityRecord extends Record<string, unknown> {
+    readonly uuid: string;
+    readonly actorUuid: string;
+    readonly activityPub: Record<string, unknown>;
+}
+
+export function checkActivityRecord(obj: any): obj is ObjectRecord {
+    return isStringRecord(obj)
+        && check('uuid', obj.uuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v) && v !== obj.uuid)
+        && check('activityPub', obj.activityPub, v => isStringRecord(v))
+        ;
 }

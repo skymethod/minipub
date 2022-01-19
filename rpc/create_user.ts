@@ -2,13 +2,14 @@ import { CreateUserRequest, CreateUserResponse, LangString } from '../rpc_model.
 import { BackendStorage } from '../storage.ts';
 import { newUuid } from '../uuid.ts';
 import { exportKeyToPem, generateExportableRsaKeyPair } from '../crypto.ts';
-import { Actor, BlobReference } from '../domain_model.ts';
+import { ActorRecord, BlobReference } from '../domain_model.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { computeBlobInfo, computeImage, saveBlobIfNecessary } from './blob_info.ts';
+import { computeActorId } from './urls.ts';
 
 export async function computeCreateUser(req: CreateUserRequest, origin: string, storage: BackendStorage): Promise<CreateUserResponse> {
     // generate uuid, keypair
-    const uuid = newUuid();
+    const actorUuid = newUuid();
     const { privateKey, publicKey } = await generateExportableRsaKeyPair();
     const privateKeyPem = await exportKeyToPem(privateKey, 'private');
     const publicKeyPem = await exportKeyToPem(publicKey, 'public');
@@ -31,7 +32,7 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
         // now we have urls for image,icon (https://example.social/blobs/<blob-uuid>.<ext>)
 
         const published = new Date().toISOString();
-        const actorId = `${origin}/actors/${uuid}`;
+        const actorId = computeActorId({ origin, actorUuid });
         const otherContext: Record<string, string> = {};
         if (req.manuallyApprovesFollowers !== undefined) otherContext['manuallyApprovesFollowers'] =  'as:manuallyApprovesFollowers';
         if (req.discoverable !== undefined) {
@@ -77,10 +78,10 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
             url: req.url, 
 
             // mastodon: Used as profile avatar.
-            icon: icon && iconBlobInfo && iconBlobUuid ? computeImage({ actorUuid: uuid, blobUuid: iconBlobUuid, width: icon.size, height: icon.size, ext: iconBlobInfo.key.ext, mediaType: icon.mediaType, origin }) : undefined,
+            icon: icon && iconBlobInfo && iconBlobUuid ? computeImage({ actorUuid, blobUuid: iconBlobUuid, width: icon.size, height: icon.size, ext: iconBlobInfo.key.ext, mediaType: icon.mediaType, origin }) : undefined,
             
             // mastodon: Used as profile header.
-            image: image && imageBlobInfo && imageBlobUuid ? computeImage({ actorUuid: uuid, blobUuid: imageBlobUuid, width: image.width, height: image.height, ext: imageBlobInfo.key.ext, mediaType: image.mediaType, origin }) : undefined,
+            image: image && imageBlobInfo && imageBlobUuid ? computeImage({ actorUuid, blobUuid: imageBlobUuid, width: image.width, height: image.height, ext: imageBlobInfo.key.ext, mediaType: image.mediaType, origin }) : undefined,
 
             // mastodon: Will be shown as a locked account.
             manuallyApprovesFollowers: req.manuallyApprovesFollowers,
@@ -98,18 +99,18 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
         activityPub = ApObject.parseObj(activityPub).toObj(); // strip undefined values
 
         // save actor info (actor:<uuid>,json), including private fields and ld json to be returned as is
-        const actor: Actor = {
-            uuid,
+        const actor: ActorRecord = {
+            uuid: actorUuid,
             privateKeyPem,
             blobReferences,
             activityPub,
         }
-        await txn.put('actor', uuid, actor);
+        await txn.put('actor', actorUuid, actor);
 
         // save username->actor-uuid index (i-username-uuid:<username>, actor-uuid)
-        await txn.put('i-username-uuid', username, { uuid });
+        await txn.put('i-username-uuid', username, { uuid: actorUuid });
     });
-    return { kind: 'create-user', uuid, blobReferences };
+    return { kind: 'create-user', uuid: actorUuid, blobReferences };
 }
 
 //

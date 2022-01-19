@@ -3,14 +3,14 @@ import { UpdateUserRequest } from '../rpc_model.ts';
 import { newUuid } from '../uuid.ts';
 import { makeInMemoryStorage } from '../in_memory_storage.ts';
 import { computeUpdateUser } from './update_user.ts';
-import { Actor } from '../domain_model.ts';
+import { ActorRecord } from '../domain_model.ts';
 import { Bytes } from '../deps.ts';
 import { isStringRecord } from '../check.ts';
 
 Deno.test('computeUpdateUser', async () => {
     const uuid = newUuid();
     const storage = makeInMemoryStorage();
-    const actor: Actor = {
+    const actor: ActorRecord = {
         uuid,
         privateKeyPem: 'asdf',
         blobReferences: {},

@@ -1,6 +1,6 @@
 import { UpdateUserRequest, UpdateUserResponse } from '../rpc_model.ts';
 import { BackendStorage } from '../storage.ts';
-import { BlobReference, checkActor } from '../domain_model.ts';
+import { BlobReference, checkActorRecord } from '../domain_model.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { computeBlobInfo, computeImage, saveBlobIfNecessary } from './blob_info.ts';
 
@@ -19,7 +19,7 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
     await storage.transaction(async txn => {
         const actor = await txn.get('actor', uuid);
         if (actor === undefined) throw new Error(`computeUpdateUser: Actor ${uuid} not found`);
-        if (!checkActor(actor)) throw new Error(`computeUpdateUser: Actor ${uuid} data is not valid`);
+        if (!checkActorRecord(actor)) throw new Error(`computeUpdateUser: Actor ${uuid} data is not valid`);
 
         if (username) {
             // validate username is valid and unique (check i-username-uuid:<username> not exists)

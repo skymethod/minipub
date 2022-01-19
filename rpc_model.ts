@@ -1,11 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 
-import { check, isNonEmpty, isValidUrl } from './check.ts';
+import { check, isNonEmpty, isStringRecord, isValidUrl } from './check.ts';
 import { BlobReference } from './domain_model.ts';
 import { isValidUuid } from './uuid.ts';
 
-export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | ReplyRequest | SendActivityRequest;
-export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserResponse | ReplyResponse | SendActivityResponse;
+export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | CreateNoteRequest;
+export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserResponse | CreateNoteResponse;
 
 // validation
 
@@ -165,32 +165,34 @@ export interface DeleteUserResponse {
     readonly deleted: boolean;
 }
 
-// reply
+// create-note
 
-export interface ReplyRequest {
-    readonly kind: 'reply';
+export interface CreateNoteRequest {
+    readonly kind: 'create-note';
     readonly actorUuid: string;
-    readonly inReplyTo: string; // e.g. https://example.social/users/someone/statuses/123123123123123123
+    readonly inReplyTo?: string; // e.g. https://example.social/users/someone/statuses/123123123123123123
     readonly content: LangString; // e.g. <p>Hello world</p>
     readonly inbox: string; // e.g. https://example.social/users/someone/inbox
     readonly sharedInbox?: string; // e.g. https://example.social/inbox
-    readonly to: string; // e.g. https://example.social/users/someone
+    readonly to: readonly string[]; // e.g. https://example.social/users/someone
+    readonly cc: readonly string[]; // e.g. https://www.w3.org/ns/activitystreams#Public
 }
 
-export interface ReplyResponse {
-    readonly kind: 'reply';
+export function checkCreateNoteRequest(obj: any): obj is CreateNoteRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'create-note')
+        && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('inReplyTo', obj.inReplyTo, v => v === undefined || typeof v === 'string' && isValidUrl(v))
+        && check('content', obj.content, v => checkLangString(v))
+        && check('inbox', obj.inbox, v => typeof v === 'string' && isValidUrl(v))
+        && check('sharedInbox', obj.sharedInbox, v => v === undefined || typeof v === 'string' && isValidUrl(v))
+        && check('to', obj.to, v => Array.isArray(v) && v.every(w => typeof w === 'string' && isValidUrl(w)))
+        && check('cc', obj.cc, v => Array.isArray(v) && v.every(w => typeof w === 'string' && isValidUrl(w)))
+        ;
 }
 
-// send-activity
-
-export interface SendActivityRequest {
-    readonly kind: 'send-activity';
-    readonly actorUuid: string;
-    readonly inboxUrl: string;
-    readonly activityId: string;
-    readonly queued: string; // iso8601
-}
-
-export interface SendActivityResponse {
-    readonly kind: 'send-activity';
+export interface CreateNoteResponse {
+    readonly kind: 'create-note';
+    readonly objectId: string,
+    readonly activityId: string,
 }
