@@ -1,4 +1,4 @@
-import { readPrivateKey, sendRpc } from './cli.ts';
+import { parseRpcOptions, sendRpc } from './cli.ts';
 import { Bytes } from './deps.ts';
 import { extname } from './deps_cli.ts';
 import { getMediaTypeForExt } from './media_types.ts';
@@ -18,14 +18,13 @@ export async function createUser(_args: (string | number)[], options: Record<str
 }
 
 export async function parseUserOptions(options: Record<string, unknown>): Promise<{ origin: string; privateKey: CryptoKey, username?: string; name?: string; icon?: Icon; iconSize?: number; }> {
-    const { origin, username, name, icon, iconSize } = options;
-    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
+    const { username, name, icon, 'icon-size': iconSize } = options;
     if (username !== undefined && typeof username !== 'string') throw new Error('Username should be a string, e.g. --username alice');
     if (name !== undefined && typeof name !== 'string') throw new Error('Name should be a string, e.g. --name "Alice Doe"');
     if (icon !== undefined && typeof icon !== 'string') throw new Error('Icon should be file path, e.g. --icon /path/to/alice.jpg');
     if (iconSize !== undefined && typeof iconSize !== 'number') throw new Error('Icon size should be number, e.g. --icon-size 150');
 
-    const privateKey = await readPrivateKey(options);
+    const { origin, privateKey } = await parseRpcOptions(options);
 
     const computeIcon = async () => {
         if (icon && iconSize) {

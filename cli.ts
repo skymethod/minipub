@@ -5,12 +5,15 @@ import { RpcRequest } from './rpc_model.ts';
 import { activityPub } from './cli_activity_pub.ts';
 import { createUser } from './cli_create_user.ts';
 import { updateUser } from './cli_update_user.ts';
+import { createNote } from './cli_create_note.ts';
 
-export async function readPrivateKey(options: Record<string, unknown>) {
-    const { pem } = options;
+export async function parseRpcOptions(options: Record<string, unknown>) {
+    const { origin, pem } = options;
+    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mp.whatever.com');
     if (typeof pem !== 'string') throw new Error('Provide path to admin pem, e.g. --pem /path/to/admin.private.pem');
     const privatePemText = (await Deno.readTextFile(pem)).trim();
-    return await importKeyFromPem(privatePemText, 'private');
+    const privateKey = await importKeyFromPem(privatePemText, 'private');
+    return { origin, privateKey };
 }
 
 export async function sendRpc(request: RpcRequest, origin: string, privateKey: CryptoKey) {
@@ -32,7 +35,7 @@ export async function sendRpc(request: RpcRequest, origin: string, privateKey: C
 
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { generate, reply, createUser, updateUser, activityPub, ap: activityPub }[command];
+    const fn = { generate, reply, createUser, updateUser, createNote, activityPub, ap: activityPub }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
@@ -55,7 +58,7 @@ async function generate(_args: (string | number)[], options: Record<string, unkn
     }
 }
 
-async function reply(_args: (string | number)[], options: Record<string, unknown>) {
+function reply(_args: (string | number)[], options: Record<string, unknown>) {
     const { origin, inReplyTo, content, inbox, to } = options;
     
     if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
@@ -64,7 +67,7 @@ async function reply(_args: (string | number)[], options: Record<string, unknown
     if (typeof inbox !== 'string') throw new Error('Provide inbox, e.g. --inbox https://example.social/users/someone/inbox');
     if (typeof to !== 'string') throw new Error('Provide to, e.g. --inbox https://example.social/users/someone');
 
-    const privateKey = await readPrivateKey(options);
+    // const privateKey = await readPrivateKey(options);
 
     throw new Error('TODO');
     // const req: ReplyRequest = { 
