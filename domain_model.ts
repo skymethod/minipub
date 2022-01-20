@@ -85,7 +85,7 @@ export interface ActivityRecord extends Record<string, unknown> {
     readonly activityPub: Record<string, unknown>;
 }
 
-export function checkActivityRecord(obj: any): obj is ObjectRecord {
+export function checkActivityRecord(obj: any): obj is ActivityRecord {
     return isStringRecord(obj)
         && check('activityUuid', obj.activityUuid, v => typeof v === 'string' && isValidUuid(v))
         && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v) && v !== obj.uuid)

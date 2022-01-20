@@ -7,6 +7,7 @@ import { computeObject, matchObject } from './endpoints/object_endpoint.ts';
 import { makeErrorResponse } from './endpoints/responses.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
+import { Fetcher } from "./fetcher.ts";
 import { BackendStorage, BackendStorageListOptions, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
 export class BackendDO {
@@ -31,8 +32,9 @@ export class BackendDO {
         console.log('logprops:', { colo, durableObjectClass: 'BackendDO', durableObjectId: state.id.toString(), durableObjectName });
 
         try {
+            const fetcher: Fetcher = fetch;
             const storage = Tx.makeStorage(state.storage);
-            if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage); // assumes auth happened earlier
+            if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage, fetcher); // assumes auth happened earlier
             const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
             const object = matchObject(method, pathname); if (object) return await computeObject(object.actorUuid, object.objectUuid, storage);
             const activity = matchActivity(method, pathname); if (activity) return await computeActivity(activity.actorUuid, activity.activityUuid, storage);

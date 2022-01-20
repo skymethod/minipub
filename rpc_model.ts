@@ -4,8 +4,8 @@ import { check, isNonEmpty, isStringRecord, isValidUrl } from './check.ts';
 import { BlobReference } from './domain_model.ts';
 import { isValidUuid } from './uuid.ts';
 
-export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | CreateNoteRequest;
-export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserResponse | CreateNoteResponse;
+export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | CreateNoteRequest | FederateActivityRequest;
+export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserResponse | CreateNoteResponse | FederateActivityResponse;
 
 // validation
 
@@ -191,4 +191,26 @@ export interface CreateNoteResponse {
     readonly kind: 'create-note';
     readonly objectUuid: string,
     readonly activityUuid: string,
+}
+
+// federate-activity
+
+export interface FederateActivityRequest {
+    readonly kind: 'federate-activity';
+    readonly activityUuid: string;
+    readonly dryRun?: boolean;
+}
+
+export function checkFederateActivityRequest(obj: any): obj is FederateActivityRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'federate-activity')
+        && check('activityUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('dryRun', obj.dryRun, v => v === undefined || typeof v === 'boolean')
+        ;
+}
+
+export interface FederateActivityResponse {
+    readonly kind: 'federate-activity';
+    readonly log: readonly string[];
+    readonly inbox?: string;
 }

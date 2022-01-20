@@ -13,3 +13,8 @@ export class Iri {
     }
 
 }
+
+// deno-lint-ignore no-explicit-any
+export function isIriArray(obj: any): obj is readonly Iri[] {
+    return Array.isArray(obj) && obj.every(v => v instanceof Iri);
+}
