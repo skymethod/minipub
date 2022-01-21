@@ -1,0 +1,7 @@
+
+after receiving the federated Update Person activity, Mastodon is seen to request the new icon
+
+GET https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/blobs/e9018775ec534736b712374062489c47.jpg
+  date: Fri, 21 Jan 2022 18:31:35 GMT
+  host: minipub.server
+  user-agent: http.rb/5.0.4 (Mastodon/3.4.4; +https://example.social/)

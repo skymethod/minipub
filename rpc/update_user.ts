@@ -1,8 +1,11 @@
 import { UpdateUserRequest, UpdateUserResponse } from '../rpc_model.ts';
-import { BackendStorage } from '../storage.ts';
-import { BlobReference, checkActorRecord } from '../domain_model.ts';
+import { BackendStorage, BackendStorageTransaction } from '../storage.ts';
+import { ActivityRecord, BlobReference, checkActorRecord } from '../domain_model.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { computeBlobInfo, computeImage, saveBlobIfNecessary } from './blob_info.ts';
+import { newUuid } from '../uuid.ts';
+import { computeActivityId, computeActorId } from './urls.ts';
+import { computeTimestamp } from './timestamp.ts';
 
 export async function computeUpdateUser(req: UpdateUserRequest, origin: string, storage: BackendStorage): Promise<UpdateUserResponse> {
     const { actorUuid, name, username, icon, image } = req;
@@ -12,6 +15,7 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
      const imageBlobInfo = image ? await computeBlobInfo('image', image) : undefined;
      
     let modified = false;
+    let activityUuid: string | undefined;
 
     const blobReferences: Record<string, BlobReference> = {};
 
@@ -61,7 +65,13 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
             }
         }
         if (apo.modified) {
-            apo.set('updated', new Date().toISOString());
+            const updated = new Date().toISOString();
+            apo.set('updated', updated);
+
+            for (const [ blobUuid, blobReference ] of Object.entries(blobReferences)) {
+                actor.blobReferences[blobUuid] = blobReference;
+            }
+
             actor.activityPub = apo.toObj();
             await txn.put('actor', actorUuid, actor);
             
@@ -71,9 +81,46 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
                 await txn.put('i-username-actor', username, { actorUuid });
             }
 
+            activityUuid = await saveUpdateActivity(txn, { updated, origin, actorUuid, actorActivityPub: actor.activityPub });
+
             modified = true;
         }
 
     });
-    return { kind: 'update-user', actorUuid, modified };
+    return { kind: 'update-user', actorUuid, modified, activityUuid };
+}
+
+//
+
+async function saveUpdateActivity(txn: BackendStorageTransaction, opts: { updated: string, origin: string, actorUuid: string, actorActivityPub: Record<string, unknown> }): Promise<string> {
+    const { updated: published, origin, actorUuid, actorActivityPub } = opts;
+
+    const activityUuid = newUuid();
+    const activityId = computeActivityId({ origin, actorUuid, activityUuid });
+    const actorId = computeActorId({ origin, actorUuid });
+   
+    // move the @context up to the activity
+    const context = actorActivityPub['@context'];
+    delete actorActivityPub['@context'];
+
+    const activityApo = ApObject.parseObj({
+        '@context': context,
+        id: activityId,
+        type: 'Update',
+        actor: actorId,
+        object: actorActivityPub,
+        published,
+    });
+
+    // save activity
+    const activityRecord: ActivityRecord = {
+        activityUuid,
+        actorUuid,
+        activityPub: activityApo.toObj(),
+    }
+    await txn.put('activity', activityUuid, activityRecord);
+
+    // add to actor activity index
+    await txn.put('i-actor-activity-by-published', `${actorUuid}:${computeTimestamp(published)}:${activityUuid}`, { actorUuid, published, activityUuid });
+    return activityUuid;
 }

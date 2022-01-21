@@ -3,7 +3,6 @@ import { DurableObjectNamespace, IncomingRequestCf } from './deps.ts';
 import { matchActor } from './endpoints/actor_endpoint.ts';
 import { matchBlob } from './endpoints/blob_endpoint.ts';
 import { matchRpc } from './endpoints/rpc_endpoint.ts';
-import { newUuid } from './uuid.ts';
 import { matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { matchObject } from './endpoints/object_endpoint.ts';
 import { makeErrorResponse, makeNotFoundResponse } from './endpoints/responses.ts';
@@ -17,9 +16,6 @@ export default {
         const urlObj = new URL(url);
         const { pathname, searchParams } = urlObj;
         console.log(`${method} ${url}`);
-        for (const [ name, value ] of headers.entries()) {
-            console.log(`  ${name}: ${value}`);
-        }
         try {
             const bodyText = request.body ? await request.text() : undefined;
             if (bodyText) {
@@ -28,6 +24,11 @@ export default {
             const { origin, adminIp, adminPublicKeyPem, backendNamespace, backendName } = env;
             if (origin && adminIp && adminPublicKeyPem && backendNamespace && backendName) {
                 const whitelisted = ((headers.get('cf-connecting-ip') || '') + ',').startsWith(`${adminIp},`);
+                if (!whitelisted) {
+                    for (const [ name, value ] of headers.entries()) {
+                        console.log(`  ${name}: ${value}`);
+                    }
+                }
                 console.log('whitelisted', whitelisted);
                 let canonicalUrl = url;
                 if (urlObj.origin !== origin) {
@@ -63,7 +64,7 @@ export default {
             }
             return makeNotFoundResponse();
         } catch (e) {
-            console.error('Error in worker', e);
+            console.error('Error in worker', `${e.stack || e}`);
             return makeErrorResponse(e);
         }
     }
@@ -80,24 +81,4 @@ export interface WorkerEnv {
     readonly backendName?: string;
     readonly adminIp?: string;
     readonly adminPublicKeyPem?: string;
-}
-
-//
-
-function sendUpdateProfile(opts: { origin: string, actorId: string, inbox: string, privateKey: CryptoKey, object: unknown, dryRun?: boolean }) {
-    const { origin, actorId, inbox, privateKey, object, dryRun } = opts;
-    const activityId = `${origin}/activities/${newUuid()}`;
-
-    const req = {
-        '@context': 'https://www.w3.org/ns/activitystreams',
-
-        id: activityId,
-        type: 'Update',
-        actor: actorId,
-
-        object,
-    };
-    const url = inbox;
-    const keyId = `${actorId}#main-key`;
-    // await sendServerToServerActivityPub({ req, url, keyId, privateKey, dryRun });
 }

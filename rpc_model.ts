@@ -150,6 +150,7 @@ export interface UpdateUserResponse {
     readonly kind: 'update-user';
     readonly actorUuid: string;
     readonly modified: boolean;
+    readonly activityUuid?: string; // if modified
 }
 
 // delete-user
@@ -198,6 +199,7 @@ export interface CreateNoteResponse {
 export interface FederateActivityRequest {
     readonly kind: 'federate-activity';
     readonly activityUuid: string;
+    readonly inbox?: string; // until we save interested inboxes
     readonly dryRun?: boolean;
 }
 
@@ -205,6 +207,7 @@ export function checkFederateActivityRequest(obj: any): obj is FederateActivityR
     return isStringRecord(obj)
         && check('kind', obj.kind, v => v === 'federate-activity')
         && check('activityUuid', obj.activityUuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('inbox', obj.inbox, v => v === undefined || (typeof v === 'string' && isValidUrl(v)))
         && check('dryRun', obj.dryRun, v => v === undefined || typeof v === 'boolean')
         ;
 }

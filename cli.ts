@@ -39,7 +39,6 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
     const command = args[0];
     const fn = { 
         generate, 
-        reply, 
         createUser, 
         updateUser, 
         createNote, 
@@ -72,32 +71,6 @@ async function generate(_args: (string | number)[], options: Record<string, unkn
         console.log(privatePemText);
         console.log(publicPemText);
     }
-}
-
-function reply(_args: (string | number)[], options: Record<string, unknown>) {
-    const { origin, inReplyTo, content, inbox, to } = options;
-    
-    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mb.whatever.com');
-    if (typeof inReplyTo !== 'string') throw new Error('Provide inReplyTo, e.g. --inReplyTo https://example.social/users/someone/statuses/123123123123123123');
-    if (typeof content !== 'string') throw new Error('Provide content, e.g. --content "<p>Hello world</p>"');
-    if (typeof inbox !== 'string') throw new Error('Provide inbox, e.g. --inbox https://example.social/users/someone/inbox');
-    if (typeof to !== 'string') throw new Error('Provide to, e.g. --inbox https://example.social/users/someone');
-
-    // const privateKey = await readPrivateKey(options);
-
-    throw new Error('TODO');
-    // const req: ReplyRequest = { 
-    //     kind: 'reply', 
-    //     inReplyTo,
-    //     content,
-    //     inbox,
-    //     to,
-    // };
-    // await sendRpc(req, origin, privateKey);
-}
-
-function computeDryRun(options: Record<string, unknown>) {
-    return Object.keys(options).includes('dryRun');
 }
 
 function dumpHelp() {

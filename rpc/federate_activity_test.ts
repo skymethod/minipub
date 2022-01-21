@@ -51,5 +51,6 @@ Deno.test('computeFederateActivity', async () => {
     };
     const { log, inbox } = await computeFederateActivity(req3, origin, storage, fetcher);
     assertStrictEquals(inbox, 'https://another.social/users/bob/inbox');
+    assert(log.length > 0);
     // console.log(log.join('\n'));
 });

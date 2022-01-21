@@ -42,7 +42,7 @@ export class BackendDO {
             const webfinger = matchWebfinger(method, pathname, searchParams); if (webfinger) return await computeWebfinger(webfinger.username, webfinger.domain, origin, storage);
             throw new Error('Not implemented');
         } catch (e) {
-            console.error('Error in BackendDO', e);
+            console.error('Error in BackendDO', `${e.stack || e}`);
             return makeErrorResponse(e);
         }
     }

@@ -35,7 +35,8 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
         id: activityId,
         type: 'Create',
         actor: actorId,
-        object
+        object,
+        published,
     };
     const activityApo = ApObject.parseObj(activity, { includeDefaultContext: true });
 

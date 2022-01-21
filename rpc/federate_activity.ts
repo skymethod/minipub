@@ -26,6 +26,22 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
     const log: string[] = [];
     const apo = ApObject.parseObj(activityPub);
     
+    const send = async (inbox: string) => {
+        const actorId = computeActorId({ origin, actorUuid });
+        const keyId = `${actorId}#main-key`;
+        const privateKey = await importKeyFromPem(privateKeyPem, 'private');
+        await sendServerToServerActivityPub({ 
+            fetcher, 
+            url: inbox, 
+            activityPub, 
+            keyId,
+            dryRun,
+            privateKey,
+            log,
+        });
+    };
+    
+    // Create Note
     if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Create') {
         const object = apo.get('object');
         if (object instanceof ApObjectValue) {
@@ -41,18 +57,7 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
                         log.push(JSON.stringify(inboxes));
                         inbox = inboxes.inbox;
                         if (inbox) {
-                            const actorId = computeActorId({ origin, actorUuid });
-                            const keyId = `${actorId}#main-key`;
-                            const privateKey = await importKeyFromPem(privateKeyPem, 'private');
-                            await sendServerToServerActivityPub({ 
-                                fetcher, 
-                                url: inbox, 
-                                activityPub, 
-                                keyId,
-                                dryRun,
-                                privateKey,
-                                log,
-                            });
+                            await send(inbox);
                         }
                     }
                 } else {
@@ -62,6 +67,20 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
             }
         }
     }
+
+    // Update Person
+    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Update') {
+        const object = apo.get('object');
+        if (object instanceof ApObjectValue) {
+            if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Person') {
+                const { inbox } = req;
+                if (!inbox) throw new Error(`'inbox' must be specified for Update Person federation`);
+                await send(inbox);
+                return { kind: 'federate-activity', log, inbox };
+            }
+        }
+    }
+
     throw new Error(`Activity not supported: ${JSON.stringify(activity, undefined, 2)}`);
 }
 
