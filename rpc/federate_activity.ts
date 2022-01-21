@@ -5,7 +5,7 @@ import { ApObject } from '../activity_pub/ap_object.ts';
 import { ApObjectValue } from '../activity_pub/ap_object_value.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem } from '../crypto.ts';
 import { APPLICATION_ACTIVITY_JSON } from '../media_types.ts';
-import { isIriArray } from '../activity_pub/iri.ts';
+import { Iri, isIriArray } from '../activity_pub/iri.ts';
 import { check } from '../check.ts';
 import { Fetcher } from '../fetcher.ts';
 import { computeActorId } from './urls.ts';
@@ -40,19 +40,18 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
             log,
         });
     };
-    
+
     // Create Note
     if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Create') {
         const object = apo.get('object');
         if (object instanceof ApObjectValue) {
             if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Note') {
-                const cc = object.opt('cc');
-                if (cc !== undefined) throw new Error(`'cc' value not supported: ${cc}`);
+                const recipients = findNonPublicRecipientsForNote(object);
+                if (recipients.size > 1) throw new Error(`Cannot send to more than one recipient for now`);
                 let inbox: string | undefined;
-                const toArr = object.get('to');
-                if (isIriArray(toArr) && toArr.length === 1) {
-                    const to = toArr[0];
-                    const inboxes = await findInboxesForActorUrl(to.toString(), log, fetcher);
+                if (recipients.size === 1) {
+                    const recipient = [...recipients][0];
+                    const inboxes = await findInboxesForActorUrl(recipient, log, fetcher);
                     if (inboxes) {
                         log.push(JSON.stringify(inboxes));
                         inbox = inboxes.inbox;
@@ -60,8 +59,6 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
                             await send(inbox);
                         }
                     }
-                } else {
-                    throw new Error(`'to' value not supported: ${toArr}`);
                 }
                 return { kind: 'federate-activity', log, inbox };
             }
@@ -84,7 +81,22 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
     throw new Error(`Activity not supported: ${JSON.stringify(activity, undefined, 2)}`);
 }
 
+export function findNonPublicRecipientsForNote(note: ApObjectValue): Set<string> {
+    const urls = new Set([ ...findRecipientsForNoteProperty(note, 'to'), ...findRecipientsForNoteProperty(note, 'cc') ].map(v => v.toString()));
+    urls.delete('https://www.w3.org/ns/activitystreams#Public');
+    return urls;
+}
+
 //
+
+function findRecipientsForNoteProperty(note: ApObjectValue, propertyName: string): readonly Iri[] {
+    const value = note.opt(propertyName);
+    if (value === undefined) return [];
+    if (value instanceof Iri) return [ value ];
+    if (typeof value === 'string') return [ new Iri(value) ];
+    if (isIriArray(value)) return value;
+    throw new Error(`findRecipientsForNoteProperty: Unimplemented ${propertyName} value ${JSON.stringify(value)}`);    
+}
 
 async function findInboxesForActorUrl(actorUrl: string, log: string[], fetcher: Fetcher): Promise<{ inbox: string, sharedInbox?: string } | undefined> {
     try {

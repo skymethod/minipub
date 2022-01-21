@@ -1,9 +1,9 @@
-import { assert, assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
+import { assert, assertEquals, assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { CreateNoteRequest, CreateUserRequest, FederateActivityRequest } from '../rpc_model.ts';
 import { makeInMemoryStorage } from '../in_memory_storage.ts';
 import { computeCreateNote } from './create_note.ts';
 import { isValidUuid } from '../uuid.ts';
-import { computeFederateActivity } from './federate_activity.ts';
+import { computeFederateActivity, findNonPublicRecipientsForNote } from './federate_activity.ts';
 import { Fetcher } from '../fetcher.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { APPLICATION_ACTIVITY_JSON_UTF8 } from '../media_types.ts';
@@ -53,4 +53,23 @@ Deno.test('computeFederateActivity', async () => {
     assertStrictEquals(inbox, 'https://another.social/users/bob/inbox');
     assert(log.length > 0);
     // console.log(log.join('\n'));
+});
+
+Deno.test('findNonPublicRecipientsForNote', () => {
+    let recipients = new Set<string>();
+
+    recipients = findNonPublicRecipientsForNote(ApObject.parseObj({ type: 'Note'}));
+    assertStrictEquals(recipients.size, 0);
+
+    recipients = findNonPublicRecipientsForNote(ApObject.parseObj({ type: 'Note', to: 'https://another.social/users/bob' }));
+    assertEquals(recipients, new Set([ 'https://another.social/users/bob' ]));
+
+    recipients = findNonPublicRecipientsForNote(ApObject.parseObj({ type: 'Note', cc: 'https://another.social/users/bob' }));
+    assertEquals(recipients, new Set([ 'https://another.social/users/bob' ]));
+
+    recipients = findNonPublicRecipientsForNote(ApObject.parseObj({ type: 'Note', cc: [ 'https://another.social/users/bob' ] }));
+    assertEquals(recipients, new Set([ 'https://another.social/users/bob' ]));
+
+    recipients = findNonPublicRecipientsForNote(ApObject.parseObj({ type: 'Note', to: 'https://www.w3.org/ns/activitystreams#Public', cc: [ 'https://another.social/users/bob' ] }));
+    assertEquals(recipients, new Set([ 'https://another.social/users/bob' ]));
 });
