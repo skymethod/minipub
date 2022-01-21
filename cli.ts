@@ -6,6 +6,7 @@ import { activityPub } from './cli_activity_pub.ts';
 import { createUser } from './cli_create_user.ts';
 import { updateUser } from './cli_update_user.ts';
 import { createNote } from './cli_create_note.ts';
+import { federateActivity } from './cli_federate_activity.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -35,7 +36,16 @@ export async function sendRpc(request: RpcRequest, origin: string, privateKey: C
 
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    const fn = { generate, reply, createUser, updateUser, createNote, activityPub, ap: activityPub }[command];
+    const fn = { 
+        generate, 
+        reply, 
+        createUser, 
+        updateUser, 
+        createNote, 
+        federateActivity, 
+        activityPub, 
+        ap: activityPub,
+    }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;

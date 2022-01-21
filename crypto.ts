@@ -11,7 +11,7 @@ export async function computeHttpSignatureHeaders(opts: { method: string, url: s
     return { signature, date, digest, stringToSign };
 }
 
-export async function validateHttpSignature(opts: { method: string, url: string, headers: Headers, body: string, publicKeyProvider: (keyId: string) => CryptoKey, allowedSecondsInThePast?: number, allowedSecondsInTheFuture?: number }): Promise<{ keyId: string, diffMillis: number }> {
+export async function validateHttpSignature(opts: { method: string, url: string, headers: Headers, body: string, publicKeyProvider: (keyId: string) => Promise<CryptoKey>, allowedSecondsInThePast?: number, allowedSecondsInTheFuture?: number }): Promise<{ keyId: string, diffMillis: number }> {
     const { method, url, headers, body, publicKeyProvider, allowedSecondsInThePast, allowedSecondsInTheFuture } = opts;
 
     // check required headers
@@ -33,7 +33,7 @@ export async function validateHttpSignature(opts: { method: string, url: string,
         lines.push(`${name}: ${value}`);
     }
     const stringToSign = lines.join('\n');
-    const verified = await rsaVerify(publicKeyProvider(sigKeyId), Bytes.ofBase64(sigSignature), Bytes.ofUtf8(stringToSign));
+    const verified = await rsaVerify(await publicKeyProvider(sigKeyId), Bytes.ofBase64(sigSignature), Bytes.ofUtf8(stringToSign));
     if (!verified) throw new Error(`Bad signature: ${sigSignature}`);
 
     // check digest

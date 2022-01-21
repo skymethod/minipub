@@ -105,6 +105,7 @@ async function sendServerToServerActivityPub(opts: { activityPub: Record<string,
         log.push('DRY RUN!');
         return;
     }
+    // const res = await fetcher(`http://localhost:5899/?${url}`, { method, headers, body }); // to test signature verification
     const res = await fetcher(url, { method, headers, body });
     log.push('response:');
     log.push(`${res.status} ${res.url}`);

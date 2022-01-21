@@ -12,7 +12,7 @@ Deno.test('http signatures', async () => {
     const headers = new Headers({ signature, date, digest });
     const publicKeyProvider = (v: string) => {
         if (v !== keyId) throw new Error(`Bad keyId: ${v}, expected ${keyId}`);
-        return publicKey;
+        return Promise.resolve(publicKey);
     }
     const { keyId: actualKeyId } = await validateHttpSignature({ method, url, headers, body, publicKeyProvider });
     assertStrictEquals(actualKeyId, keyId);

@@ -16,8 +16,10 @@ export default {
         const { url, method, headers } = request;
         const urlObj = new URL(url);
         const { pathname, searchParams } = urlObj;
-        const signature = headers.get('signature');
-        if (signature) console.log(`signature: ${signature}`);
+        console.log(`${method} ${url}`);
+        for (const [ name, value ] of headers.entries()) {
+            console.log(`  ${name}: ${value}`);
+        }
         try {
             const bodyText = request.body ? await request.text() : undefined;
             if (bodyText) {
@@ -40,7 +42,7 @@ export default {
                     const adminPublicKey = await importKeyFromPem(adminPublicKeyPem, 'public');
                     const publicKeyProvider = (keyId: string) => {
                         if (keyId !== 'admin') throw new Error(`Unsupported keyId: ${keyId}`);
-                        return adminPublicKey;
+                        return Promise.resolve(adminPublicKey);
                     };
                     const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider });
                     console.log(`admin request sent ${diffMillis} millis ago`);
@@ -61,6 +63,7 @@ export default {
             }
             return makeNotFoundResponse();
         } catch (e) {
+            console.error('Error in worker', e);
             return makeErrorResponse(e);
         }
     }

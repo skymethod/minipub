@@ -7,7 +7,7 @@ import { computeObject, matchObject } from './endpoints/object_endpoint.ts';
 import { makeErrorResponse } from './endpoints/responses.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
-import { Fetcher } from "./fetcher.ts";
+import { Fetcher } from './fetcher.ts';
 import { BackendStorage, BackendStorageListOptions, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
 export class BackendDO {
@@ -32,7 +32,7 @@ export class BackendDO {
         console.log('logprops:', { colo, durableObjectClass: 'BackendDO', durableObjectId: state.id.toString(), durableObjectName });
 
         try {
-            const fetcher: Fetcher = fetch;
+            const fetcher: Fetcher = async (url, opts) => await fetch(new Request(url, opts));
             const storage = Tx.makeStorage(state.storage);
             if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage, fetcher); // assumes auth happened earlier
             const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
@@ -42,6 +42,7 @@ export class BackendDO {
             const webfinger = matchWebfinger(method, pathname, searchParams); if (webfinger) return await computeWebfinger(webfinger.username, webfinger.domain, origin, storage);
             throw new Error('Not implemented');
         } catch (e) {
+            console.error('Error in BackendDO', e);
             return makeErrorResponse(e);
         }
     }

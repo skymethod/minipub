@@ -204,7 +204,7 @@ export interface FederateActivityRequest {
 export function checkFederateActivityRequest(obj: any): obj is FederateActivityRequest {
     return isStringRecord(obj)
         && check('kind', obj.kind, v => v === 'federate-activity')
-        && check('activityUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('activityUuid', obj.activityUuid, v => typeof v === 'string' && isValidUuid(v))
         && check('dryRun', obj.dryRun, v => v === undefined || typeof v === 'boolean')
         ;
 }
