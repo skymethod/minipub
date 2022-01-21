@@ -1,0 +1,39 @@
+
+private (to: only)
+in-reply-to
+no conversation
+first comment by this actor to the target server
+
+posting to the in-reply-to's inbox on example.social returns 202 empty body on success
+not publically accessible
+in-reply-to mastodon user:
+  no notification
+  appears as a private (lock icon) reply on the thread
+  profile pic shown
+
+
+GET https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53
+  accept: application/activity+json, application/ld+json
+  date: Fri, 21 Jan 2022 00:22:11 GMT
+  host: minipub.server
+  signature: keyId="https://example.social/actor#main-key",algorithm="rsa-sha256",headers="(request-target) host date accept",signature="<base64>"
+  user-agent: http.rb/5.0.4 (Mastodon/3.4.4; +https://example.social/)
+
+GET https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53
+  accept: application/activity+json, application/ld+json
+  date: Fri, 21 Jan 2022 00:22:12 GMT
+  host: minipub.server
+  signature: keyId="https://example.social/actor#main-key",algorithm="rsa-sha256",headers="(request-target) host date accept",signature="<base64>"
+  user-agent: http.rb/5.0.4 (Mastodon/3.4.4; +https://example.social/)
+
+GET https://minipub.server/.well-known/webfinger?resource=acct:alice@minipub.server
+  accept: application/jrd+json, application/json
+  date: Fri, 21 Jan 2022 00:22:12 GMT
+  host: minipub.server
+  user-agent: http.rb/5.0.4 (Mastodon/3.4.4; +https://example.social/)
+
+GET https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/blobs/ccb694b238eb45019facc110138fc34d.jpg
+  date: Fri, 21 Jan 2022 00:22:13 GMT
+  host: minipub.server
+  user-agent: http.rb/5.0.4 (Mastodon/3.4.4; +https://example.social/)
+

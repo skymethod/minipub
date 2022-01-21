@@ -1,4 +1,4 @@
-import { CreateNoteRequest, CreateNoteResponse } from '../rpc_model.ts';
+import { CreateNoteRequest, CreateNoteResponse, LangString } from '../rpc_model.ts';
 import { BackendStorage } from '../storage.ts';
 import { ActivityRecord, ObjectRecord } from '../domain_model.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
@@ -16,13 +16,14 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
     const objectId = computeObjectId({ origin, actorUuid, objectUuid });
     const actorId = computeActorId({ origin, actorUuid });
     const published = new Date().toISOString();
+    const contentMap = computeContentMap(content);
     const object = {
         id: objectId,
         type: 'Note',
         published,
         attributedTo: actorId,
         inReplyTo,
-        contentMap: content,
+        contentMap,
         to,
         cc,
     };
@@ -69,4 +70,13 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
 //   add to user's server-inbox index (i:user-server-inboxes:<actor-uuid>:sha(<inbox-url>),inbox-url)
 
     return { kind: 'create-note', objectUuid, activityUuid };
+}
+
+//
+
+function computeContentMap(langString: LangString) {
+    const { lang, value } = langString;
+    const rt: Record<string, string> = {};
+    rt[lang] = value;
+    return rt;
 }

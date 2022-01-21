@@ -7,6 +7,7 @@ import { createUser } from './cli_create_user.ts';
 import { updateUser } from './cli_update_user.ts';
 import { createNote } from './cli_create_note.ts';
 import { federateActivity } from './cli_federate_activity.ts';
+import { newUuid } from './uuid.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -45,12 +46,17 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         federateActivity, 
         activityPub, 
         ap: activityPub,
+        uuid,
     }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
     }
     await fn(args.slice(1), options);
+}
+
+function uuid() {
+    console.log(newUuid());
 }
 
 async function generate(_args: (string | number)[], options: Record<string, unknown>) {
