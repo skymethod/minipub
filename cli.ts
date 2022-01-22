@@ -9,6 +9,7 @@ import { createNote } from './cli_create_note.ts';
 import { federateActivity } from './cli_federate_activity.ts';
 import { newUuid } from './uuid.ts';
 import { validateHttpSignature } from './cli_validate_http_signature.ts';
+import { ApObject } from './activity_pub/ap_object.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -47,12 +48,24 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         'activity-pub': activityPub, ap: activityPub,
         uuid,
         'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
+        tmp,
     }[command];
     if (options.help || !fn) {
         dumpHelp();
         return;
     }
     await fn(args.slice(1), options);
+}
+
+async function tmp() {
+    const txt = await Deno.readTextFile('asdf');
+    const obj = JSON.parse(txt);
+    if (obj.signature && obj.signature.type === 'RsaSignature2017') {
+        // https://docs.joinmastodon.org/spec/security/#ld-sign
+        delete obj.signature;
+    }
+    const apo = ApObject.parseObj(obj);
+    console.log(apo.toObj());
 }
 
 function uuid() {

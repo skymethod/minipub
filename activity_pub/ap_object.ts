@@ -17,7 +17,7 @@ export class ApObject extends ApObjectValue {
     }
 
     static parseJson(json: string): ApObject {
-        return JSON.parse(json);
+        return ApObject.parseObj(JSON.parse(json));
     }
 
     static parseObj(obj: any, opts: { callback?: ParseCallback, includeDefaultContext?: boolean } = {}): ApObject {
@@ -34,7 +34,7 @@ export class ApObject extends ApObjectValue {
                 obj = newObj;
             }
         }
-        const context = ApContext.parse( obj['@context'], callback);
+        const context = ApContext.parse(obj['@context'], callback);
 
         obj = stripUndefinedValues(obj); // ActivityPub does not support explicitly undefined values
 
