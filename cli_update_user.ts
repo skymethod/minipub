@@ -6,7 +6,7 @@ import { isValidUuid } from './uuid.ts';
 export async function updateUser(args: (string | number)[], options: Record<string, unknown>) {
     const [ actorUuid ] = args;
     if (typeof actorUuid !== 'string' || !isValidUuid(actorUuid)) throw new Error('Provide user uuid as an argument, e.g. minipub update-user <uuid>');
-    const { origin, privateKey, username, icon, name } = await parseUserOptions(options);
+    const { origin, privateKey, username, icon, name, url } = await parseUserOptions(options);
     if ([username, name, icon].every(v => v === undefined)) throw new Error(`Specify at least one property to update`);
 
     const req: UpdateUserRequest = {
@@ -14,6 +14,7 @@ export async function updateUser(args: (string | number)[], options: Record<stri
         actorUuid,
         username,
         name,
+        url,
         icon,
     };
     await sendRpc(req, origin, privateKey);

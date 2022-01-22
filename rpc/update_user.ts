@@ -8,7 +8,7 @@ import { computeActivityId, computeActorId } from './urls.ts';
 import { computeTimestamp } from './timestamp.ts';
 
 export async function computeUpdateUser(req: UpdateUserRequest, origin: string, storage: BackendStorage): Promise<UpdateUserResponse> {
-    const { actorUuid, name, username, icon, image } = req;
+    const { actorUuid, name, url, username, icon, image } = req;
 
      // compute icon,image hash
      const iconBlobInfo = icon ? await computeBlobInfo('icon', icon) : undefined;
@@ -40,6 +40,11 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
             apo.set('name', name);
         } else if (name === null) {
             apo.delete('name');
+        }
+        if (typeof url === 'string') {
+            apo.set('url', url);
+        } else if (url === null) {
+            apo.delete('url');
         }
         let oldUsername: string | undefined;
         if (username) {
