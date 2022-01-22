@@ -3,7 +3,7 @@ import { computeActorId } from '../rpc/urls.ts';
 import { isValidUsername } from '../rpc_model.ts';
 import { BackendStorage, getRecord } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeNotFoundResponse } from './responses.ts';
+import { Responses } from './responses.ts';
 
 // /.well-known/webfinger?resource=acct:bob@my-example.com
 
@@ -39,5 +39,5 @@ export async function computeWebfinger(username: string, domain: string, origin:
             return new Response(JSON.stringify(res, undefined, 2), { headers: { 'content-type': APPLICATION_JRD_JSON } });
         }
     }
-    return makeNotFoundResponse();
+    return Responses.notFound();
 }

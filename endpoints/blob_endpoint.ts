@@ -3,7 +3,7 @@ import { checkActorRecord, isValidExt, packBlobKey } from '../domain_model.ts';
 import { getMediaTypeForExt } from '../media_types.ts';
 import { BackendStorage, getRecord, getUint8Array } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeNotFoundResponse } from './responses.ts';
+import { Responses } from './responses.ts';
 
 export function matchBlob(method: string, pathname: string): { actorUuid: string, blobUuid: string, ext: string } | undefined {
     if (method === 'GET') {
@@ -35,5 +35,5 @@ export async function computeBlob(actorUuid: string, blobUuid: string, ext: stri
     });
     const mediaType = getMediaTypeForExt(ext);
     if (bytes && mediaType) return new Response(bytes, { headers: { 'content-type': mediaType } } );
-    return makeNotFoundResponse();
+    return Responses.notFound();
 }

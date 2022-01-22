@@ -1,7 +1,7 @@
 import { checkActorRecord } from '../domain_model.ts';
 import { BackendStorage, getRecord } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeActivityPubResponse, makeNotFoundResponse } from './responses.ts';
+import { Responses } from './responses.ts';
 
 export function matchActor(method: string, pathname: string): { actorUuid: string } | undefined {
     if (method === 'GET') {
@@ -18,7 +18,7 @@ export function matchActor(method: string, pathname: string): { actorUuid: strin
 export async function computeActor(actorUuid: string, storage: BackendStorage): Promise<Response> {
     const actor = await storage.transaction(async txn => await getRecord(txn, 'actor', actorUuid));
     if (actor && checkActorRecord(actor)) {
-        return makeActivityPubResponse(actor.activityPub);
+        return Responses.activityPub(actor.activityPub);
     }
-    return makeNotFoundResponse();
+    return Responses.notFound();
 }

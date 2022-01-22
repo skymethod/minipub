@@ -4,7 +4,7 @@ import { computeActivity, matchActivity } from './endpoints/activity_endpoint.ts
 import { computeActor, matchActor } from './endpoints/actor_endpoint.ts';
 import { computeBlob, matchBlob } from './endpoints/blob_endpoint.ts';
 import { computeObject, matchObject } from './endpoints/object_endpoint.ts';
-import { makeErrorResponse } from './endpoints/responses.ts';
+import { Responses } from './endpoints/responses.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { computeInbox, matchInbox } from './endpoints/inbox_endpoint.ts';
@@ -45,7 +45,7 @@ export class BackendDO {
             throw new Error('Not implemented');
         } catch (e) {
             console.error('Error in BackendDO', `${e.stack || e}`);
-            return makeErrorResponse(e);
+            return Responses.internalServerError(e);
         }
     }
     

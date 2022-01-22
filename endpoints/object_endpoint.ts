@@ -1,7 +1,7 @@
 import { checkObjectRecord } from '../domain_model.ts';
 import { BackendStorage, getRecord } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeActivityPubResponse, makeNotFoundResponse } from './responses.ts';
+import { Responses } from './responses.ts';
 
 export function matchObject(method: string, pathname: string): { actorUuid: string, objectUuid: string } | undefined {
     if (method === 'GET') {
@@ -18,7 +18,7 @@ export function matchObject(method: string, pathname: string): { actorUuid: stri
 export async function computeObject(actorUuid: string, objectUuid: string, storage: BackendStorage): Promise<Response> {
     const object = await storage.transaction(async txn => await getRecord(txn, 'object', objectUuid));
     if (object && checkObjectRecord(object) && object.actorUuid === actorUuid) {
-        return makeActivityPubResponse(object.activityPub);
+        return Responses.activityPub(object.activityPub);
     }
-    return makeNotFoundResponse();
+    return Responses.notFound();
 }

@@ -2,7 +2,7 @@ import { validateHttpSignature } from '../crypto.ts';
 import { fetchPublicKey } from '../fetch_public_key.ts';
 import { BackendStorage } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeAcceptedResponse, makeBadRequestResponse } from './responses.ts';
+import { Responses } from './responses.ts';
 
 export function matchInbox(method: string, pathname: string): { actorUuid: string } | undefined {
     if (method === 'POST') {
@@ -25,9 +25,9 @@ export async function computeInbox(request: Request, actorUuid: string, _storage
 
         // TODO save? push event to actor?
 
-        return makeAcceptedResponse(`thanks, ${keyId}`);
+        return Responses.accepted(`thanks, ${keyId}`);
     } catch (e) {
         console.warn(`Error in computeInbox`, e.stack || e);
-        return makeBadRequestResponse(`nope`);
+        return Responses.badRequest(`nope`);
     }
 }

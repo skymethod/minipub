@@ -3,7 +3,7 @@ import { BackendStorage } from '../storage.ts';
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { computeUpdateUser } from '../rpc/update_user.ts';
 import { computeCreateNote } from '../rpc/create_note.ts';
-import { makeRpcResponseResponse } from './responses.ts';
+import { Responses } from './responses.ts';
 import { computeFederateActivity } from '../rpc/federate_activity.ts';
 import { Fetcher } from '../fetcher.ts';
 
@@ -13,9 +13,12 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
     // deno-lint-ignore no-explicit-any
     const body: any = await request.json();
     const { kind } = body;
-    if (kind === 'create-user' && checkCreateUserRequest(body)) return makeRpcResponseResponse(await computeCreateUser(body, origin, storage));
-    if (kind === 'update-user' && checkUpdateUserRequest(body)) return makeRpcResponseResponse(await computeUpdateUser(body, origin, storage));
-    if (kind === 'create-note' && checkCreateNoteRequest(body)) return makeRpcResponseResponse(await computeCreateNote(body, origin, storage));
-    if (kind === 'federate-activity' && checkFederateActivityRequest(body)) return makeRpcResponseResponse(await computeFederateActivity(body, origin, storage, fetcher));
-    throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
+    const computeRpcResponse = async () => {
+        if (kind === 'create-user' && checkCreateUserRequest(body)) return await computeCreateUser(body, origin, storage);
+        if (kind === 'update-user' && checkUpdateUserRequest(body)) return await computeUpdateUser(body, origin, storage);
+        if (kind === 'create-note' && checkCreateNoteRequest(body)) return await computeCreateNote(body, origin, storage);
+        if (kind === 'federate-activity' && checkFederateActivityRequest(body)) return await computeFederateActivity(body, origin, storage, fetcher);
+        throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
+    }
+    return Responses.rpc(await computeRpcResponse());
 }

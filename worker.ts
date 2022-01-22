@@ -5,7 +5,7 @@ import { matchBlob } from './endpoints/blob_endpoint.ts';
 import { matchRpc } from './endpoints/rpc_endpoint.ts';
 import { matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { matchObject } from './endpoints/object_endpoint.ts';
-import { makeErrorResponse, makeNotFoundResponse } from './endpoints/responses.ts';
+import { Responses } from './endpoints/responses.ts';
 import { matchActivity } from './endpoints/activity_endpoint.ts';
 import { matchInbox } from './endpoints/inbox_endpoint.ts';
 export { BackendDO } from './backend_do.ts';
@@ -85,9 +85,9 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
                 return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(canonicalUrl, { method, headers: doHeaders, body });
             }
         }
-        return makeNotFoundResponse();
+        return Responses.notFound();
     } catch (e) {
         console.error('Error in worker', e.stack || e);
-        return makeErrorResponse(e);
+        return Responses.internalServerError(e);
     }
 }
