@@ -16,3 +16,11 @@ export function makeNotFoundResponse(): Response {
 export function makeErrorResponse(e: unknown): Response {
     return new Response(`${e}`, { status: 500, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
 }
+
+export function makeAcceptedResponse(body: string): Response {
+    return new Response(body, { status: 202, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
+}
+
+export function makeBadRequestResponse(body: string): Response {
+    return new Response(body, { status: 400, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
+}
