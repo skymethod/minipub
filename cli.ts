@@ -40,15 +40,13 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
     const command = args[0];
     const fn = { 
         generate, 
-        createUser, 
-        updateUser, 
-        createNote, 
-        federateActivity, 
-        activityPub, 
-        ap: activityPub,
+        'create-user': createUser, cu: createUser,
+        'update-user': updateUser, uu: updateUser,
+        'create-note': createNote, cn: createNote,
+        'federate-activity': federateActivity, fa: federateActivity,
+        'activity-pub': activityPub, ap: activityPub,
         uuid,
-        validateHttpSignature,
-        vhs: validateHttpSignature,
+        'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
     }[command];
     if (options.help || !fn) {
         dumpHelp();

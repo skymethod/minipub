@@ -8,11 +8,11 @@ export async function createNote(args: (string | number)[], options: Record<stri
     const { 'in-reply-to': inReplyTo, content, 'content-lang': contentLang, to, cc } = options;
 
     if (typeof actorUuid !== 'string' || !isValidUuid(actorUuid)) throw new Error('Provide user uuid as an argument, e.g. minipub update-user <uuid>');
-    if (inReplyTo !== undefined && (typeof inReplyTo !== 'string' || !isValidUrl(inReplyTo))) throw new Error('InReplyTo should be a url');
-    if (typeof content !== 'string' || content === '') throw new Error('Content should be a non-empty string');
-    if (contentLang !== undefined && (typeof contentLang !== 'string' || !isValidLang(contentLang))) throw new Error('ContentLang should be a valid lang');
-    if (typeof to !== 'string' || !isValidUrl(to)) throw new Error('To should be a valid url');
-    if (cc !== undefined && (typeof cc !== 'string' || !isValidUrl(cc))) throw new Error('Cc should be a valid url');
+    if (inReplyTo !== undefined && (typeof inReplyTo !== 'string' || !isValidUrl(inReplyTo))) throw new Error(`'in-reply-to' should be a url`);
+    if (typeof content !== 'string' || content === '') throw new Error(`'content' should be a non-empty string`);
+    if (contentLang !== undefined && (typeof contentLang !== 'string' || !isValidLang(contentLang))) throw new Error(`'content-lang' should be a valid language code`);
+    if (typeof to !== 'string' || !isValidUrl(to)) throw new Error(`'to' should be a valid url`);
+    if (cc !== undefined && (typeof cc !== 'string' || !isValidUrl(cc))) throw new Error(`'cc' should be a valid url`);
     
     const { origin, privateKey } = await parseRpcOptions(options);
 

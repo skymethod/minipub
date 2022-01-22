@@ -19,10 +19,10 @@ export async function createUser(_args: (string | number)[], options: Record<str
 
 export async function parseUserOptions(options: Record<string, unknown>): Promise<{ origin: string; privateKey: CryptoKey, username?: string; name?: string; icon?: Icon; iconSize?: number; }> {
     const { username, name, icon, 'icon-size': iconSize } = options;
-    if (username !== undefined && typeof username !== 'string') throw new Error('Username should be a string, e.g. --username alice');
-    if (name !== undefined && typeof name !== 'string') throw new Error('Name should be a string, e.g. --name "Alice Doe"');
-    if (icon !== undefined && typeof icon !== 'string') throw new Error('Icon should be file path, e.g. --icon /path/to/alice.jpg');
-    if (iconSize !== undefined && typeof iconSize !== 'number') throw new Error('Icon size should be number, e.g. --icon-size 150');
+    if (username !== undefined && typeof username !== 'string') throw new Error(`'username' should be a string, e.g. --username alice`);
+    if (name !== undefined && typeof name !== 'string') throw new Error(`'name' should be a string, e.g. --name "Alice Doe"`);
+    if (icon !== undefined && typeof icon !== 'string') throw new Error(`'icon' should be a file path, e.g. --icon /path/to/alice.jpg`);
+    if (iconSize !== undefined && typeof iconSize !== 'number') throw new Error(`'icon-size' should be a number, e.g. --icon-size 150`);
 
     const { origin, privateKey } = await parseRpcOptions(options);
 

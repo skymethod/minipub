@@ -3,7 +3,7 @@ import { ApObject } from './activity_pub/ap_object.ts';
 
 export async function activityPub(args: (string | number)[], options: Record<string, unknown>) {
     const [ url ] = args;
-    if (typeof url !== 'string') throw new Error('Provide url, e.g. https://example.social/users/alice/statuses/123456');
+    if (typeof url !== 'string') throw new Error('Provide url as an argument, e.g. minipub activity-pub https://example.social/users/alice/statuses/123456');
     const ld = !!options.ld;
     const parse = !!options.parse;
 
