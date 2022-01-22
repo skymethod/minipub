@@ -18,9 +18,7 @@ export default {
         console.log(`${method} ${url}`);
         try {
             const bodyText = request.body ? await request.text() : undefined;
-            if (bodyText) {
-                console.log(bodyText);
-            }
+            if (!!request.body || bodyText) console.log('request.hasBody', !!request.body, 'bodyText', bodyText);
             const { origin, adminIp, adminPublicKeyPem, backendNamespace, backendName } = env;
             if (origin && adminIp && adminPublicKeyPem && backendNamespace && backendName) {
                 const whitelisted = ((headers.get('cf-connecting-ip') || '') + ',').startsWith(`${adminIp},`);
@@ -59,7 +57,8 @@ export default {
                 if (routeToDurableObject) {
                     const doHeaders = new Headers(headers);
                     doHeaders.set('do-name', backendName);
-                    return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(canonicalUrl, { method, headers: doHeaders, body: bodyText });
+                    const body = (method === 'GET' || method === 'HEAD') ? undefined : bodyText;
+                    return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(canonicalUrl, { method, headers: doHeaders, body });
                 }
             }
             return makeNotFoundResponse();

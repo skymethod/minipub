@@ -6,7 +6,7 @@ export function makeRpcResponseResponse(res: RpcResponse): Response {
 }
 
 export function makeActivityPubResponse(activityPub: Record<string, unknown>): Response {
-    return new Response(JSON.stringify(activityPub, undefined, 2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON } });
+    return new Response(JSON.stringify(activityPub, undefined, 2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON, 'access-control-allow-origin': '*' } });
 }
 
 export function makeNotFoundResponse(): Response {
