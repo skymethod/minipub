@@ -8,6 +8,7 @@ import { updateUser } from './cli_update_user.ts';
 import { createNote } from './cli_create_note.ts';
 import { federateActivity } from './cli_federate_activity.ts';
 import { newUuid } from './uuid.ts';
+import { validateHttpSignature } from './cli_validate_http_signature.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -46,6 +47,8 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         activityPub, 
         ap: activityPub,
         uuid,
+        validateHttpSignature,
+        vhs: validateHttpSignature,
     }[command];
     if (options.help || !fn) {
         dumpHelp();

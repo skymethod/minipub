@@ -104,6 +104,7 @@ export async function exportKeyToPem(key: CryptoKey, type: 'private' | 'public')
 }
 
 export async function importKeyFromPem(pemText: string, type: 'private' | 'public'): Promise<CryptoKey> {
+    pemText = pemText.trim();
     const typeUpper = type.toUpperCase();
     const b64 = pemText.substring(`-----BEGIN ${typeUpper} KEY-----`.length, pemText.length - `-----END ${typeUpper} KEY-----`.length).replaceAll(/\s+/g, '');
     const pemBytes = Bytes.ofBase64(b64);

@@ -1,5 +1,6 @@
 import { importKeyFromPem, validateHttpSignature } from './crypto.ts';
 import { check } from './check.ts';
+import { APPLICATION_ACTIVITY_JSON } from './media_types.ts';
 
 export default {
 
@@ -35,13 +36,11 @@ export default {
 
 }
 
-//
-
-async function fetchPublicKey(keyId: string): Promise<CryptoKey> {
+export async function fetchPublicKey(keyId: string): Promise<CryptoKey> {
     const i = keyId.indexOf('#');
     const url = keyId.substring(0, i);
-    console.log('fetch', url);
-    const res = await fetch(url);
+    console.log(`fetchPublicKey: fetching ${url}`);
+    const res = await fetch(url, { headers: { accept: APPLICATION_ACTIVITY_JSON } });
     check('res.status', res.status, res.status === 200);
     const obj = await res.json();
     const { id } = obj;
