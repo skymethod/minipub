@@ -111,6 +111,7 @@ export interface CreateUserResponse {
     readonly kind: 'create-user';
     readonly actorUuid: string;
     readonly blobReferences: Record<string, BlobReference>;
+    readonly activityUuid: string;
 }
 
 // update-user

@@ -6,6 +6,7 @@ import { ActorRecord, BlobReference } from '../domain_model.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { computeBlobInfo, computeImage, saveBlobIfNecessary } from './blob_info.ts';
 import { computeActorId } from './urls.ts';
+import { saveActorActivity } from './update_user.ts';
 
 export async function computeCreateUser(req: CreateUserRequest, origin: string, storage: BackendStorage): Promise<CreateUserResponse> {
     // generate uuid, keypair
@@ -20,6 +21,8 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
     const imageBlobInfo = image ? await computeBlobInfo('image', image) : undefined;
     
     const blobReferences: Record<string, BlobReference> = {};
+
+    let activityUuid: string | undefined;
     
     // in a single transaction:
     await storage.transaction(async txn => {
@@ -109,8 +112,10 @@ export async function computeCreateUser(req: CreateUserRequest, origin: string, 
 
         // save username->actor-uuid index (i-username-actor:<username>, actor-uuid)
         await txn.put('i-username-actor', username, { actorUuid });
+
+        activityUuid = await saveActorActivity(txn, { type: 'Create', published, origin, actorUuid, actorActivityPub: actor.activityPub });
     });
-    return { kind: 'create-user', actorUuid, blobReferences };
+    return { kind: 'create-user', actorUuid, blobReferences, activityUuid: activityUuid! };
 }
 
 //

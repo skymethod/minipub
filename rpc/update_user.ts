@@ -86,7 +86,7 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
                 await txn.put('i-username-actor', username, { actorUuid });
             }
 
-            activityUuid = await saveUpdateActivity(txn, { updated, origin, actorUuid, actorActivityPub: actor.activityPub });
+            activityUuid = await saveActorActivity(txn, { type: 'Update', published: updated, origin, actorUuid, actorActivityPub: actor.activityPub });
 
             modified = true;
         }
@@ -95,10 +95,8 @@ export async function computeUpdateUser(req: UpdateUserRequest, origin: string, 
     return { kind: 'update-user', actorUuid, modified, activityUuid };
 }
 
-//
-
-async function saveUpdateActivity(txn: BackendStorageTransaction, opts: { updated: string, origin: string, actorUuid: string, actorActivityPub: Record<string, unknown> }): Promise<string> {
-    const { updated: published, origin, actorUuid, actorActivityPub } = opts;
+export async function saveActorActivity(txn: BackendStorageTransaction, opts: { type: 'Create' | 'Update', published: string, origin: string, actorUuid: string, actorActivityPub: Record<string, unknown> }): Promise<string> {
+    const { type, published, origin, actorUuid, actorActivityPub } = opts;
 
     const activityUuid = newUuid();
     const activityId = computeActivityId({ origin, actorUuid, activityUuid });
@@ -111,7 +109,7 @@ async function saveUpdateActivity(txn: BackendStorageTransaction, opts: { update
     const activityApo = ApObject.parseObj({
         '@context': context,
         id: activityId,
-        type: 'Update',
+        type,
         actor: actorId,
         object: actorActivityPub,
         published,
