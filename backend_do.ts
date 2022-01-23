@@ -114,11 +114,11 @@ class Tx implements BackendStorageTransaction {
     async list(domain: string, opts: BackendStorageListOptions = {}): Promise<Map<string, BackendStorageValue>> {
         if (opts.start !== undefined) throw new Error(`InMemoryStorage: implement list start`);
         if (opts.end !== undefined) throw new Error(`InMemoryStorage: implement list end`);
-        if (opts.prefix !== undefined) throw new Error(`InMemoryStorage: implement list prefix`);
         if (opts.reverse !== undefined) throw new Error(`InMemoryStorage: implement list reverse`);
         if (opts.limit !== undefined) throw new Error(`InMemoryStorage: implement list limit`);
         const prefix = domain + ':';
-        const values = await this.transaction.list({ prefix });
+        const searchPrefix = prefix + (opts.prefix || '');
+        const values = await this.transaction.list({ prefix: searchPrefix });
         const rt = new Map<string, BackendStorageValue>();
         for (const [ key, value ] of values) {
             rt.set(key.substring(prefix.length), unpackValue(value));

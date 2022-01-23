@@ -142,7 +142,7 @@ export function checkFederationRecipientState(obj: any): obj is FederationRecipi
         && check('sharedInbox', obj.sharedInbox, v => v === undefined || (typeof v === 'string' && isValidUrl(v)))
         && check('discoveryAttempts', obj.discoveryAttempts, v => v === undefined || (typeof v === 'number' && isPositiveInteger(v)))
         && check('postAttempts', obj.postAttempts, v => v === undefined || (typeof v === 'number' && isPositiveInteger(v)))
-        && check('postResponseTime', obj.postResponseTime, v => typeof v === 'string' && isValidIso8601(v))
+        && check('postResponseTime', obj.postResponseTime, v => v === undefined || (typeof v === 'string' && isValidIso8601(v)))
         && check('postResponseStatus', obj.postResponseStatus, v => v === undefined || typeof v === 'string')
         ;
 }

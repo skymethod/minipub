@@ -38,7 +38,7 @@ Deno.test('computeFederateActivity', async () => {
     const fetcher: Fetcher = (url, opts = {}) => {
         const method = opts.method || 'GET';
         if (method === 'GET' && url === 'https://another.social/users/bob') {
-            const bob = ApObject.parseObj({ type: 'Person', id: url, inbox: 'https://another.social/users/bob/inbox', sharedInbox: 'https://another.social/inbox' });
+            const bob = ApObject.parseObj({ type: 'Person', id: url, inbox: 'https://another.social/users/bob/inbox', endpoints: { sharedInbox: 'https://another.social/inbox' } });
             return Promise.resolve(new Response(bob.toJson(2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON_UTF8 }}));
         } else if (method === 'POST' && url === 'https://another.social/users/bob/inbox') {
             return Promise.resolve(new Response('thanks', { status: 202 }));

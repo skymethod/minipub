@@ -22,6 +22,7 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
     const { actorUuid, activityPub } = activity;
     if (!actor || !checkActorRecord(actor)) throw new Error(`Actor ${actorUuid} not found`);
     const { privateKeyPem } = actor;
+    const privateKey = await importKeyFromPem(privateKeyPem, 'private');
 
     const apo = ApObject.parseObj(activityPub);
     const { recipientProvider, recipientType } = computeRecipientProviderForActivity(apo, actorUuid, storage);
@@ -30,7 +31,7 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
     const sender = async (inbox: string, log: string[]) => {
         const actorId = computeActorId({ origin, actorUuid });
         const keyId = `${actorId}#main-key`;
-        const privateKey = await importKeyFromPem(privateKeyPem, 'private');
+
         return await sendServerToServerActivityPub({ 
             fetcher, 
             url: inbox, 
@@ -94,8 +95,7 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
             } finally {
                 if (responseStatus !== undefined) {
                     state.postResponseTime = new Date().toISOString();
-                }
-                if (!modified) {
+                } else {
                     // back out the attempt, we didn't make the call
                     state.postAttempts = state.postAttempts === 1 ? undefined : (state.postAttempts - 1);
                 }
@@ -195,7 +195,8 @@ async function findInboxesForActorUrl(actorUrl: string, fetcher: Fetcher): Promi
     check('type', apo.getIriString('type'), v => v === 'https://www.w3.org/ns/activitystreams#Person');
     check('id', apo.getIriString('id'), v => v === actorUrl);
     const inbox = apo.optIriString('inbox');
-    const sharedInbox = apo.optIriString('sharedInbox');
+    const endpoints = apo.opt('endpoints');
+    const sharedInbox = endpoints instanceof ApObjectValue ? endpoints.optIriString('sharedInbox') : undefined;
     return { inbox, sharedInbox };
 }
 
