@@ -4,8 +4,8 @@ import { check, isNonEmpty, isStringRecord, isValidUrl } from './check.ts';
 import { BlobReference, FederationRecord } from './domain_model.ts';
 import { isValidUuid } from './uuid.ts';
 
-export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | CreateNoteRequest | FederateActivityRequest;
-export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserResponse | CreateNoteResponse | FederateActivityResponse;
+export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | CreateNoteRequest | FederateActivityRequest | DeleteFromStorageRequest;
+export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserResponse | CreateNoteResponse | FederateActivityResponse | DeleteFromStorageResponse;
 
 // validation
 
@@ -216,4 +216,25 @@ export interface FederateActivityResponse {
     readonly record: FederationRecord;
     readonly recipientLogs: Record<string, string[]>; // key = recipient iri
     readonly modified: boolean;
+}
+
+// delete-from-storage
+
+export interface DeleteFromStorageRequest {
+    readonly kind: 'delete-from-storage';
+    readonly domain: string;
+    readonly key: string;
+}
+
+export function checkDeleteFromStorageRequest(obj: any): obj is DeleteFromStorageRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'delete-from-storage')
+        && check('domain', obj.domain, v => typeof v === 'string')
+        && check('key', obj.key, v => typeof v === 'string')
+        ;
+}
+
+export interface DeleteFromStorageResponse {
+    readonly kind: 'delete-from-storage';
+    readonly existed: boolean;
 }

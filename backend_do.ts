@@ -107,8 +107,8 @@ class Tx implements BackendStorageTransaction {
         await this.transaction.put(values);
     }
 
-    async delete(domain: string, key: string): Promise<void> {
-        await this.transaction.delete(packKey(domain, key));
+    async delete(domain: string, key: string): Promise<boolean> {
+        return await this.transaction.delete(packKey(domain, key));
     }
 
     async list(domain: string, opts: BackendStorageListOptions = {}): Promise<Map<string, BackendStorageValue>> {

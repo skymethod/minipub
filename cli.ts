@@ -10,6 +10,7 @@ import { federateActivity } from './cli_federate_activity.ts';
 import { newUuid } from './uuid.ts';
 import { validateHttpSignature } from './cli_validate_http_signature.ts';
 import { ApObject } from './activity_pub/ap_object.ts';
+import { deleteFromStorage } from './cli_delete_from_storage.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -43,6 +44,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         generate, 
         'create-user': createUser, cu: createUser,
         'update-user': updateUser, uu: updateUser,
+        'delete-from-storage': deleteFromStorage, dfs: deleteFromStorage,
         'create-note': createNote, cn: createNote,
         'federate-activity': federateActivity, fa: federateActivity,
         'activity-pub': activityPub, ap: activityPub,

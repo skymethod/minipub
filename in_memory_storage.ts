@@ -49,10 +49,10 @@ class InMemoryStorageTransaction implements BackendStorageTransaction {
         throw new Error();
     }
 
-    delete(domain: string, key: string): Promise<void> {
+    delete(domain: string, key: string): Promise<boolean> {
         if (DEBUG) console.log(`delete ${domain} ${key}`);
-        this.values.delete(packKey(domain, key));
-        return Promise.resolve();
+        const existed = this.values.delete(packKey(domain, key));
+        return Promise.resolve(existed);
     }
 
     list(domain: string, opts: BackendStorageListOptions = {}): Promise<Map<string, BackendStorageValue>> {
