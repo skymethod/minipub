@@ -3,7 +3,7 @@ import { CreateNoteRequest, CreateUserRequest, FederateActivityRequest } from '.
 import { makeInMemoryStorage } from '../in_memory_storage.ts';
 import { computeCreateNote } from './create_note.ts';
 import { isValidUuid } from '../uuid.ts';
-import { computeFederateActivity, findNonPublicRecipientsForNote } from './federate_activity.ts';
+import { computeFederateActivity, findInboxUrlsForActor, findNonPublicRecipientsForNote } from './federate_activity.ts';
 import { Fetcher } from '../fetcher.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { APPLICATION_ACTIVITY_JSON_UTF8 } from '../media_types.ts';
@@ -38,7 +38,7 @@ Deno.test('computeFederateActivity', async () => {
     const fetcher: Fetcher = (url, opts = {}) => {
         const method = opts.method || 'GET';
         if (method === 'GET' && url === 'https://another.social/users/bob') {
-            const bob = ApObject.parseObj({ type: 'Person', id: url, inbox: 'https://another.social/users/bob/inbox' });
+            const bob = ApObject.parseObj({ type: 'Person', id: url, inbox: 'https://another.social/users/bob/inbox', sharedInbox: 'https://another.social/inbox' });
             return Promise.resolve(new Response(bob.toJson(2), { headers: { 'content-type': APPLICATION_ACTIVITY_JSON_UTF8 }}));
         } else if (method === 'POST' && url === 'https://another.social/users/bob/inbox') {
             return Promise.resolve(new Response('thanks', { status: 202 }));
@@ -49,10 +49,23 @@ Deno.test('computeFederateActivity', async () => {
         kind: 'federate-activity',
         activityUuid,
     };
-    const { log, inbox } = await computeFederateActivity(req3, origin, storage, fetcher);
-    assertStrictEquals(inbox, 'https://another.social/users/bob/inbox');
-    assert(log.length > 0);
-    // console.log(log.join('\n'));
+    {
+        const { record, recipientLogs, modified } = await computeFederateActivity(req3, origin, storage, fetcher);
+        // console.log(record);
+        assert(modified);
+        assertStrictEquals(Object.values(record.recipientStates)[0].inbox, 'https://another.social/users/bob/inbox');
+        assert(Object.keys(recipientLogs).length === 1);
+        assert(Object.values(recipientLogs)[0].length > 0);
+    }
+    {
+        const { recipientLogs, modified } = await computeFederateActivity(req3, origin, storage, fetcher);
+        // console.log(record);
+        assert(!modified);
+        assert(Object.values(recipientLogs)[0].length === 0);
+    }
+
+    const inboxUrls = await findInboxUrlsForActor(actorUuid, storage);
+    assertEquals(inboxUrls, new Set([ 'https://another.social/inbox' ]));
 });
 
 Deno.test('findNonPublicRecipientsForNote', () => {

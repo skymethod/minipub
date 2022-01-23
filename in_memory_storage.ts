@@ -59,13 +59,13 @@ class InMemoryStorageTransaction implements BackendStorageTransaction {
         if (DEBUG) console.log(`list ${domain} ${JSON.stringify(opts)}`);
         if (opts.start !== undefined) throw new Error(`InMemoryStorage: implement list start`);
         if (opts.end !== undefined) throw new Error(`InMemoryStorage: implement list end`);
-        if (opts.prefix !== undefined) throw new Error(`InMemoryStorage: implement list prefix`);
         if (opts.reverse !== undefined) throw new Error(`InMemoryStorage: implement list reverse`);
         if (opts.limit !== undefined) throw new Error(`InMemoryStorage: implement list limit`);
         const prefix = domain + ':';
+        const searchPrefix = prefix + (opts.prefix || '');
         const rt = new Map<string, BackendStorageValue>();
         for (const key of [...this.values.keys()].sort()) {
-            if (key.startsWith(prefix)) {
+            if (key.startsWith(searchPrefix)) {
                 const value = this.values.get(key)!;
                 rt.set(key.substring(prefix.length), value);
             }

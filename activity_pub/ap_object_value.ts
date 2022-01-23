@@ -18,6 +18,12 @@ export class ApObjectValue {
         return this._modified;
     }
 
+    getString(property: string): string {
+        const value = this.get(property);
+        if (typeof value === 'string') return value;
+        throw new Error(`Bad ${property}: expected string, found ${value}`);
+    }
+
     getIriString(property: string): string {
         const value = this.get(property);
         if (value instanceof Iri) return value.toString();

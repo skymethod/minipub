@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 import { check, isNonEmpty, isStringRecord, isValidUrl } from './check.ts';
-import { BlobReference } from './domain_model.ts';
+import { BlobReference, FederationRecord } from './domain_model.ts';
 import { isValidUuid } from './uuid.ts';
 
 export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | CreateNoteRequest | FederateActivityRequest;
@@ -200,7 +200,6 @@ export interface CreateNoteResponse {
 export interface FederateActivityRequest {
     readonly kind: 'federate-activity';
     readonly activityUuid: string;
-    readonly inbox?: string; // until we save interested inboxes
     readonly dryRun?: boolean;
 }
 
@@ -208,13 +207,13 @@ export function checkFederateActivityRequest(obj: any): obj is FederateActivityR
     return isStringRecord(obj)
         && check('kind', obj.kind, v => v === 'federate-activity')
         && check('activityUuid', obj.activityUuid, v => typeof v === 'string' && isValidUuid(v))
-        && check('inbox', obj.inbox, v => v === undefined || (typeof v === 'string' && isValidUrl(v)))
         && check('dryRun', obj.dryRun, v => v === undefined || typeof v === 'boolean')
         ;
 }
 
 export interface FederateActivityResponse {
     readonly kind: 'federate-activity';
-    readonly log: readonly string[];
-    readonly inbox?: string;
+    readonly record: FederationRecord;
+    readonly recipientLogs: Record<string, string[]>; // key = recipient iri
+    readonly modified: boolean;
 }

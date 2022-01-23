@@ -40,3 +40,11 @@ export function isValidIso8601(text: string): boolean {
     // 2021-04-14T10:25:42Z
     return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
 }
+
+export function isPositiveInteger(value: number) {
+    return Number.isInteger(value) && value > 0;
+}
+
+export function isValidHttpStatus(value: number) {
+    return Number.isInteger(value) && value >= 100 && value < 600;
+}
