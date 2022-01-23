@@ -24,6 +24,8 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
     const { privateKeyPem } = actor;
 
     const apo = ApObject.parseObj(activityPub);
+    const { recipientProvider, recipientType } = computeRecipientProviderForActivity(apo, actorUuid, storage);
+    const published = apo.getString('published');
     
     const sender = async (inbox: string, log: string[]) => {
         const actorId = computeActorId({ origin, actorUuid });
@@ -40,82 +42,11 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
         });
     };
 
-    // Create Note
-    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Create') {
-        const object = apo.get('object');
-        if (object instanceof ApObjectValue) {
-            if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Note') {
-                const published = apo.getString('published');
-                const getRecipients = () => Promise.resolve(findNonPublicRecipientsForNote(object));
-                return await federate({ getRecipients, recipientType: 'actor', actorUuid, activityUuid, published, storage, fetcher, sender });
-            }
-        }
-    }
-
-    // Update Person
-    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Update') {
-        const object = apo.get('object');
-        if (object instanceof ApObjectValue) {
-            if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Person') {
-                const published = apo.getString('published');
-                const getRecipients = () => Promise.resolve(findNonPublicRecipientsForNote(object));
-                return await federate({ getRecipients, recipientType: 'inbox', actorUuid, activityUuid, published, storage, fetcher, sender });
-            }
-        }
-    }
-
-    throw new Error(`Activity not supported: ${JSON.stringify(activity, undefined, 2)}`);
-}
-
-export function findNonPublicRecipientsForNote(note: ApObjectValue): Set<string> {
-    const urls = new Set([ ...findRecipientsForNoteProperty(note, 'to'), ...findRecipientsForNoteProperty(note, 'cc') ].map(v => v.toString()));
-    urls.delete('https://www.w3.org/ns/activitystreams#Public');
-    return urls;
-}
-
-export async function findInboxUrlsForActor(actorUuid: string, storage: BackendStorage): Promise<Set<string>> {
-    const records = await storage.transaction(async txn => await txn.list('federation', { prefix: `${actorUuid}:` }));
-    const inboxUrls = new Set<string>();
-    for (const record of records.values()) {
-        if (!checkFederationRecord(record)) continue;
-        for (const state of Object.values(record.recipientStates)) {
-            if (state.status === 'posted') {
-                const inboxUrl = state.sharedInbox || state.inbox;
-                if (inboxUrl) {
-                    inboxUrls.add(inboxUrl);
-                }
-            }
-        }
-    }
-    return inboxUrls;
-}
-
-//
-
-async function computeInitialReceipientStates(getRecipients: () => Promise<Set<string>>): Promise<Record<string, FederationRecipientState>>  {
-    const rt : Record<string, FederationRecipientState> = {};
-    for (const recipient of await getRecipients()) {
-        rt[recipient] = { status: 'initial' };
-    }
-    return rt;
-}
-
-async function federate(opts: { 
-        getRecipients: () => Promise<Set<string>>, 
-        recipientType: 'actor' | 'inbox', 
-        actorUuid: string, 
-        activityUuid: string, 
-        published: string, 
-        storage: BackendStorage, 
-        fetcher: Fetcher, 
-        sender: (inbox: string, log: string[]) => Promise<number | undefined> 
-    }): Promise<FederateActivityResponse> {
-    const { getRecipients, recipientType, actorUuid, activityUuid, storage, published, fetcher, sender } = opts;
     const recordKey = `${actorUuid}:${activityUuid}`;
     const storedRecord = await storage.transaction(async txn => await getRecord(txn, 'federation', recordKey));
     const record = storedRecord && checkFederationRecord(storedRecord) 
         ? storedRecord
-        : { activityUuid, published, actorUuid, recipientStates: await computeInitialReceipientStates(getRecipients) } as FederationRecord;
+        : { activityUuid, published, actorUuid, recipientStates: await computeInitialReceipientStates(recipientProvider) } as FederationRecord;
     if (!storedRecord) {
         // save it, getting the recipients might have been expensive
         await storage.transaction(async txn => await txn.put('federation', recordKey, record));
@@ -183,6 +114,68 @@ async function federate(opts: {
     return { kind: 'federate-activity', record, recipientLogs, modified };
 }
 
+export function findNonPublicRecipientsForNote(note: ApObjectValue): Set<string> {
+    const urls = new Set([ ...findRecipientsForNoteProperty(note, 'to'), ...findRecipientsForNoteProperty(note, 'cc') ].map(v => v.toString()));
+    urls.delete('https://www.w3.org/ns/activitystreams#Public');
+    return urls;
+}
+
+export async function findInboxUrlsForActor(actorUuid: string, storage: BackendStorage): Promise<Set<string>> {
+    const records = await storage.transaction(async txn => await txn.list('federation', { prefix: `${actorUuid}:` }));
+    const inboxUrls = new Set<string>();
+    for (const record of records.values()) {
+        if (!checkFederationRecord(record)) continue;
+        for (const state of Object.values(record.recipientStates)) {
+            if (state.status === 'posted') {
+                const inboxUrl = state.sharedInbox || state.inbox;
+                if (inboxUrl) {
+                    inboxUrls.add(inboxUrl);
+                }
+            }
+        }
+    }
+    return inboxUrls;
+}
+
+//
+
+function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, storage: BackendStorage): { recipientProvider: () => Promise<Set<string>>, recipientType: 'actor' | 'inbox' } {
+    // Create Note
+    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Create') {
+        const object = apo.get('object');
+        if (object instanceof ApObjectValue) {
+            if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Note') {
+                return { 
+                    recipientProvider: () => Promise.resolve(findNonPublicRecipientsForNote(object)), 
+                    recipientType: 'actor' 
+                };
+            }
+        }
+    }
+
+    // Update Person
+    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Update') {
+        const object = apo.get('object');
+        if (object instanceof ApObjectValue) {
+            if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Person') {
+                return { 
+                    recipientProvider: () => findInboxUrlsForActor(actorUuid, storage), 
+                    recipientType: 'inbox' 
+                };
+            }
+        }
+    }
+
+    throw new Error(`Activity not supported: ${apo.toJson(2)}`);
+}
+
+async function computeInitialReceipientStates(recipientProvider: () => Promise<Set<string>>): Promise<Record<string, FederationRecipientState>>  {
+    const rt : Record<string, FederationRecipientState> = {};
+    for (const recipient of await recipientProvider()) {
+        rt[recipient] = { status: 'initial' };
+    }
+    return rt;
+}
 
 function findRecipientsForNoteProperty(note: ApObjectValue, propertyName: string): readonly Iri[] {
     const value = note.opt(propertyName);
