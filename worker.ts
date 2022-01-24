@@ -8,6 +8,7 @@ import { matchObject } from './endpoints/object_endpoint.ts';
 import { Responses } from './endpoints/responses.ts';
 import { matchActivity } from './endpoints/activity_endpoint.ts';
 import { matchInbox } from './endpoints/inbox_endpoint.ts';
+import { check, isValidOrigin } from './check.ts';
 export { BackendDO } from './backend_do.ts';
 
 export default {
@@ -44,6 +45,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         if (!!request.body || bodyText) console.log('request.hasBody', !!request.body, 'bodyText', bodyText);
         const { origin, adminIp, adminPublicKeyPem, backendNamespace, backendName } = env;
         if (origin && adminIp && adminPublicKeyPem && backendNamespace && backendName) {
+            check('origin', origin, isValidOrigin);
             const whitelisted = ((headers.get('cf-connecting-ip') || '') + ',').startsWith(`${adminIp},`);
             if (!whitelisted) {
                 for (const [ name, value ] of headers.entries()) {

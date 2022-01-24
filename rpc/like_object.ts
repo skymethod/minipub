@@ -5,19 +5,20 @@ import { ApObject } from '../activity_pub/ap_object.ts';
 import { newUuid } from '../uuid.ts';
 import { computeActivityId, computeActorId } from './urls.ts';
 import { computeTimestamp } from './timestamp.ts';
+import { Fetcher } from '../fetcher.ts';
+import { APPLICATION_ACTIVITY_JSON } from '../media_types.ts';
 
-export async function computeLikeObject(req: LikeObjectRequest, origin: string, storage: BackendStorage): Promise<LikeObjectResponse> {
+export async function computeLikeObject(req: LikeObjectRequest, origin: string, storage: BackendStorage, fetcher: Fetcher): Promise<LikeObjectResponse> {
     const { actorUuid, objectId } = req;
+
+    // ensure remote note object with id matching input objectId
+    await checkObjectId(objectId, { fetcher, origin });
 
     // in a single transaction:
     const activityUuid = await storage.transaction(async txn => {
         const actor = await txn.get('actor', actorUuid);
         if (actor === undefined) throw new Error(`computeLikeObject: Actor ${actorUuid} not found`);
         if (!checkActorRecord(actor)) throw new Error(`computeLikeObject: Actor ${actorUuid} data is not valid`);
-
-        // TODO ensure it's remote
-
-        // TODO fetch object, ensure it's an object and ensure id matches
 
         // TODO ensure not already liked?
 
@@ -55,4 +56,23 @@ export async function saveLikeObjectActivity(txn: BackendStorageTransaction, opt
     // add to actor activity index
     await txn.put('i-actor-activity-by-published', `${actorUuid}:${computeTimestamp(published)}:${activityUuid}`, { actorUuid, published, activityUuid });
     return activityUuid;
+}
+
+//
+
+async function checkObjectId(objectId: string, opts: { fetcher: Fetcher, origin: string }) {
+    const { fetcher, origin } = opts;
+
+    // ensure it's remote
+    const u = new URL(objectId);
+    if (u.origin === origin) throw new Error(`Bad objectId: ${objectId}, only likes of remote objects are supported`);
+
+    // fetch object, ensure it's an object and ensure id matches
+    const res = await fetcher(objectId, { headers: { 'content-type': APPLICATION_ACTIVITY_JSON } });
+    if (res.status !== 200) throw new Error(`Bad objectId: ${objectId}, expected fetch response of 200, found ${res.status}`);
+    const apo = ApObject.parseJson(await res.text());
+    const type = apo.type.toString();
+    if (type !== 'https://www.w3.org/ns/activitystreams#Note') throw new Error(`Bad objectId: ${objectId}, only likes of remote Note objects are supported, found ${type}`);
+    const id = apo.getIriString('id');
+    if (id !== objectId) throw new Error(`Bad objectId: ${objectId}, remote object id is ${id}`);
 }

@@ -7,6 +7,7 @@ import { Responses } from './responses.ts';
 import { computeFederateActivity } from '../rpc/federate_activity.ts';
 import { Fetcher } from '../fetcher.ts';
 import { computeDeleteFromStorage } from '../rpc/delete_from_storage.ts';
+import { computeLikeObject } from '../rpc/like_object.ts';
 
 export const matchRpc = (method: string, pathname: string) => method === 'POST' && pathname === '/rpc';
 
@@ -20,7 +21,7 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
         if (kind === 'create-note' && checkCreateNoteRequest(body)) return await computeCreateNote(body, origin, storage);
         if (kind === 'federate-activity' && checkFederateActivityRequest(body)) return await computeFederateActivity(body, origin, storage, fetcher);
         if (kind === 'delete-from-storage' && checkDeleteFromStorageRequest(body)) return await computeDeleteFromStorage(body, storage);
-        if (kind === 'like-object' && checkLikeObjectRequest(body)) return await computeLikeObject(body, origin, storage);
+        if (kind === 'like-object' && checkLikeObjectRequest(body)) return await computeLikeObject(body, origin, storage, fetcher);
         throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
     }
     return Responses.rpc(await computeRpcResponse());

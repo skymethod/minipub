@@ -48,3 +48,20 @@ export function isPositiveInteger(value: number) {
 export function isValidHttpStatus(value: number) {
     return Number.isInteger(value) && value >= 100 && value < 600;
 }
+
+export function isValidOrigin(origin: string) {
+    // https-only
+    // no port
+    // no trailing slash
+    // no underscores
+    try {
+        const { protocol, hostname, port } = new URL(origin);
+        return protocol === 'https:' && isValidHostname(hostname) && port === '' && origin === `https://${hostname}`;
+    } catch {
+        return false;
+    }
+}
+
+export function isValidHostname(hostname: string) {
+    return /^[a-z0-9-]+(\.[a-z0-9-]+){1,5}$/.test(hostname);
+}
