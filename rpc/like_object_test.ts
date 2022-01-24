@@ -1,4 +1,4 @@
-import { assert, assertRejects, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
+import { assert, assertRejects } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { Fetcher } from '../fetcher.ts';
 import { makeInMemoryStorage } from '../in_memory_storage.ts';

@@ -1,0 +1,23 @@
+
+Alice (minipub actor 8ed7ea2d9aa647eaa8cc175c23325c53) likes the remote Note object https://example.social/users/bob/statuses/123456123456123456
+minipub POSTs the following to the inbox associated with the object's 'attributedTo' actor, http signature generated using alice's key:
+
+POST https://example.social/users/bob/inbox
+date: Mon, 24 Jan 2022 19:08:23 GMT
+signature: keyId="https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53#main-key",headers="(request-target) host date digest",signature="<base64>"
+digest: SHA-256=<base64>
+content-type: application/activity+json
+
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/activities/c03213484e784078a04843baf3057d41",
+  "type": "Like",
+  "actor": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53",
+  "object": "https://example.social/users/bob/statuses/123456123456123456",
+  "published": "2022-01-24T18:39:36.876Z"
+}
+
+mastodon responds with 202 accepted
+no callbacks are received
+generates Mastodon notification
+increments star count in the ui

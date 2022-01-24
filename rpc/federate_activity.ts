@@ -25,7 +25,7 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
     const privateKey = await importKeyFromPem(privateKeyPem, 'private');
 
     const apo = ApObject.parseObj(activityPub);
-    const { recipientProvider, recipientType } = computeRecipientProviderForActivity(apo, actorUuid, storage);
+    const { recipientProvider, recipientType } = computeRecipientProviderForActivity(apo, actorUuid, storage, fetcher);
     const published = apo.getString('published');
     
     const sender = async (inbox: string, log: string[]) => {
@@ -137,9 +137,24 @@ export async function findInboxUrlsForActor(actorUuid: string, storage: BackendS
     return inboxUrls;
 }
 
+export async function fetchRemoteNoteAttributedTo(objectId: string, fetcher: Fetcher): Promise<string> {
+    const apo = await fetchActivityPub(objectId, fetcher);
+    if (apo.type.toString() !== 'https://www.w3.org/ns/activitystreams#Note') throw new Error(`Bad objectId: ${objectId}, only remote Notes are supported`);
+    return apo.getIriString('attributedTo');
+}
+
+export async function fetchActivityPub(url: string, fetcher: Fetcher): Promise<ApObject> {
+    const res = await fetcher(url, { headers: { accept: 'application/activity+json' } });
+    if (res.status !== 200) throw new Error(`Unexpected status for ${url}: ${res.status}, expected 200, body=${await res.text()}`);
+    const contentType = res.headers.get('content-type') || '<missing>';
+    if (!contentType.toLowerCase().includes('json')) throw new Error(`Unexpected contentType for ${url}: ${contentType}, expected json, body=${await res.text()}`);
+    return ApObject.parseObj(await res.json());
+}
+
 //
 
-function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, storage: BackendStorage): { recipientProvider: () => Promise<Set<string>>, recipientType: 'actor' | 'inbox' } {
+function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, storage: BackendStorage, fetcher: Fetcher): { recipientProvider: () => Promise<Set<string>>, recipientType: 'actor' | 'inbox' } {
+
     // Create Note
     if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Create') {
         const object = apo.get('object');
@@ -166,6 +181,20 @@ function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, s
         }
     }
 
+    // Like Object
+    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Like') {
+        const object = apo.get('object');
+        if (object instanceof Iri) {
+            return { 
+                recipientProvider: async () => {
+                    const attributedTo = await fetchRemoteNoteAttributedTo(object.toString(), fetcher);
+                    return new Set([ attributedTo ]);
+                },
+                recipientType: 'actor' 
+            };
+        }
+    }
+
     throw new Error(`Activity not supported: ${apo.toJson(2)}`);
 }
 
@@ -187,11 +216,7 @@ function findRecipientsForNoteProperty(note: ApObjectValue, propertyName: string
 }
 
 async function findInboxesForActorUrl(actorUrl: string, fetcher: Fetcher): Promise<{ inbox?: string, sharedInbox?: string }> {
-    const res = await fetcher(actorUrl, { headers: { accept: 'application/activity+json' } });
-    if (res.status !== 200) throw new Error(`Unexpected status for ${actorUrl}: ${res.status}, expected 200, body=${await res.text()}`);
-    const contentType = res.headers.get('content-type') || '<missing>';
-    if (!contentType.toLowerCase().includes('json')) throw new Error(`Unexpected contentType for ${actorUrl}: ${contentType}, expected json, body=${await res.text()}`);
-    const apo = ApObject.parseObj(await res.json());
+    const apo = await fetchActivityPub(actorUrl, fetcher);
     check('type', apo.getIriString('type'), v => v === 'https://www.w3.org/ns/activitystreams#Person');
     check('id', apo.getIriString('id'), v => v === actorUrl);
     const inbox = apo.optIriString('inbox');
