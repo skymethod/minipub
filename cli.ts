@@ -12,6 +12,7 @@ import { validateHttpSignature } from './cli_validate_http_signature.ts';
 import { ApObject } from './activity_pub/ap_object.ts';
 import { deleteFromStorage } from './cli_delete_from_storage.ts';
 import { likeObject } from './cli_like_object.ts';
+import { undoLike } from './cli_undo_like.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -42,17 +43,18 @@ export async function sendRpc(request: RpcRequest, origin: string, privateKey: C
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
     const fn = { 
-        generate, 
-        'create-user': createUser, cu: createUser,
-        'update-user': updateUser, uu: updateUser,
-        'delete-from-storage': deleteFromStorage, dfs: deleteFromStorage,
-        'create-note': createNote, cn: createNote,
-        'federate-activity': federateActivity, fa: federateActivity,
         'activity-pub': activityPub, ap: activityPub,
-        uuid,
-        'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
+        'create-note': createNote, cn: createNote,
+        'create-user': createUser, cu: createUser,
+        'delete-from-storage': deleteFromStorage, dfs: deleteFromStorage,
+        'federate-activity': federateActivity, fa: federateActivity,
         'like-object': likeObject, lo: likeObject,
+        'undo-like': undoLike, ul: undoLike,
+        'update-user': updateUser, uu: updateUser,
+        'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
+        generate, 
         tmp,
+        uuid,
     }[command];
     if (options.help || !fn) {
         dumpHelp();

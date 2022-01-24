@@ -1,4 +1,4 @@
-import { checkCreateNoteRequest, checkCreateUserRequest, checkDeleteFromStorageRequest, checkFederateActivityRequest, checkLikeObjectRequest, checkUpdateUserRequest } from '../rpc_model.ts';
+import { checkCreateNoteRequest, checkCreateUserRequest, checkDeleteFromStorageRequest, checkFederateActivityRequest, checkLikeObjectRequest, checkUndoLikeRequest, checkUpdateUserRequest } from '../rpc_model.ts';
 import { BackendStorage } from '../storage.ts';
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { computeUpdateUser } from '../rpc/update_user.ts';
@@ -8,6 +8,7 @@ import { computeFederateActivity } from '../rpc/federate_activity.ts';
 import { Fetcher } from '../fetcher.ts';
 import { computeDeleteFromStorage } from '../rpc/delete_from_storage.ts';
 import { computeLikeObject } from '../rpc/like_object.ts';
+import { computeUndoLike } from '../rpc/undo_like.ts';
 
 export const matchRpc = (method: string, pathname: string) => method === 'POST' && pathname === '/rpc';
 
@@ -22,6 +23,7 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
         if (kind === 'federate-activity' && checkFederateActivityRequest(body)) return await computeFederateActivity(body, origin, storage, fetcher);
         if (kind === 'delete-from-storage' && checkDeleteFromStorageRequest(body)) return await computeDeleteFromStorage(body, storage);
         if (kind === 'like-object' && checkLikeObjectRequest(body)) return await computeLikeObject(body, origin, storage, fetcher);
+        if (kind === 'undo-like' && checkUndoLikeRequest(body)) return await computeUndoLike(body, origin, storage);
         throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
     }
     return Responses.rpc(await computeRpcResponse());

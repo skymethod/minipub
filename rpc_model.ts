@@ -10,7 +10,9 @@ export type RpcRequest = CreateUserRequest
     | CreateNoteRequest 
     | FederateActivityRequest 
     | DeleteFromStorageRequest 
-    | LikeObjectRequest;
+    | LikeObjectRequest
+    | UndoLikeRequest
+    ;
 
 export type RpcResponse = CreateUserResponse 
     | UpdateUserResponse 
@@ -18,7 +20,9 @@ export type RpcResponse = CreateUserResponse
     | CreateNoteResponse 
     | FederateActivityResponse 
     | DeleteFromStorageResponse 
-    | LikeObjectResponse;
+    | LikeObjectResponse
+    | UndoLikeResponse
+    ;
 
 // validation
 
@@ -270,5 +274,24 @@ export function checkLikeObjectRequest(obj: any): obj is LikeObjectRequest {
 
 export interface LikeObjectResponse {
     readonly kind: 'like-object';
-    readonly activityUuid: string
+    readonly activityUuid: string;
+}
+
+// undo like
+
+export interface UndoLikeRequest {
+    readonly kind: 'undo-like';
+    readonly activityUuid: string;
+}
+
+export function checkUndoLikeRequest(obj: any): obj is UndoLikeRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'undo-like')
+        && check('activityUuid', obj.activityUuid, v => typeof v === 'string' && isValidUuid(v))
+        ;
+}
+
+export interface UndoLikeResponse {
+    readonly kind: 'undo-like';
+    readonly activityUuid: string;
 }
