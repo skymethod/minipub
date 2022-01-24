@@ -4,8 +4,21 @@ import { check, isNonEmpty, isStringRecord, isValidUrl } from './check.ts';
 import { BlobReference, FederationRecord } from './domain_model.ts';
 import { isValidUuid } from './uuid.ts';
 
-export type RpcRequest = CreateUserRequest | UpdateUserRequest | DeleteUserRequest | CreateNoteRequest | FederateActivityRequest | DeleteFromStorageRequest;
-export type RpcResponse = CreateUserResponse | UpdateUserResponse | DeleteUserResponse | CreateNoteResponse | FederateActivityResponse | DeleteFromStorageResponse;
+export type RpcRequest = CreateUserRequest 
+    | UpdateUserRequest 
+    | DeleteUserRequest 
+    | CreateNoteRequest 
+    | FederateActivityRequest 
+    | DeleteFromStorageRequest 
+    | LikeObjectRequest;
+
+export type RpcResponse = CreateUserResponse 
+    | UpdateUserResponse 
+    | DeleteUserResponse 
+    | CreateNoteResponse 
+    | FederateActivityResponse 
+    | DeleteFromStorageResponse 
+    | LikeObjectResponse;
 
 // validation
 
@@ -237,4 +250,25 @@ export function checkDeleteFromStorageRequest(obj: any): obj is DeleteFromStorag
 export interface DeleteFromStorageResponse {
     readonly kind: 'delete-from-storage';
     readonly existed: boolean;
+}
+
+// like object
+
+export interface LikeObjectRequest {
+    readonly kind: 'like-object';
+    readonly actorUuid: string;
+    readonly objectId: string; // remote objectId, ie the canonical "id" of the object/Note coming back from an AP request
+}
+
+export function checkLikeObjectRequest(obj: any): obj is LikeObjectRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'like-object')
+        && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('objectId', obj.objectId, v => typeof v === 'string' && isValidUrl(v))
+        ;
+}
+
+export interface LikeObjectResponse {
+    readonly kind: 'like-object';
+    readonly activityUuid: string
 }

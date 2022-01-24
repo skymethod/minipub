@@ -1,4 +1,4 @@
-import { checkCreateNoteRequest, checkCreateUserRequest, checkDeleteFromStorageRequest, checkFederateActivityRequest, checkUpdateUserRequest } from '../rpc_model.ts';
+import { checkCreateNoteRequest, checkCreateUserRequest, checkDeleteFromStorageRequest, checkFederateActivityRequest, checkLikeObjectRequest, checkUpdateUserRequest } from '../rpc_model.ts';
 import { BackendStorage } from '../storage.ts';
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { computeUpdateUser } from '../rpc/update_user.ts';
@@ -20,6 +20,7 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
         if (kind === 'create-note' && checkCreateNoteRequest(body)) return await computeCreateNote(body, origin, storage);
         if (kind === 'federate-activity' && checkFederateActivityRequest(body)) return await computeFederateActivity(body, origin, storage, fetcher);
         if (kind === 'delete-from-storage' && checkDeleteFromStorageRequest(body)) return await computeDeleteFromStorage(body, storage);
+        if (kind === 'like-object' && checkLikeObjectRequest(body)) return await computeLikeObject(body, origin, storage);
         throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
     }
     return Responses.rpc(await computeRpcResponse());
