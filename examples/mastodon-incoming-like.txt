@@ -1,0 +1,15 @@
+POST https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/inbox
+  content-type: application/activity+json
+  date: Sun, 23 Jan 2022 23:55:16 GMT
+  digest: SHA-256=<base64>
+  host: minipub.server
+  signature: keyId="https://example.social/users/bob#main-key",algorithm="rsa-sha256",headers="(request-target) host date digest content-type",signature="<base64>"
+  user-agent: http.rb/5.0.4 (Mastodon/3.4.4; +https://example.social/)
+
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example.social/users/bob#likes/12345",
+  "type": "Like",
+  "actor": "https://example.social/users/bob",
+  "object": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/objects/6a7f9c383dc04ad58322637ab2b121d4"
+}
