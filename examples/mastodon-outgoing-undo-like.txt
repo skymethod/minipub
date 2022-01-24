@@ -1,0 +1,32 @@
+
+Alice (minipub actor 8ed7ea2d9aa647eaa8cc175c23325c53) liked Bob's remote Note object https://example.social/users/bob/statuses/123456123456123456
+and already federated the like, via https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/activities/c03213484e784078a04843baf3057d41
+but now wants to undo it
+
+minipub POSTs the following to the inbox associated with the liked object's 'attributedTo' actor, http signature generated using alice's key:
+
+POST https://example.social/users/bob/inbox
+date: Mon, 24 Jan 2022 19:08:23 GMT
+signature: keyId="https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53#main-key",headers="(request-target) host date digest",signature="<base64>"
+digest: SHA-256=<base64>
+content-type: application/activity+json
+
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/activities/6ec24546be294462b89d7b9c625f251b",
+  "type": "Undo",
+  "actor": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53",
+  "object": {
+    "id": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/activities/c03213484e784078a04843baf3057d41",
+    "type": "Like",
+    "actor": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53",
+    "object": "https://example.social/users/bob/statuses/123456123456123456",
+    "published": "2022-01-24T18:39:36.876Z"
+  },
+  "published": "2022-01-24T23:18:41.318Z"
+}
+
+mastodon responds with 202 accepted
+no callbacks are received
+undoes the Mastodon notification
+decrements the star count in the ui

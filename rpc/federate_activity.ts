@@ -160,9 +160,9 @@ function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, s
         const object = apo.get('object');
         if (object instanceof ApObjectValue) {
             if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Note') {
-                return { 
+                return {
                     recipientProvider: () => Promise.resolve(findNonPublicRecipientsForNote(object)), 
-                    recipientType: 'actor' 
+                    recipientType: 'actor',
                 };
             }
         }
@@ -173,9 +173,9 @@ function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, s
         const object = apo.get('object');
         if (object instanceof ApObjectValue) {
             if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Person') {
-                return { 
+                return {
                     recipientProvider: () => findInboxUrlsForActor(actorUuid, storage), 
-                    recipientType: 'inbox' 
+                    recipientType: 'inbox',
                 };
             }
         }
@@ -185,13 +185,32 @@ function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, s
     if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Like') {
         const object = apo.get('object');
         if (object instanceof Iri) {
-            return { 
+            return {
                 recipientProvider: async () => {
                     const attributedTo = await fetchRemoteNoteAttributedTo(object.toString(), fetcher);
                     return new Set([ attributedTo ]);
                 },
-                recipientType: 'actor' 
+                recipientType: 'actor',
             };
+        }
+    }
+
+    // Undo Like
+    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Undo') {
+        const object = apo.get('object');
+        if (object instanceof ApObjectValue) {
+            if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Like') {
+                const object_ = object.get('object');
+                if (object_ instanceof Iri) {
+                    return {
+                        recipientProvider: async () => {
+                            const attributedTo = await fetchRemoteNoteAttributedTo(object_.toString(), fetcher);
+                            return new Set([ attributedTo ]);
+                        },
+                        recipientType: 'actor',
+                    };
+                }
+            }
         }
     }
 
