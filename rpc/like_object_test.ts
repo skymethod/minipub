@@ -1,4 +1,4 @@
-import { assert } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
+import { assert, assertRejects, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { Fetcher } from '../fetcher.ts';
 import { makeInMemoryStorage } from '../in_memory_storage.ts';
@@ -38,4 +38,9 @@ Deno.test('computeLikeObject', async () => {
     };
     const { activityUuid } = await computeLikeObject(req, origin, storage, fetcher);
     assert(isValidUuid(activityUuid));
+
+    // can't relike the same object
+    assertRejects(async () => {
+        await computeLikeObject(req, origin, storage, fetcher);
+    });
 });

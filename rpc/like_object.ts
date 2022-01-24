@@ -20,9 +20,13 @@ export async function computeLikeObject(req: LikeObjectRequest, origin: string, 
         if (actor === undefined) throw new Error(`computeLikeObject: Actor ${actorUuid} not found`);
         if (!checkActorRecord(actor)) throw new Error(`computeLikeObject: Actor ${actorUuid} data is not valid`);
 
-        // TODO ensure not already liked?
+        const likeKey = `${actorUuid}:${objectId}`;
+        const like = await txn.get('like', likeKey);
+        if (like) throw new Error(`computeLikeObject: Actor ${actorUuid} already liked ${objectId}`);
 
         const published = new Date().toISOString();
+        await txn.put('like', likeKey, { actorUuid, objectId, published });
+
         return await saveLikeObjectActivity(txn, { published, origin, actorUuid, objectId });
     });
 
