@@ -3,6 +3,7 @@ import { Iri } from './iri.ts';
 import activityStreams from './activitystreams.json' assert { type: 'json' };
 import security from './security.json' assert { type: 'json' };
 import litepub from './litepub.json' assert { type: 'json' };
+import mastodon from './mastodon.json' assert { type: 'json' };
 import { isStringRecord } from '../check.ts';
 
 export class ApContext {
@@ -76,6 +77,7 @@ const knownContexts = new Map<string, any>([
     [ 'https://www.w3.org/ns/activitystreams', activityStreams['@context'] ],
     [ 'https://w3id.org/security/v1', security['@context'] ],
     [ litepubNamespace, litepub['@context'] ],
+    [ 'http://joinmastodon.org/ns', mastodon['@context'] ], // unofficial jsonld from found contexts and https://github.com/mastodon/mastodon/blob/main/app/lib/activitypub/adapter.rb
 ]);
 
 function findKnownContext(context: any) {
