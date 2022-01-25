@@ -1,5 +1,6 @@
 import { ParseCallback } from './activity_pub/ap_context.ts';
 import { ApObject } from './activity_pub/ap_object.ts';
+import { makeMinipubFetcher } from './fetcher.ts';
 
 export async function activityPub(args: (string | number)[], options: Record<string, unknown>) {
     const [ url ] = args;
@@ -9,7 +10,8 @@ export async function activityPub(args: (string | number)[], options: Record<str
 
     const accept = ld ? 'application/ld+json' : 'application/activity+json';
 
-    const res = await fetch(url, { headers: { accept } });
+    const fetcher = makeMinipubFetcher();
+    const res = await fetcher(url, { headers: { accept } });
     console.log(`${res.status} ${res.url}`);
     console.log([...res.headers].map(v => v.join(': ')).join('\n'));
     const contentType = res.headers.get('content-type') || '';

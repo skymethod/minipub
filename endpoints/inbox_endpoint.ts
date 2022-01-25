@@ -1,6 +1,7 @@
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { isStringRecord } from '../check.ts';
 import { validateHttpSignature } from '../crypto.ts';
+import { Fetcher } from '../fetcher.ts';
 import { fetchPublicKey, GoneError } from '../fetch_public_key.ts';
 import { BackendStorage } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
@@ -18,12 +19,12 @@ export function matchInbox(method: string, pathname: string): { actorUuid: strin
     }
 }
 
-export async function computeInbox(request: Request, actorUuid: string, _storage: BackendStorage): Promise<Response> {
+export async function computeInbox(request: Request, actorUuid: string, _storage: BackendStorage, fetcher: Fetcher): Promise<Response> {
     const { method, url, headers } = request;
     let body: string | undefined;
     try {
         body = await request.text();
-        const { keyId, diffMillis } = await validateHttpSignature({ method, url, headers, body, publicKeyProvider: fetchPublicKey });
+        const { keyId, diffMillis } = await validateHttpSignature({ method, url, headers, body, publicKeyProvider: keyId => fetchPublicKey(keyId, fetcher) });
         console.log('computeInbox: valid!', { keyId, diffMillis, actorUuid });
         // TODO save? push event to actor?
         return Responses.accepted(`thanks, ${keyId}`);

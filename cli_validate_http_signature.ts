@@ -1,4 +1,5 @@
 import { validateHttpSignature as validateHttpSignature_ } from './crypto.ts';
+import { makeMinipubFetcher } from './fetcher.ts';
 import { fetchPublicKey } from './fetch_public_key.ts';
 
 export async function validateHttpSignature(args: (string | number)[], _options: Record<string, unknown>) {
@@ -39,7 +40,8 @@ export async function validateHttpSignature(args: (string | number)[], _options:
     }
     if (url && body) {
         console.log('found ' + url);
-        const { keyId, diffMillis } = await validateHttpSignature_({ method: 'POST', url, headers, body, publicKeyProvider: fetchPublicKey });
+        const fetcher = makeMinipubFetcher();
+        const { keyId, diffMillis } = await validateHttpSignature_({ method: 'POST', url, headers, body, publicKeyProvider: keyId => fetchPublicKey(keyId, fetcher) });
         console.log('valid!', { keyId, diffMillis });
     } else {
         console.warn('No POST /inbox found');

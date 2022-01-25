@@ -1,5 +1,8 @@
 import { validateHttpSignature } from './crypto.ts';
+import { makeMinipubFetcher } from './fetcher.ts';
 import { fetchPublicKey } from './fetch_public_key.ts';
+
+const fetcher = makeMinipubFetcher();
 
 export default {
 
@@ -20,7 +23,7 @@ export default {
                 const headers2 = new Headers(headers);
                 headers2.set('host', u.hostname);
                 const url2 = u.toString();
-                const { keyId, diffMillis } = await validateHttpSignature({ method, url: url2, headers: headers2, body: bodyText, publicKeyProvider: fetchPublicKey });
+                const { keyId, diffMillis } = await validateHttpSignature({ method, url: url2, headers: headers2, body: bodyText, publicKeyProvider: keyId => fetchPublicKey(keyId, fetcher) });
                 data = { ...data, keyId, diffMillis };
                 console.log(JSON.stringify(data, undefined, 2));
             }

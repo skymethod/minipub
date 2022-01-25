@@ -13,6 +13,7 @@ import { ApObject } from './activity_pub/ap_object.ts';
 import { deleteFromStorage } from './cli_delete_from_storage.ts';
 import { likeObject } from './cli_like_object.ts';
 import { undoLike } from './cli_undo_like.ts';
+import { makeMinipubFetcher } from './fetcher.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -29,11 +30,12 @@ export async function sendRpc(request: RpcRequest, origin: string, privateKey: C
     const url = `${origin}/rpc`;
     const keyId = 'admin';
     const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId })
-    const headers = new Headers({ date, signature, digest, 'content-type': APPLICATION_JSON_UTF8 });
-    console.log([...headers].map(v => v.join(': ')).join('\n'));
+    const headers = { date, signature, digest, 'content-type': APPLICATION_JSON_UTF8 };
+    console.log(Object.entries(headers).map(v => v.join(': ')).join('\n'));
     console.log(stringToSign);
 
-    const res = await fetch(url, { method, body, headers });
+    const fetcher = makeMinipubFetcher();
+    const res = await fetcher(url, { method, body, headers });
     console.log(res);
     console.log(await res.text());
 }

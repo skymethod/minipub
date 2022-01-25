@@ -7,7 +7,7 @@ import { CreateUserRequest, LikeObjectRequest, UndoLikeRequest } from '../rpc_mo
 import { isValidUuid } from '../uuid.ts';
 import { computeCreateUser } from './create_user.ts';
 import { computeLikeObject } from './like_object.ts';
-import { computeUndoLike } from "./undo_like.ts";
+import { computeUndoLike } from './undo_like.ts';
 
 Deno.test('computeUndoLike', async () => {
     const storage = makeInMemoryStorage();
