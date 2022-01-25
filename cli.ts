@@ -15,6 +15,7 @@ import { likeObject } from './cli_like_object.ts';
 import { undoLike } from './cli_undo_like.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 import { webfinger } from './cli_webfinger.ts';
+import { server } from './cli_server.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -56,6 +57,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         'update-user': updateUser, uu: updateUser,
         'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
         generate, 
+        server,
         tmp,
         uuid,
         webfinger,
