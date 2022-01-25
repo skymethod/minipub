@@ -7,8 +7,9 @@ import { matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { matchObject } from './endpoints/object_endpoint.ts';
 import { Responses } from './endpoints/responses.ts';
 import { matchActivity } from './endpoints/activity_endpoint.ts';
-import { matchInbox } from './endpoints/inbox_endpoint.ts';
+import { computeInbox, matchInbox } from './endpoints/inbox_endpoint.ts';
 import { check, isValidOrigin } from './check.ts';
+import { makeMinipubFetcher } from "./fetcher.ts";
 export { BackendDO } from './backend_do.ts';
 
 export default {
@@ -71,13 +72,14 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
                 const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider });
                 console.log(`admin request sent ${diffMillis} millis ago`);
             }
+
+            // routes handled by durable object
             const routeToDurableObject = isRpc
                 || matchActor(method, pathname)
                 || matchObject(method, pathname)
                 || matchActivity(method, pathname)
                 || matchBlob(method, pathname)
                 || matchWebfinger(method, pathname, searchParams)
-                || matchInbox(method, pathname)
                 ;
 
             if (routeToDurableObject) {
@@ -86,6 +88,10 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
                 const body = (method === 'GET' || method === 'HEAD') ? undefined : bodyText;
                 return await backendNamespace.get(backendNamespace.idFromName(backendName)).fetch(canonicalUrl, { method, headers: doHeaders, body });
             }
+
+            // routes handled in entry-point worker
+            const fetcher = makeMinipubFetcher({ origin });
+            const inbox = matchInbox(method, pathname); if (inbox) return await computeInbox(request, inbox.actorUuid, fetcher);
         }
         return Responses.notFound();
     } catch (e) {

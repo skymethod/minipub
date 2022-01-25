@@ -7,7 +7,6 @@ import { computeObject, matchObject } from './endpoints/object_endpoint.ts';
 import { Responses } from './endpoints/responses.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
-import { computeInbox, matchInbox } from './endpoints/inbox_endpoint.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 import { BackendStorage, BackendStorageListOptions, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
@@ -42,7 +41,6 @@ export class BackendDO {
             const activity = matchActivity(method, pathname); if (activity) return await computeActivity(activity.actorUuid, activity.activityUuid, storage);
             const blob = matchBlob(method, pathname); if (blob) return await computeBlob(blob.actorUuid, blob.blobUuid, blob.ext, storage);
             const webfinger = matchWebfinger(method, pathname, searchParams); if (webfinger) return await computeWebfinger(webfinger.username, webfinger.domain, origin, storage);
-            const inbox = matchInbox(method, pathname); if (inbox) return await computeInbox(request, inbox.actorUuid, storage, fetcher);
             throw new Error('Not implemented');
         } catch (e) {
             console.error('Error in BackendDO', `${e.stack || e}`);

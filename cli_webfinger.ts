@@ -1,7 +1,7 @@
 import { check, checkMatches, isValidHostname } from './check.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 
-export async function webfinger(args: (string | number)[], options: Record<string, unknown>) {
+export async function webfinger(args: (string | number)[], _options: Record<string, unknown>) {
     const [ userAtHost ] = args;
     const m = /^@?(.*?)@(.*?)$/.exec(typeof userAtHost === 'string' ? userAtHost : '');
     if (!m) throw new Error('Provide user@host as an argument, e.g. minipub webfinger bob@example.social');

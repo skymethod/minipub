@@ -1,0 +1,37 @@
+
+Alice (minipub actor 8ed7ea2d9aa647eaa8cc175c23325c53) likes Bob's remote Note object https://example.social/users/bob/statuses/123456123456123456
+minipub POSTs the following to the inbox associated with the object's 'attributedTo' actor, http signature generated using alice's key:
+
+POST https://example.social/users/bob/inbox
+date: Mon, 24 Jan 2022 19:08:23 GMT
+signature: keyId="https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53#main-key",headers="(request-target) host date digest",signature="<base64>"
+digest: SHA-256=<base64>
+content-type: application/activity+json
+
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/activities/c03213484e784078a04843baf3057d41",
+  "type": "Like",
+  "actor": "https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53",
+  "object": "https://example.social/users/bob/statuses/123456123456123456",
+  "published": "2022-01-24T18:39:36.876Z"
+}
+
+pleroma responds with 200 response, "ok" body, no content-type
+generates Pleroma notification
+increments favorite count in the ui, actor icon is used for the circular profile pic
+
+callbacks received:
+
+GET https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53
+  accept: application/activity+json
+  date: Tue, 25 Jan 2022 14:13:02 GMT
+  host: minipub.server
+  signature: keyId="https://example.social/internal/fetch#main-key",algorithm="rsa-sha256",headers="(request-target) date host",signature="<base64>"
+  user-agent: Pleroma 2.4.1; https://example.social <admin@example.social>
+
+GET https://minipub.server/actors/8ed7ea2d9aa647eaa8cc175c23325c53/blobs/7d00c58f5ed744f49e98b2dc514448b7.jpg
+  accept: */*
+  host: minipub.server
+  priority: u=3
+  user-agent: NotificationService/132 CFNetwork/1327.0.4 Darwin/21.2.0

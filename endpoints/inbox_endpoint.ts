@@ -3,7 +3,6 @@ import { isStringRecord } from '../check.ts';
 import { validateHttpSignature } from '../crypto.ts';
 import { Fetcher } from '../fetcher.ts';
 import { fetchPublicKey, GoneError } from '../fetch_public_key.ts';
-import { BackendStorage } from '../storage.ts';
 import { isValidUuid } from '../uuid.ts';
 import { Responses } from './responses.ts';
 
@@ -19,7 +18,7 @@ export function matchInbox(method: string, pathname: string): { actorUuid: strin
     }
 }
 
-export async function computeInbox(request: Request, actorUuid: string, _storage: BackendStorage, fetcher: Fetcher): Promise<Response> {
+export async function computeInbox(request: Request, actorUuid: string, fetcher: Fetcher): Promise<Response> {
     const { method, url, headers } = request;
     let body: string | undefined;
     try {
