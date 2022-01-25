@@ -142,7 +142,7 @@ export function checkProperties(obj: Record<string, unknown>, context: ApContext
         } else {
             let res; try { res = context.resolve(name); } catch (e) {
                 if (e instanceof UnresolvedIriError) {
-                    context.parseCallback.onUnresolvedProperty(name, value, context);
+                    context.parseCallback.onUnresolvedProperty(name, value, context, 'check');
                     continue;
                 } else {
                     throw e;
@@ -171,7 +171,14 @@ function findProperty(property: string, context: ApContext, record: Record<strin
     const expanded = propertyResolution.target;
     for (const [ name, value ] of Object.entries(record)) {
         if (name !== '@context') {
-            const resolution = context.resolve(name);
+            let resolution; try { resolution = context.resolve(name); } catch (e) {
+                if (e instanceof UnresolvedIriError) {
+                    context.parseCallback.onUnresolvedProperty(name, value, context, 'find');
+                    continue;
+                } else {
+                    throw e;
+                }
+            }
             if (resolution && resolution.languageMap === propertyResolution.languageMap) {
                 if (resolution.target.toString() === expanded.toString()) {
                     return { resolution, name, value };

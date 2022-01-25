@@ -42,7 +42,7 @@ export class ApContext {
 }
 
 export interface ParseCallback {
-    onUnresolvedProperty(name: string, value: any, context: ApContext): void;
+    onUnresolvedProperty(name: string, value: any, context: ApContext, phase: 'check' | 'find'): void;
 }
 
 export interface Resolution {

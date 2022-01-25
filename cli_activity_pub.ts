@@ -21,7 +21,8 @@ export async function activityPub(args: (string | number)[], options: Record<str
         if (parse) {
             let warnings = false;
             const callback: ParseCallback = {
-                onUnresolvedProperty: (name, value, _context) => {
+                onUnresolvedProperty: (name, value, _context, phase) => {
+                    if (phase === 'find') return;
                     console.warn(`Unresolved property: "${name}": ${JSON.stringify(value)}`);
                     warnings = true;
                 }

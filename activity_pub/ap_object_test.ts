@@ -25,7 +25,8 @@ Deno.test('ApObject', () => {
 
     // slightly more lenient property policy
     const parseCallback: ParseCallback = {
-        onUnresolvedProperty: (name, value, context) => {
+        onUnresolvedProperty: (name, value, context, phase) => {
+            if (phase === 'find') return;
             if (name === 'repliesCount' && typeof value === 'number' && context.isPleromaContext()) {
                 // found unknown "repliesCount" in Pleroma Note objects
             } else {

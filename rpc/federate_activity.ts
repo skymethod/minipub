@@ -9,6 +9,7 @@ import { Iri, isIriArray } from '../activity_pub/iri.ts';
 import { check } from '../check.ts';
 import { Fetcher } from '../fetcher.ts';
 import { computeActorId } from './urls.ts';
+import { ParseCallback } from '../activity_pub/ap_context.ts';
 
 export async function computeFederateActivity(req: FederateActivityRequest, origin: string, storage: BackendStorage, fetcher: Fetcher): Promise<FederateActivityResponse> {
     const { activityUuid, dryRun } = req;
@@ -148,7 +149,14 @@ export async function fetchActivityPub(url: string, fetcher: Fetcher): Promise<A
     if (res.status !== 200) throw new Error(`Unexpected status for ${url}: ${res.status}, expected 200, body=${await res.text()}`);
     const contentType = res.headers.get('content-type') || '<missing>';
     if (!contentType.toLowerCase().includes('json')) throw new Error(`Unexpected contentType for ${url}: ${contentType}, expected json, body=${await res.text()}`);
-    return ApObject.parseObj(await res.json());
+    // be lenient with external ActivityPub data
+    const callback: ParseCallback = {
+        onUnresolvedProperty: (name, value, _context, phase) => {
+            if (phase === 'find') return;
+            console.warn(`Unresolved property: "${name}": ${JSON.stringify(value)}`);
+        }
+    };
+    return ApObject.parseObj(await res.json(), { callback });
 }
 
 //
