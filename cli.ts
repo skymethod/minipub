@@ -14,6 +14,7 @@ import { deleteFromStorage } from './cli_delete_from_storage.ts';
 import { likeObject } from './cli_like_object.ts';
 import { undoLike } from './cli_undo_like.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
+import { webfinger } from './cli_webfinger.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -57,6 +58,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         generate, 
         tmp,
         uuid,
+        webfinger,
     }[command];
     if (options.help || !fn) {
         dumpHelp();
