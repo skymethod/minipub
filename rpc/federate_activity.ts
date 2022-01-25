@@ -244,7 +244,7 @@ function findRecipientsForNoteProperty(note: ApObjectValue, propertyName: string
 
 async function findInboxesForActorUrl(actorUrl: string, fetcher: Fetcher): Promise<{ inbox?: string, sharedInbox?: string }> {
     const apo = await fetchActivityPub(actorUrl, fetcher);
-    check('type', apo.getIriString('type'), v => v === 'https://www.w3.org/ns/activitystreams#Person');
+    check('type', apo.getIriString('type'), v => v === 'https://www.w3.org/ns/activitystreams#Person' || v === 'https://www.w3.org/ns/activitystreams#Service');
     check('id', apo.getIriString('id'), v => v === actorUrl);
     const inbox = apo.optIriString('inbox');
     const endpoints = apo.opt('endpoints');

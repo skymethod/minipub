@@ -18,11 +18,11 @@ export function matchInbox(method: string, pathname: string): { actorUuid: strin
     }
 }
 
-export async function computeInbox(request: Request, actorUuid: string, fetcher: Fetcher): Promise<Response> {
+export async function computeInbox(request: Request, bodyText: string, actorUuid: string, fetcher: Fetcher): Promise<Response> {
     const { method, url, headers } = request;
     let body: string | undefined;
     try {
-        body = await request.text();
+        body = bodyText;
         const { keyId, diffMillis } = await validateHttpSignature({ method, url, headers, body, publicKeyProvider: keyId => fetchPublicKey(keyId, fetcher) });
         console.log('computeInbox: valid!', { keyId, diffMillis, actorUuid });
         // TODO save? push event to actor?

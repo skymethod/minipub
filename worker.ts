@@ -91,7 +91,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
 
             // routes handled in entry-point worker
             const fetcher = makeMinipubFetcher({ origin });
-            const inbox = matchInbox(method, pathname); if (inbox) return await computeInbox(request, inbox.actorUuid, fetcher);
+            const inbox = matchInbox(method, pathname); if (inbox && bodyText) return await computeInbox(request, bodyText, inbox.actorUuid, fetcher);
         }
         return Responses.notFound();
     } catch (e) {
