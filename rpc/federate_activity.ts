@@ -88,6 +88,7 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
                     state.error = undefined;
                     modified = true;
                     state.postResponseStatus = responseStatus.toString();
+                    check('responseStatus', responseStatus, responseStatus >= 200 && responseStatus < 300);
                 }
             } catch (e) {
                 state.status = 'post-failed';
@@ -275,7 +276,7 @@ async function sendServerToServerActivityPub(opts: { activityPub: Record<string,
     log.push('response:');
     log.push(`${res.status} ${res.url}`);
     log.push('response headers:');
-    log.push(Object.entries(res.headers).map(v => v.join(': ')).join('\n'));
+    log.push(...[...res.headers].map(v => v.join(': ')));
     log.push('response body:');
     log.push(await res.text());
     return res.status;
