@@ -1,5 +1,5 @@
 import { APPLICATION_JSON_UTF8 } from './media_types.ts';
-import { computeHttpSignatureHeaders, exportKeyToPem, generateExportableRsaKeyPair, importKeyFromPem } from './crypto.ts';
+import { computeHttpSignatureHeaders, importKeyFromPem } from './crypto.ts';
 import { parseFlags } from './deps_cli.ts';
 import { RpcRequest } from './rpc_model.ts';
 import { activityPub, activityPubDescription } from './cli_activity_pub.ts';
@@ -17,6 +17,7 @@ import { makeMinipubFetcher } from './fetcher.ts';
 import { webfinger } from './cli_webfinger.ts';
 import { server } from './cli_server.ts';
 import { MINIPUB_VERSION } from './version.ts';
+import { generate, generateDescription } from './cli_generate.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -85,21 +86,6 @@ function uuid() {
     console.log(newUuid());
 }
 
-async function generate(_args: (string | number)[], options: Record<string, unknown>) {
-    const json = !!options.json;
-
-    const key = await generateExportableRsaKeyPair();
-    
-    const privatePemText = await exportKeyToPem(key.privateKey, 'private');
-    const publicPemText = await exportKeyToPem(key.publicKey, 'public');
-    if (json) {
-        console.log(JSON.stringify({ privatePemText, publicPemText }, undefined, 2));
-    } else {
-        console.log(privatePemText);
-        console.log(publicPemText);
-    }
-}
-
 function dumpHelp() {
     const lines = [
         `minipub-cli ${MINIPUB_VERSION}`,
@@ -114,6 +100,7 @@ function dumpHelp() {
         `    create-user            ${createUserDescription}`,
         `    delete-from-storage    ${deleteFromStorageDescription}`,
         `    federate-activity      ${federateActivityDescription}`,
+        `    generate               ${generateDescription}`,
         `    like-object            ${likeObjectDescription}`,
         `    undo-like              ${undoLikeDescription}`,
         `    update-user            ${updateUserDescription}`,
