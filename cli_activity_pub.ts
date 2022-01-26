@@ -3,7 +3,7 @@ import { ApObject } from './activity_pub/ap_object.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
-export const activityPubDescription = 'Fetch a url using the ActivityPub accept header and display the result';
+export const activityPubDescription = 'Fetches a url using the ActivityPub accept header and displays the result';
 
 export async function activityPub(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length === 0) { dumpHelp(); return; }
@@ -40,6 +40,8 @@ export async function activityPub(args: (string | number)[], options: Record<str
     }
 
 }
+
+//
 
 function dumpHelp() {
     const lines = [

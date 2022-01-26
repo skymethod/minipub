@@ -4,7 +4,7 @@ import { CreateNoteRequest } from './rpc_model.ts';
 import { isValidUuid } from './uuid.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
-export const createNoteDescription = 'Create a Note object and associated Activity';
+export const createNoteDescription = 'Creates a Note object and associated Activity on the server';
 
 export async function createNote(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length === 0) { dumpHelp(); return; }
@@ -31,6 +31,8 @@ export async function createNote(args: (string | number)[], options: Record<stri
     };
     await sendRpc(req, origin, privateKey);
 }
+
+//
 
 function dumpHelp() {
     const lines = [

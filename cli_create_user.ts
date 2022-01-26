@@ -4,8 +4,13 @@ import { Bytes } from './deps.ts';
 import { extname } from './deps_cli.ts';
 import { getMediaTypeForExt } from './media_types.ts';
 import { CreateUserRequest, Icon } from './rpc_model.ts';
+import { MINIPUB_VERSION } from './version.ts';
+
+export const createUserDescription = 'Creates a new user (Actor) on the server';
 
 export async function createUser(_args: (string | number)[], options: Record<string, unknown>) {
+    if (options.help || Object.keys(options).filter(v => v !== '_').length === 0) { dumpHelp(); return; }
+
     const { origin, privateKey, username, name, url, icon } = await parseUserOptions(options);
     if (typeof username !== 'string') throw new Error('Provide username, e.g. --username alice');
 
@@ -45,4 +50,31 @@ export async function parseUserOptions(options: Record<string, unknown>): Promis
     }
     const icon_ = await computeIcon();
     return { origin, privateKey, username, name, url, icon: icon_, iconSize };
+}
+
+//
+
+function dumpHelp() {
+    const lines = [
+        `minipub-cli ${MINIPUB_VERSION}`,
+        createUserDescription,
+        '',
+        'USAGE:',
+        '    minipub create-user [OPTIONS]',
+        '',
+        'OPTIONS:',
+        `    --origin       (required) Origin of the minipub server (e.g. https://comments.example.com)`,
+        `    --pem          (required) Path to the admin's private key pem file (e.g. /path/to/admin.private.pem)`,
+        `    --username     (required) Unique username for the user`,
+        `    --name         Display name of the user`,
+        `    --url          Url of the user profile`,
+        `    --icon         Local path to square profile icon, either a .png or .jpg file`,
+        `    --icon-size    Width of the square profile icon, in pixels`,
+        '',
+        '    --help         Prints help information',
+        '    --verbose      Toggle verbose output (when applicable)',
+    ];
+    for (const line of lines) {
+        console.log(line);
+    }
 }
