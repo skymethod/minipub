@@ -7,7 +7,7 @@ export async function computeHttpSignatureHeaders(opts: { method: string, url: s
     const date = toIMF(new Date());
     const stringToSign = `(request-target): ${method.toLowerCase()} ${pathname}\nhost: ${hostname}\ndate: ${date}\ndigest: ${digest}`;
     const signatureBytes = await rsaSign(privateKey, Bytes.ofUtf8(stringToSign));
-    const signature = `keyId="${keyId}",headers="(request-target) host date digest",signature="${signatureBytes.base64()}"`;
+    const signature = `keyId="${keyId}",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="${signatureBytes.base64()}"`;
     return { signature, date, digest, stringToSign };
 }
 

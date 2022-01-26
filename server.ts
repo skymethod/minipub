@@ -29,7 +29,7 @@ async function computeResponse(request: Request, optionsProvider: ServerRequestO
         const fetcher = makeMinipubFetcher({ origin });
         const bodyText = request.body ? await request.text() : undefined;
         if (!!request.body || bodyText) console.log('request.hasBody', !!request.body, 'bodyText', bodyText);
-        const whitelisted = requestIp.startsWith(`${adminIp},`);
+        const whitelisted = requestIp.split(',').map(v => v.trim()).includes(adminIp);
         if (!whitelisted) {
             for (const [ name, value ] of headers.entries()) {
                 console.log(`  ${name}: ${value}`);

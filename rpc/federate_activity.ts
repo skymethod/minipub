@@ -262,7 +262,7 @@ async function sendServerToServerActivityPub(opts: { activityPub: Record<string,
     const headers = { date, signature, digest, 'content-type': APPLICATION_ACTIVITY_JSON };
     log.push(`EXTERNAL FETCH ${method} ${url}`);
     log.push('request headers:');
-    log.push(Object.entries(headers).map(v => v.join(': ')).join('\n'));
+    log.push(...Object.entries(headers).map(v => v.join(': ')));
     log.push('request stringToSign:');
     log.push(stringToSign);
     log.push('request body:');
