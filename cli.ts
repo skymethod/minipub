@@ -15,7 +15,7 @@ import { likeObject, likeObjectDescription } from './cli_like_object.ts';
 import { undoLike, undoLikeDescription } from './cli_undo_like.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 import { webfinger } from './cli_webfinger.ts';
-import { server } from './cli_server.ts';
+import { server, serverDescription } from './cli_server.ts';
 import { MINIPUB_VERSION } from './version.ts';
 import { generate, generateDescription } from './cli_generate.ts';
 
@@ -102,6 +102,7 @@ function dumpHelp() {
         `    federate-activity      ${federateActivityDescription}`,
         `    generate               ${generateDescription}`,
         `    like-object            ${likeObjectDescription}`,
+        `    server                 ${serverDescription}`,
         `    undo-like              ${undoLikeDescription}`,
         `    update-user            ${updateUserDescription}`,
         '',

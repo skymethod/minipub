@@ -11,12 +11,17 @@ import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint
 import { makeSqliteStorage } from './sqlite_storage.ts';
 import { computeServerResponse, ServerRequestOptionsProvider, ServerRequestRouter } from './server.ts';
 import { ensureDir, dirname } from './deps_cli.ts';
+import { MINIPUB_VERSION } from './version.ts';
+
+export const serverDescription = 'Starts a local Minipub server';
 
 export async function server(_args: (string | number)[], options: Record<string, unknown>) {
+    if (options.help || Object.keys(options).filter(v => v !== '_').length === 0) { dumpHelp(); return; }
+
     if (options.port !== undefined && typeof options.port !== 'number') throw new Error(`Provide a valid port number to use for the server, or leave unspecified for default port.  e.g. minipub server --port 2022`);
     const port = typeof options.port === 'number' ? options.port : 2022;
     if (typeof options.db !== 'string') throw new Error('Provide the path to the db used for storage.  e.g. minipub server --db /path/to/storage.db');
-    if (typeof options.origin !== 'string') throw new Error('Provide the origin over which this server will be access publicly.  e.g. minipub server --origin https://example.social');
+    if (typeof options.origin !== 'string') throw new Error('Provide the origin over which this server will be accessed publicly.  e.g. minipub server --origin https://comments.example.com');
     if (typeof options['admin-ip'] !== 'string') throw new Error('Provide the admin ip address, used for rpc calls.  e.g. minipub server --admin-ip 123.21.23.123');
     if (typeof options['admin-public-key-pem'] !== 'string') throw new Error(`Provide a path to the admin's public key pem text file, used for rpc calls.  e.g. minipub server --admin-public-key-pem /path/to/admin.public.pem`);
     const { origin, 'admin-ip': adminIp, 'admin-public-key-pem': adminPublicKeyPem } = options;
@@ -52,4 +57,30 @@ export async function server(_args: (string | number)[], options: Record<string,
 
     console.log(`Local server: http://localhost:${port}, assuming public access at ${origin}`);
     await serve(handler, { port });
+}
+
+
+//
+
+function dumpHelp() {
+    const lines = [
+        `minipub-cli ${MINIPUB_VERSION}`,
+        serverDescription,
+        '',
+        'USAGE:',
+        '    minipub server [OPTIONS]',
+        '',
+        'OPTIONS:',
+        `    --port                    Port that the local server will listen on (default: 2022)`,
+        `    --db                      (required) Local file path to the underlying database file used for storage (e.g. path/to/storage.db)`,
+        `    --origin                  (required) Origin over which this server will be accessed publicly (e.g. https://comments.example.com)`,
+        `    --admin-ip                (required) IP address from which to allow admin rpc calls (e.g. 1.2.3.4)`,
+        `    --admin-public-key-pem    (required) Path to the admin's public key pem file (e.g. /path/to/admin.public.pem)`,
+        '',
+        '    --help                    Prints help information',
+        '    --verbose                 Toggle verbose output (when applicable)',
+    ];
+    for (const line of lines) {
+        console.log(line);
+    }
 }
