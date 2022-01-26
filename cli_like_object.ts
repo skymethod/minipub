@@ -4,7 +4,7 @@ import { LikeObjectRequest } from './rpc_model.ts';
 import { isValidUuid } from './uuid.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
-export const likeObjectDescription = 'Creates a local Like activity for a given remote object id';
+export const likeObjectDescription = 'Creates a local Like activity on the server for a given remote object id';
 
 export async function likeObject(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length === 0) { dumpHelp(); return; }

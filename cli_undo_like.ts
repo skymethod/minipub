@@ -3,7 +3,7 @@ import { UndoLikeRequest } from './rpc_model.ts';
 import { isValidUuid } from './uuid.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
-export const undoLikeDescription = 'Creates a Undo activity for a given local Like activity';
+export const undoLikeDescription = 'Creates a Undo activity for a given local Like activity on the server';
 
 export async function undoLike(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length === 0) { dumpHelp(); return; }
