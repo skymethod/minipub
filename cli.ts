@@ -5,7 +5,7 @@ import { RpcRequest } from './rpc_model.ts';
 import { activityPub, activityPubDescription } from './cli_activity_pub.ts';
 import { createUser } from './cli_create_user.ts';
 import { updateUser } from './cli_update_user.ts';
-import { createNote } from './cli_create_note.ts';
+import { createNote, createNoteDescription } from './cli_create_note.ts';
 import { federateActivity } from './cli_federate_activity.ts';
 import { newUuid } from './uuid.ts';
 import { validateHttpSignature } from './cli_validate_http_signature.ts';
@@ -20,7 +20,7 @@ import { MINIPUB_VERSION } from './version.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
-    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://mp.whatever.com');
+    if (typeof origin !== 'string') throw new Error('Provide origin to server, e.g. --origin https://comments.example.com');
     if (typeof pem !== 'string') throw new Error('Provide path to admin pem, e.g. --pem /path/to/admin.private.pem');
     const privatePemText = (await Deno.readTextFile(pem)).trim();
     const privateKey = await importKeyFromPem(privatePemText, 'private');
@@ -110,6 +110,11 @@ function dumpHelp() {
         '',
         'COMMANDS:',
         `    activity-pub   ${activityPubDescription}`,
+        `    create-note   ${createNoteDescription}`,
+        '',
+        '    For any multiple-word command you can also use its abbreviation as an alias',
+        '    e.g. "minipub ap <args>" for "minipub activity-pub <args>"',
+
         '',
         'OPTIONS:',
         '    --help         Prints help information',

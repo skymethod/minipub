@@ -2,8 +2,13 @@ import { isValidLang, isValidUrl } from './check.ts';
 import { parseRpcOptions, sendRpc } from './cli.ts';
 import { CreateNoteRequest } from './rpc_model.ts';
 import { isValidUuid } from './uuid.ts';
+import { MINIPUB_VERSION } from './version.ts';
+
+export const createNoteDescription = 'Create a Note object and associated Activity';
 
 export async function createNote(args: (string | number)[], options: Record<string, unknown>) {
+    if (options.help || args.length === 0) { dumpHelp(); return; }
+
     const [ actorUuid ] = args;
     const { 'in-reply-to': inReplyTo, content, 'content-lang': contentLang, to, cc } = options;
 
@@ -25,4 +30,32 @@ export async function createNote(args: (string | number)[], options: Record<stri
         cc: cc ? [ cc ] : undefined,
     };
     await sendRpc(req, origin, privateKey);
+}
+
+function dumpHelp() {
+    const lines = [
+        `minipub-cli ${MINIPUB_VERSION}`,
+        createNoteDescription,
+        '',
+        'USAGE:',
+        '    minipub create-note [ARGS] [OPTIONS]',
+        '',
+        'ARGS:',
+        '    <actor-uuid>      The actor uuid responsible for creating the Note',
+        '',
+        'OPTIONS:',
+        `    --origin          (required) Origin of the minipub server (e.g. https://comments.example.com)`,
+        `    --pem             (required) Path to the admin's private key pem file (e.g. /path/to/admin.private.pem)`,
+        '    --content         (required) Content used as the body of the Note',
+        `    --content-lang    Language code for the content (default: 'en')`,
+        `    --to              (required) ActivityPub 'to' attribute, should be a valid url`,
+        `    --cc              ActivityPub 'cc' attribute, should be a valid url`,
+        `    --in-reply-to     ActivityPub 'inReplyTo' attribute`,
+        '',
+        '    --help            Prints help information',
+        '    --verbose         Toggle verbose output (when applicable)',
+    ];
+    for (const line of lines) {
+        console.log(line);
+    }
 }

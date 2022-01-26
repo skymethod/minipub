@@ -7,7 +7,7 @@ export const activityPubDescription = 'Fetch a url using the ActivityPub accept 
 
 export async function activityPub(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length === 0) { dumpHelp(); return; }
-    
+
     const [ url ] = args;
     if (typeof url !== 'string') throw new Error('Provide url as an argument, e.g. minipub activity-pub https://example.social/users/alice/statuses/123456');
     const ld = !!options.ld;
@@ -55,6 +55,7 @@ function dumpHelp() {
         'OPTIONS:',
         '    --ld         Use the json-ld accept-header instead',
         '    --parse      Parse the ActivityPub response json for validity',
+        '',
         '    --help       Prints help information',
         '    --verbose    Toggle verbose output (when applicable)',
     ];
