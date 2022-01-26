@@ -10,7 +10,7 @@ import { federateActivity } from './cli_federate_activity.ts';
 import { newUuid } from './uuid.ts';
 import { validateHttpSignature } from './cli_validate_http_signature.ts';
 import { ApObject } from './activity_pub/ap_object.ts';
-import { deleteFromStorage } from './cli_delete_from_storage.ts';
+import { deleteFromStorage, deleteFromStorageDescription } from './cli_delete_from_storage.ts';
 import { likeObject } from './cli_like_object.ts';
 import { undoLike } from './cli_undo_like.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
@@ -109,17 +109,18 @@ function dumpHelp() {
         '    minipub [command] [ARGS] [OPTIONS]',
         '',
         'COMMANDS:',
-        `    activity-pub    ${activityPubDescription}`,
-        `    create-note     ${createNoteDescription}`,
-        `    create-user     ${createUserDescription}`,
+        `    activity-pub           ${activityPubDescription}`,
+        `    create-note            ${createNoteDescription}`,
+        `    create-user            ${createUserDescription}`,
+        `    delete-from-storage    ${deleteFromStorageDescription}`,
         '',
         '    For any multiple-word command you can also use its abbreviation as an alias',
         '    e.g. "minipub ap <args>" for "minipub activity-pub <args>"',
 
         '',
         'OPTIONS:',
-        '    --help          Prints help information',
-        '    --verbose       Toggle verbose output (when applicable)',
+        '    --help                 Prints help information',
+        '    --verbose              Toggle verbose output (when applicable)',
     ];
     for (const line of lines) {
         console.log(line);
