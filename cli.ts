@@ -2,7 +2,7 @@ import { APPLICATION_JSON_UTF8 } from './media_types.ts';
 import { computeHttpSignatureHeaders, exportKeyToPem, generateExportableRsaKeyPair, importKeyFromPem } from './crypto.ts';
 import { parseFlags } from './deps_cli.ts';
 import { RpcRequest } from './rpc_model.ts';
-import { activityPub } from './cli_activity_pub.ts';
+import { activityPub, activityPubDescription } from './cli_activity_pub.ts';
 import { createUser } from './cli_create_user.ts';
 import { updateUser } from './cli_update_user.ts';
 import { createNote } from './cli_create_note.ts';
@@ -16,6 +16,7 @@ import { undoLike } from './cli_undo_like.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 import { webfinger } from './cli_webfinger.ts';
 import { server } from './cli_server.ts';
+import { MINIPUB_VERSION } from './version.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -62,7 +63,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         uuid,
         webfinger,
     }[command];
-    if (options.help || !fn) {
+    if (!fn) {
         dumpHelp();
         return;
     }
@@ -101,16 +102,18 @@ async function generate(_args: (string | number)[], options: Record<string, unkn
 
 function dumpHelp() {
     const lines = [
-        `minipub-cli`,
+        `minipub-cli ${MINIPUB_VERSION}`,
         'Tools for minipub',
         '',
         'USAGE:',
+        '    minipub [command] [ARGS] [OPTIONS]',
         '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
+        'COMMANDS:',
+        `    activity-pub   ${activityPubDescription}`,
         '',
-        'ARGS:',
+        'OPTIONS:',
+        '    --help         Prints help information',
+        '    --verbose      Toggle verbose output (when applicable)',
     ];
     for (const line of lines) {
         console.log(line);
