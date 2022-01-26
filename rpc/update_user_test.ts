@@ -1,7 +1,7 @@
 import { assert, assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { UpdateUserRequest } from '../rpc_model.ts';
 import { newUuid } from '../uuid.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeUpdateUser } from './update_user.ts';
 import { ActorRecord } from '../domain_model.ts';
 import { Bytes } from '../deps.ts';
@@ -9,7 +9,7 @@ import { isStringRecord } from '../check.ts';
 
 Deno.test('computeUpdateUser', async () => {
     const actorUuid = newUuid();
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const actor: ActorRecord = {
         actorUuid,
         privateKeyPem: 'asdf',

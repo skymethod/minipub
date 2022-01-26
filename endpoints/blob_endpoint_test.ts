@@ -2,7 +2,7 @@ import { assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/assert
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { CreateUserRequest } from '../rpc_model.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeBlob } from './blob_endpoint.ts';
 import { Bytes } from '../deps.ts';
 import { IMAGE_PNG } from '../media_types.ts';
@@ -18,7 +18,7 @@ Deno.test('computeBlob', async () => {
             mediaType: IMAGE_PNG,
         }
     };
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const { actorUuid, blobReferences } = await computeCreateUser(req, 'https://example.social', storage);
     assertStrictEquals(isValidUuid(actorUuid), true);
     const [ blobUuid ] = Object.entries(blobReferences).find(v => v[1].tag === 'icon') || [];

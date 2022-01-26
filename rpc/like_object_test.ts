@@ -1,7 +1,7 @@
 import { assert, assertRejects } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { Fetcher } from '../fetcher.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { APPLICATION_ACTIVITY_JSON_UTF8 } from '../media_types.ts';
 import { CreateUserRequest, LikeObjectRequest } from '../rpc_model.ts';
 import { isValidUuid } from '../uuid.ts';
@@ -9,7 +9,7 @@ import { computeCreateUser } from './create_user.ts';
 import { computeLikeObject } from './like_object.ts';
 
 Deno.test('computeLikeObject', async () => {
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const origin = 'https://example.social';
     
     // create user (we need a saved actor)

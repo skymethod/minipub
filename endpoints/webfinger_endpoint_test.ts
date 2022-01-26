@@ -2,7 +2,7 @@ import { assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/assert
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { CreateUserRequest } from '../rpc_model.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { APPLICATION_JRD_JSON } from '../media_types.ts';
 import { computeWebfinger } from './webfinger_endpoint.ts';
 
@@ -11,7 +11,7 @@ Deno.test('computeWebfinger', async () => {
         kind: 'create-user',
         username: 'alice',
     };
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const origin = 'https://example.social';
     const { actorUuid } = await computeCreateUser(req, origin, storage);
     assertStrictEquals(isValidUuid(actorUuid), true);

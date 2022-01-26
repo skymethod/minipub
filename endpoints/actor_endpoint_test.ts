@@ -3,7 +3,7 @@ import { computeCreateUser } from '../rpc/create_user.ts';
 import { CreateUserRequest } from '../rpc_model.ts';
 import { isValidUuid } from '../uuid.ts';
 import { computeActor } from './actor_endpoint.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { APPLICATION_ACTIVITY_JSON } from '../media_types.ts';
 
 Deno.test('computeActor', async () => {
@@ -11,7 +11,7 @@ Deno.test('computeActor', async () => {
         kind: 'create-user',
         username: 'alice',
     };
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const { actorUuid } = await computeCreateUser(req, 'https://example.social', storage);
     assertStrictEquals(isValidUuid(actorUuid), true);
 

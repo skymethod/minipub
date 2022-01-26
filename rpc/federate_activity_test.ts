@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { CreateNoteRequest, CreateUserRequest, FederateActivityRequest } from '../rpc_model.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeCreateNote } from './create_note.ts';
 import { isValidUuid } from '../uuid.ts';
 import { computeFederateActivity, findInboxUrlsForActor, findNonPublicRecipientsForNote } from './federate_activity.ts';
@@ -10,7 +10,7 @@ import { APPLICATION_ACTIVITY_JSON_UTF8 } from '../media_types.ts';
 import { computeCreateUser } from './create_user.ts';
 
 Deno.test('computeFederateActivity', async () => {
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const origin = 'https://example.social';
 
     // create user (we need a saved actor)

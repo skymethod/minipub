@@ -1,6 +1,6 @@
 import { assert, assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
 import { CreateNoteRequest } from '../rpc_model.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeCreateNote } from './create_note.ts';
 import { isStringRecord } from '../check.ts';
 import { isValidUuid, newUuid } from '../uuid.ts';
@@ -18,7 +18,7 @@ Deno.test('computeCreateNote', async () => {
         to: [ 'https://another.social/users/bob' ],
         cc: [ 'https://www.w3.org/ns/activitystreams#Public' ],
     };
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const { objectUuid } = await computeCreateNote(req, 'https://example.social', storage);
     assert(isValidUuid(objectUuid));
 

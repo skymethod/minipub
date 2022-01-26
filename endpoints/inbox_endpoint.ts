@@ -18,7 +18,7 @@ export function matchInbox(method: string, pathname: string): { actorUuid: strin
     }
 }
 
-export async function computeInbox(request: Request, bodyText: string, actorUuid: string, fetcher: Fetcher): Promise<Response> {
+export async function computeInbox(request: { method: string, url: string, headers: Headers }, bodyText: string, actorUuid: string, fetcher: Fetcher): Promise<Response> {
     const { method, url, headers } = request;
     let body: string | undefined;
     try {

@@ -2,7 +2,7 @@ import { assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/assert
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { CreateNoteRequest, CreateUserRequest } from '../rpc_model.ts';
 import { isValidUuid } from '../uuid.ts';
-import { makeInMemoryStorage } from '../in_memory_storage.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { APPLICATION_ACTIVITY_JSON } from '../media_types.ts';
 import { computeCreateNote } from '../rpc/create_note.ts';
 import { computeObject } from './object_endpoint.ts';
@@ -13,7 +13,7 @@ Deno.test('computeObject', async () => {
         username: 'alice',
     };
     const origin = 'https://example.social';
-    const storage = makeInMemoryStorage();
+    const storage = makeSqliteStorage();
     const { actorUuid } = await computeCreateUser(req1, origin, storage);
     assertStrictEquals(isValidUuid(actorUuid), true);
 
