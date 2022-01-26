@@ -12,7 +12,7 @@ import { validateHttpSignature } from './cli_validate_http_signature.ts';
 import { ApObject } from './activity_pub/ap_object.ts';
 import { deleteFromStorage, deleteFromStorageDescription } from './cli_delete_from_storage.ts';
 import { likeObject, likeObjectDescription } from './cli_like_object.ts';
-import { undoLike } from './cli_undo_like.ts';
+import { undoLike, undoLikeDescription } from './cli_undo_like.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 import { webfinger } from './cli_webfinger.ts';
 import { server } from './cli_server.ts';
@@ -115,6 +115,7 @@ function dumpHelp() {
         `    delete-from-storage    ${deleteFromStorageDescription}`,
         `    federate-activity      ${federateActivityDescription}`,
         `    like-object            ${likeObjectDescription}`,
+        `    undo-like              ${undoLikeDescription}`,
         '',
         '    For any multiple-word command you can also use its abbreviation as an alias',
         '    e.g. "minipub ap <args>" for "minipub activity-pub <args>"',
