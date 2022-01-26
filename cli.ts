@@ -6,7 +6,7 @@ import { activityPub, activityPubDescription } from './cli_activity_pub.ts';
 import { createUser, createUserDescription } from './cli_create_user.ts';
 import { updateUser } from './cli_update_user.ts';
 import { createNote, createNoteDescription } from './cli_create_note.ts';
-import { federateActivity } from './cli_federate_activity.ts';
+import { federateActivity, federateActivityDescription } from './cli_federate_activity.ts';
 import { newUuid } from './uuid.ts';
 import { validateHttpSignature } from './cli_validate_http_signature.ts';
 import { ApObject } from './activity_pub/ap_object.ts';
@@ -113,6 +113,7 @@ function dumpHelp() {
         `    create-note            ${createNoteDescription}`,
         `    create-user            ${createUserDescription}`,
         `    delete-from-storage    ${deleteFromStorageDescription}`,
+        `    federate-activity      ${federateActivityDescription}`,
         '',
         '    For any multiple-word command you can also use its abbreviation as an alias',
         '    e.g. "minipub ap <args>" for "minipub activity-pub <args>"',
