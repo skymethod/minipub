@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
+import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.123.0/testing/asserts.ts';
 import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };

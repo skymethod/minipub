@@ -1,4 +1,4 @@
-import { assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
+import { assertStrictEquals } from 'https://deno.land/std@0.123.0/testing/asserts.ts';
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { CreateNoteRequest, CreateUserRequest } from '../rpc_model.ts';
 import { isValidUuid } from '../uuid.ts';

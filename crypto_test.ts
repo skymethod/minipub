@@ -1,4 +1,4 @@
-import { assertStrictEquals } from 'https://deno.land/std@0.119.0/testing/asserts.ts';
+import { assertStrictEquals } from 'https://deno.land/std@0.123.0/testing/asserts.ts';
 import { computeHttpSignatureHeaders, generateExportableRsaKeyPair, validateHttpSignature } from './crypto.ts';
 
 Deno.test('http signatures', async () => {
