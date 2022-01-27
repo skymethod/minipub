@@ -14,7 +14,7 @@ import { deleteFromStorage, deleteFromStorageDescription } from './cli_delete_fr
 import { likeObject, likeObjectDescription } from './cli_like_object.ts';
 import { undoLike, undoLikeDescription } from './cli_undo_like.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
-import { webfinger } from './cli_webfinger.ts';
+import { webfinger, webfingerDescription } from './cli_webfinger.ts';
 import { server, serverDescription } from './cli_server.ts';
 import { MINIPUB_VERSION } from './version.ts';
 import { generate, generateDescription } from './cli_generate.ts';
@@ -105,6 +105,8 @@ function dumpHelp() {
         `    server                 ${serverDescription}`,
         `    undo-like              ${undoLikeDescription}`,
         `    update-user            ${updateUserDescription}`,
+        `    uuid                   Generates a new Minipub uuid`,
+        `    webfinger              ${webfingerDescription}`,
         '',
         '    For any multiple-word command you can also use its abbreviation as an alias',
         '    e.g. "minipub ap <args>" for "minipub activity-pub <args>"',
