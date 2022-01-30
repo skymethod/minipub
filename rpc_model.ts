@@ -27,7 +27,7 @@ export type RpcResponse = CreateUserResponse
 // validation
 
 export function isValidUsername(username: string) {
-    return /^[a-z0-9]{4,15}$/.test(username);
+    return /^[a-z0-9]{3,15}$/.test(username);
 }
 
 function isValidUserName(name: string) {

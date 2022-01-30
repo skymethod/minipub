@@ -67,9 +67,6 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
         await txn.put('i-actor-activity-by-published', `${actorUuid}:${computeTimestamp(published)}:${activityUuid}`, { actorUuid, published, activityUuid });
     });
 
-    // federate activity
-//   add to user's server-inbox index (i:user-server-inboxes:<actor-uuid>:sha(<inbox-url>),inbox-url)
-
     return { kind: 'create-note', objectUuid, activityUuid };
 }
 
