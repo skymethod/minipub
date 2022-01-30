@@ -55,11 +55,11 @@ class InMemoryCache implements Cache {
 
     get(id: string, after: string): Promise<Response | undefined> {
         const { response, fetched } = this.map.get(id) || {};
-        return Promise.resolve(response && fetched && fetched > after ? response : undefined);
+        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
     }
 
     put(id: string, fetched: string, response: Response): Promise<void> {
-        this.map.set(id, { response, fetched });
+        this.map.set(id, { response: response.clone(), fetched });
         return Promise.resolve();
     }
 

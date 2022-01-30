@@ -51,6 +51,10 @@ export interface Cache {
     put(id: string, fetched: string, response: Response): Promise<void>;
 }
 
+export interface Callbacks {
+    onWarning(nodeId: string, url: string, message: string): void;
+}
+
 export type Fetcher = (url: string, opts?: { headers?: Record<string, string> }) => Promise<Response>;
 
 //
@@ -65,8 +69,10 @@ export async function createThreadcap(url: string, opts: { fetcher: Fetcher, cac
     return { root: id, nodes: { }, commenters: { } };
 }
 
-export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: string, fetcher: Fetcher, cache: Cache }) {
-    const { fetcher, cache, updateTime } = opts;
+export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
+    const { fetcher, cache, updateTime, callbacks } = opts;
+
+    // ensure node exists
     const id = threadcap.root;
     let node = threadcap.nodes[id];
     if (!node) {
@@ -74,15 +80,20 @@ export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: 
         threadcap.nodes[id] = node;
     }
 
-    node.comment = await computeComment(id, updateTime, fetcher, cache);
-    const existing = threadcap.commenters[node.comment.attributedTo];
-    if (!existing || existing.asof < updateTime) {
-        threadcap.commenters[node.comment.attributedTo] = await fetchCommenter(node.comment.attributedTo, updateTime, fetcher, cache); 
+    // update the comment + commenter
+    node.comment = await fetchComment(id, updateTime, fetcher, cache);
+    const { attributedTo } = node.comment;
+    const existingCommenter = threadcap.commenters[attributedTo];
+    if (!existingCommenter || existingCommenter.asof < updateTime) {
+        threadcap.commenters[attributedTo] = await fetchCommenter(attributedTo, updateTime, fetcher, cache);
     }
     node.commentAsof = updateTime;
+
     // TODO: callback? UI could update at least this comment's content at this point
 
-    // TODO: compute replies, set node.replies and repliesAsof
+    // update the replies
+    node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
+    node.repliesAsof  = updateTime;
 
     // TODO: breadth-first descent down into children, up to some optional maxLevel
 }
@@ -108,8 +119,118 @@ async function findOrFetchActivityPubResponse(url: string, after: string, fetche
     return res;
 }
 
-async function computeComment(id: string, after: string, fetcher: Fetcher, cache: Cache): Promise<Comment> {
-    const object = await findOrFetchActivityPubObject(id, after, fetcher, cache);
+async function fetchComment(id: string, updateTime: string, fetcher: Fetcher, cache: Cache): Promise<Comment> {
+    const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
+    return computeComment(object, id);
+}
+
+async function fetchCommenter(attributedTo: string, updateTime: string, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
+    const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
+    return computeCommenter(object, updateTime);
+}
+
+async function fetchReplies(id: string, updateTime: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
+    const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
+    const { replies } = object;
+    if (!replies) throw new Error(`Expected 'replies', found ${JSON.stringify(object)}`);
+
+    const rt: string[] = [];
+    const fetched = new Set<string>();
+    if (typeof replies === 'string') {
+        const obj = await findOrFetchActivityPubObject(replies, updateTime, fetcher, cache);
+        if (obj.type === 'OrderedCollection') {
+            return await collectRepliesFromOrderedCollection(obj, updateTime, id, fetcher, cache, callbacks, fetched);
+        } else {
+            throw new Error(`Expected 'replies' to point to an OrderedCollection, found ${JSON.stringify(obj)}`);
+        }
+    } else if (replies.first) {
+        if (typeof replies.first === 'object' && replies.first.type === 'CollectionPage') {
+            if (Array.isArray(replies.first.items) && replies.first.items.length > 0) {
+                collectRepliesFromItems(replies.first.items, rt, id, id, callbacks);
+                return rt;
+            }
+            if (replies.first.next) {
+                if (typeof replies.first.next === 'string') {
+                    return await collectRepliesFromPages(replies.first.next, updateTime, id, fetcher, cache, callbacks, fetched);
+                } else {
+                    throw new Error(`Expected 'replies.first.next' to be a string, found ${JSON.stringify(replies.first.next)}`);
+                }
+            }
+            throw new Error(`Expected 'replies.first.next' to be a string, found ${JSON.stringify(replies.first.next)}`);
+        } else {
+            throw new Error(`Expected 'replies.first.items' array, or 'replies.first.next' string, found ${JSON.stringify(replies.first)}`);
+        }
+    } else if (Array.isArray(replies)) {
+        // Pleroma: found invalid  "replies": [], "replies_count": 0, on an object resulting from an AP c2s Create Activity
+        if (replies.length > 0) throw new Error(`Expected 'replies' array to be empty, found ${JSON.stringify(replies)}`);
+        return [];
+    } else if (Array.isArray(replies.items)) {
+        // Pleroma: items: [ 'url' ]
+        collectRepliesFromItems(replies.items, rt, id, id, callbacks);
+        return rt;
+    } else {
+        throw new Error(`Expected 'replies' to be a string, array or object with 'first' or 'items', found ${JSON.stringify(replies)}`);
+    }
+}
+
+async function collectRepliesFromOrderedCollection(orderedCollection: any, after: string, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
+    if ((orderedCollection.items?.length || 0) > 0 || (orderedCollection.orderedItems?.length || 0) > 0) {
+        throw new Error(`Expected OrderedCollection 'items'/'orderedItems' to be empty, found ${JSON.stringify(orderedCollection)}`);
+    }
+    if (orderedCollection.first === undefined && orderedCollection.totalItems === 0) {
+        // fine, empty
+        return [];
+    } else if (typeof orderedCollection.first === 'string') {
+        return await collectRepliesFromPages(orderedCollection.first, after, nodeId, fetcher, cache, callbacks, fetched);
+    } else {
+        throw new Error(`Expected OrderedCollection 'first' to be a string, found ${JSON.stringify(orderedCollection)}`);
+    }
+}
+
+async function collectRepliesFromPages(url: string, after: string, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
+    const replies: string[] = [];
+    let page = await findOrFetchActivityPubObject(url, after, fetcher, cache);
+    while (true) {
+        if (page.type !== 'CollectionPage' && page.type !== 'OrderedCollectionPage') {
+            throw new Error(`Expected page 'type' of CollectionPage or OrderedCollectionPage, found ${JSON.stringify(page)}`);
+        }
+        if (page.items) {
+            if (!Array.isArray(page.items)) throw new Error(`Expected page 'items' to be an array, found ${JSON.stringify(page)}`);
+            collectRepliesFromItems(page.items, replies, nodeId, url, callbacks);
+        }
+        if (page.type === 'OrderedCollectionPage' && page.orderedItems) {
+            if (!Array.isArray(page.orderedItems)) throw new Error(`Expected page 'orderedItems' to be an array, found ${JSON.stringify(page)}`);
+            collectRepliesFromItems(page.orderedItems, replies, nodeId, url, callbacks);
+        }
+        if (page.next) {
+            if (typeof page.next !== 'string') throw new Error(`Expected page 'next' to be a string, found ${JSON.stringify(page)}`);
+            if (fetched.has(page.next)) return replies; // mastodon will return a page with items: [] and id === next!
+            page = await findOrFetchActivityPubObject(page.next, after, fetcher, cache);
+            fetched.add(page.next);
+        } else {
+            return replies;
+        }
+    }
+}
+
+function collectRepliesFromItems(items: readonly any[], outReplies: string[], nodeId: string, url: string, callbacks: Callbacks | undefined) {
+    for (const item of items) {
+        if (typeof item === 'string' && !item.startsWith('{')) {
+            // it's a link to another AP entity
+            outReplies.push(item);
+        } else {
+            const itemObj = typeof item === 'string' ? JSON.parse(item) : item;
+            const { id } = itemObj;
+            if (typeof id !== 'string') throw new Error(`Expected item 'id' to be a string, found ${JSON.stringify(itemObj)}`);
+            outReplies.push(id);
+            if (typeof item === 'string') {
+                if (callbacks) callbacks.onWarning(nodeId, url, 'Found item incorrectly double encoded as a json string');
+            }
+        }
+    }
+}
+
+function computeComment(object: any, id: string): Comment {
     const content = computeContent(object);
     const attachments = computeAttachments(object);
     const url = (object.url === null ? undefined : object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
@@ -117,13 +238,7 @@ async function computeComment(id: string, after: string, fetcher: Fetcher, cache
     if (typeof attributedTo !== 'string') throw new Error(`Expected 'attributedTo' to be a string, found ${JSON.stringify(attributedTo)}`);
     if (typeof published !== 'string') throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
     if (url !== undefined && typeof url !== 'string') throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
-
     return { url, published, attachments, content, attributedTo }
-}
-
-async function fetchCommenter(attributedTo: string, updateTime: string, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
-    const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
-    return computeCommenter(object, updateTime);
 }
 
 function computeContent(obj: any): Record<string, string> {
