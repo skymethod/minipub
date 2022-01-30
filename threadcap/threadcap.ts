@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { isReadonlyArray, isStringRecord } from '../check.ts';
+import { isReadonlyArray, isStringRecord, isValidIso8601 } from '../check.ts';
 
 export interface Threadcap {
     readonly root: string; // ActivityPub id of the root object
@@ -59,7 +59,7 @@ export type Fetcher = (url: string, opts?: { headers?: Record<string, string> })
 
 //
 
-export async function createThreadcap(url: string, opts: { fetcher: Fetcher, cache: Cache }): Promise<Threadcap> {
+export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache: Cache }): Promise<Threadcap> {
     const { fetcher, cache } = opts;
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id, type } = object;
@@ -96,6 +96,29 @@ export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: 
     node.repliesAsof  = updateTime;
 
     // TODO: breadth-first descent down into children, up to some optional maxLevel
+}
+
+export function makeRateLimitedFetcher(fetcher: Fetcher): Fetcher {
+    const hostLimits = new Map<string, { limit: number, remaining: number, reset: string }>();
+    return async (url, opts) => {
+        const hostname = new URL(url).hostname;
+        const limits = hostLimits.get(hostname);
+        if (limits) {
+            const { limit, remaining, reset } = limits;
+            const millisTillReset = new Date(reset).getTime() - Date.now();
+            const millisToWait = remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
+            console.log(`Waiting ${(millisToWait / 1000).toFixed(2)}s before calling ${hostname}, ${JSON.stringify({ limit, remaining, reset, millisTillReset })}`);
+            await sleep(millisToWait);
+        }
+        const res = await fetcher(url, opts);
+        const limit = tryParseInt(res.headers.get('x-ratelimit-limit') || '');
+        const remaining = tryParseInt(res.headers.get('x-ratelimit-remaining') || '');
+        const reset = tryParseIso8601(res.headers.get('x-ratelimit-reset') || '');
+        if (limit !== undefined && remaining !== undefined && reset !== undefined) {
+            hostLimits.set(hostname, { limit, remaining, reset });
+        }
+        return res;
+    }
 }
 
 //
@@ -299,4 +322,20 @@ function computeFqUsername(url: string, preferredUsername: string | undefined): 
     const username = m ? m[1] : preferredUsername;
     if (!username) throw new Error(`Unable to compute username from url: ${url}`);
     return `${username}@${u.hostname}`;
+}
+
+function tryParseInt(value: string): number | undefined {
+    try {
+        return parseInt(value);
+    } catch {
+        return undefined;
+    }
+}
+
+function tryParseIso8601(value: string): string | undefined {
+    return isValidIso8601(value) ? value : undefined;
+}
+
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
