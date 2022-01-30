@@ -18,6 +18,7 @@ import { webfinger, webfingerDescription } from './cli_webfinger.ts';
 import { server, serverDescription } from './cli_server.ts';
 import { MINIPUB_VERSION } from './version.ts';
 import { generate, generateDescription } from './cli_generate.ts';
+import { threadcap, threadcapDescription } from './cli_threadcap.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -62,6 +63,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         server,
         tmp,
         uuid,
+        threadcap,
         webfinger,
     }[command];
     if (!fn) {
@@ -103,6 +105,7 @@ function dumpHelp() {
         `    generate               ${generateDescription}`,
         `    like-object            ${likeObjectDescription}`,
         `    server                 ${serverDescription}`,
+        `    threadcap              ${threadcapDescription}`,
         `    undo-like              ${undoLikeDescription}`,
         `    update-user            ${updateUserDescription}`,
         `    uuid                   Generates a new Minipub uuid`,

@@ -28,6 +28,12 @@ export function isStringRecord(obj: any): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
+// workaround for https://github.com/microsoft/TypeScript/issues/17002
+// deno-lint-ignore no-explicit-any
+export function isReadonlyArray(arg: any): arg is readonly any[] {
+    return Array.isArray(arg);
+}
+
 export function isValidSha256(sha256: string) {
     return /^[0-9a-f]{64}$/.test(sha256);
 }
