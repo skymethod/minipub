@@ -1,4 +1,4 @@
-import { isPositiveInteger } from './check.ts';
+import { isPositiveInteger, isValidUrl } from './check.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
 import { Cache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from './threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from './version.ts';
@@ -8,11 +8,12 @@ export const threadcapDescription = 'Enumerates an ActivityPub reply thread for 
 export async function threadcap(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length === 0) { dumpHelp(); return; }
 
-    const [ url ] = args;
-    if (typeof url !== 'string') throw new Error('Provide url as an argument, e.g. minipub threadcap https://example.social/users/alice/statuses/123456');
-    const { 'max-levels': maxLevels, 'max-nodes': maxNodes } = options;
+    const [ urlOrPath ] = args;
+    if (typeof urlOrPath !== 'string') throw new Error('Provide url to root post (or local path to a saved threadcap) as an argument, e.g. minipub threadcap https://example.social/users/alice/statuses/123456');
+    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out } = options;
     if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
     if (maxNodes !== undefined && (typeof maxNodes !== 'number' || !isPositiveInteger(maxNodes))) throw new Error(`'max-nodes' should be a positive integer, if provided`);
+    if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
 
     let maxLevelProcessed = 0;
     let nodesProcessed = 0;
@@ -44,12 +45,17 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     const fetcher = makeRateLimitedFetcher(loggedFetcher, { callbacks });
     const cache = new InMemoryCache();
 
-    const threadcap = await makeThreadcap(url, { fetcher, cache });
+    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { fetcher, cache }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     const updateTime = new Date().toISOString();
     await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, fetcher, cache, callbacks });
-    console.log(JSON.stringify(threadcap, undefined, 2));
+    const threadcapJson = JSON.stringify(threadcap, undefined, 2);
+    console.log(threadcapJson);
+    if (out) {
+        await Deno.writeTextFile(out, threadcapJson);
+    }
     dumpNode(threadcap.root, threadcap, 0);
     console.log({ fetches, nodesProcessed, maxLevelProcessed });
+    if (out) console.log(`Saved threadcap json to: ${out}`);
 }
 
 //
@@ -68,6 +74,7 @@ function dumpHelp() {
         'OPTIONS:',
         `    --max-levels    If provided, stop processing the thread after descending this many levels (positive integer, default: ${MAX_LEVELS})`,
         `    --max-nodes     If provided, stop processing the thread after processing this many nodes (positive integer, default: unlimited)`,
+        `    --out           If provided, save the threadcap out to this file (local path)`,
         '',
         '    --help          Prints help information',
         '    --verbose       Toggle verbose output (when applicable)',
