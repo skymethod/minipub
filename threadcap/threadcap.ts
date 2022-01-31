@@ -7,20 +7,22 @@ export interface Threadcap {
     readonly commenters: Record<string, Commenter>; // attributedTo -> Commenter
 }
 
+export type Instant = string; // ISO-8601 date at GMT, including optional milliseconds, e.g. 1970-01-01T00:00:00Z or 1970-01-01T00:00:00.123Z
+
 export interface Node {
 
     // inline comment info, enough to render the comment itself (no replies)
     comment?: Comment;
-    commentAsof?: string; // instant
+    commentAsof?: Instant;
 
     // AP ids of the direct children, once known completely
     replies?: readonly string[];
-    repliesAsof?: string; // instant
+    repliesAsof?: Instant;
 }
 
 export interface Comment {
     readonly url?: string;
-    readonly published?: string;
+    readonly published?: string; // may not be an Instant, from found ActivityPub value
     readonly attachments: Attachment[];
     readonly content: Record<string, string>; // lang (or 'und') -> html
     readonly attributedTo: string;
@@ -38,7 +40,7 @@ export interface Commenter {
     readonly name: string;
     readonly url: string;
     readonly fqUsername: string; // e.g. @user@example.com
-    readonly asof: string; // instant
+    readonly asof: Instant;
 }
 
 export interface Icon {
@@ -49,8 +51,8 @@ export interface Icon {
 export type Fetcher = (url: string, opts?: { headers?: Record<string, string> }) => Promise<Response>;
 
 export interface Cache {
-    get(id: string, after: string): Promise<Response | undefined>;
-    put(id: string, fetched: string, response: Response): Promise<void>;
+    get(id: string, after: Instant): Promise<Response | undefined>;
+    put(id: string, fetched: Instant, response: Response): Promise<void>;
 }
 
 export interface Callbacks {
@@ -90,7 +92,7 @@ export interface WaitingForRateLimitEvent {
     readonly millisTillReset: number;
     readonly limit: number;
     readonly remaining: number;
-    readonly reset: string; // instant
+    readonly reset: Instant;
 }
 
 //
@@ -107,7 +109,7 @@ export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache
     return { root: id, nodes: { }, commenters: { } };
 }
 
-export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: string, maxLevels?: number, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
+export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: Instant, maxLevels?: number, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
     const { fetcher, cache, updateTime, callbacks, maxLevels } = opts;
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
 
@@ -163,7 +165,7 @@ export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Cal
 
 const APPLICATION_ACTIVITY_JSON = 'application/activity+json';
 
-async function findOrFetchActivityPubObject(url: string, after: string, fetcher: Fetcher, cache: Cache): Promise<any> {
+async function findOrFetchActivityPubObject(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<any> {
     const response = await findOrFetchActivityPubResponse(url, after, fetcher, cache);
     const { status, headers } = response;
     if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${await response.text()}`);
@@ -172,7 +174,7 @@ async function findOrFetchActivityPubObject(url: string, after: string, fetcher:
     return await response.json();
 }
 
-async function findOrFetchActivityPubResponse(url: string, after: string, fetcher: Fetcher, cache: Cache): Promise<Response> {
+async function findOrFetchActivityPubResponse(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<Response> {
     const existing = await cache.get(url, after);
     if (existing) return existing;
     const res = await fetcher(url, { headers: { accept: APPLICATION_ACTIVITY_JSON }});
@@ -180,7 +182,7 @@ async function findOrFetchActivityPubResponse(url: string, after: string, fetche
     return res;
 }
 
-async function processNode(id: string, threadcap: Threadcap, updateTime: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
+async function processNode(id: string, threadcap: Threadcap, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
     // ensure node exists
     let node = threadcap.nodes[id];
     if (!node) {
@@ -213,17 +215,17 @@ async function processNode(id: string, threadcap: Threadcap, updateTime: string,
     return node;
 }
 
-async function fetchComment(id: string, updateTime: string, fetcher: Fetcher, cache: Cache): Promise<Comment> {
+async function fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Comment> {
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     return computeComment(object, id);
 }
 
-async function fetchCommenter(attributedTo: string, updateTime: string, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
+async function fetchCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
     const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
     return computeCommenter(object, updateTime);
 }
 
-async function fetchReplies(id: string, updateTime: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
+async function fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const { replies } = object;
     if (!replies) throw new Error(`Expected 'replies', found ${JSON.stringify(object)}`);
@@ -267,7 +269,7 @@ async function fetchReplies(id: string, updateTime: string, fetcher: Fetcher, ca
     }
 }
 
-async function collectRepliesFromOrderedCollection(orderedCollection: any, after: string, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
+async function collectRepliesFromOrderedCollection(orderedCollection: any, after: Instant, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
     if ((orderedCollection.items?.length || 0) > 0 || (orderedCollection.orderedItems?.length || 0) > 0) {
         throw new Error(`Expected OrderedCollection 'items'/'orderedItems' to be empty, found ${JSON.stringify(orderedCollection)}`);
     }
@@ -281,7 +283,7 @@ async function collectRepliesFromOrderedCollection(orderedCollection: any, after
     }
 }
 
-async function collectRepliesFromPages(url: string, after: string, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
+async function collectRepliesFromPages(url: string, after: Instant, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
     const replies: string[] = [];
     let page = await findOrFetchActivityPubObject(url, after, fetcher, cache);
     while (true) {
@@ -364,7 +366,7 @@ function computeAttachment(object: any): Attachment {
     return { mediaType, width, height, url};
 }
 
-function computeCommenter(person: any, asof: string): Commenter {
+function computeCommenter(person: any, asof: Instant): Commenter {
     let icon: Icon | undefined;
     if (person.icon) {
         if (typeof person.icon !== 'object' || isReadonlyArray(person.icon) || person.icon.type !== 'Image') throw new Error(`Expected person 'icon' to be an object, found: ${JSON.stringify(person.icon)}`);
@@ -403,7 +405,7 @@ function tryParseInt(value: string): number | undefined {
     }
 }
 
-function tryParseIso8601(value: string): string | undefined {
+function tryParseIso8601(value: string): Instant | undefined {
     return isValidIso8601(value) ? value : undefined;
 }
 
