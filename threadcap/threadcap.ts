@@ -46,12 +46,18 @@ export interface Icon {
     readonly mediaType?: string;
 }
 
+export type Fetcher = (url: string, opts?: { headers?: Record<string, string> }) => Promise<Response>;
+
 export interface Cache {
     get(id: string, after: string): Promise<Response | undefined>;
     put(id: string, fetched: string, response: Response): Promise<void>;
 }
 
-export type Event = WarningEvent | ProcessLevelEvent | NodesRemainingEvent | NodeProcessedEvent;
+export interface Callbacks {
+    onEvent(event: Event): void;
+}
+
+export type Event = WarningEvent | ProcessLevelEvent | NodesRemainingEvent | NodeProcessedEvent | WaitingForRateLimitEvent;
 
 export interface WarningEvent {
     readonly kind: 'warning';
@@ -77,11 +83,15 @@ export interface NodeProcessedEvent {
     readonly updated: boolean;
 }
 
-export interface Callbacks {
-    onEvent(event: Event): void;
+export interface WaitingForRateLimitEvent {
+    readonly kind: 'waiting-for-rate-limit';
+    readonly hostname: string;
+    readonly millisToWait: number;
+    readonly millisTillReset: number;
+    readonly limit: number;
+    readonly remaining: number;
+    readonly reset: string; // instant
 }
-
-export type Fetcher = (url: string, opts?: { headers?: Record<string, string> }) => Promise<Response>;
 
 //
 
@@ -125,7 +135,8 @@ export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: 
     await processLevel(0);
 }
 
-export function makeRateLimitedFetcher(fetcher: Fetcher): Fetcher {
+export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Callbacks } = {}): Fetcher {
+    const { callbacks } = opts;
     const hostLimits = new Map<string, { limit: number, remaining: number, reset: string }>();
     return async (url, opts) => {
         const hostname = new URL(url).hostname;
@@ -134,7 +145,7 @@ export function makeRateLimitedFetcher(fetcher: Fetcher): Fetcher {
             const { limit, remaining, reset } = limits;
             const millisTillReset = new Date(reset).getTime() - Date.now();
             const millisToWait = remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
-            console.log(`Waiting ${(millisToWait / 1000).toFixed(2)}s before calling ${hostname}, ${JSON.stringify({ limit, remaining, reset, millisTillReset })}`);
+            callbacks?.onEvent({ kind: 'waiting-for-rate-limit', hostname, millisToWait, millisTillReset, limit, remaining, reset });
             await sleep(millisToWait);
         }
         const res = await fetcher(url, opts);

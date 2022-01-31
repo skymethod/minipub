@@ -1,6 +1,6 @@
 import { isPositiveInteger } from './check.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
-import { Cache, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, updateThreadcap } from './threadcap/threadcap.ts';
+import { Cache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, updateThreadcap } from './threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
 export const threadcapDescription = 'Enumerates an ActivityPub reply thread for a given root post url';
@@ -13,6 +13,16 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     const { 'max-levels': maxLevels } = options;
     if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
 
+    const callbacks: Callbacks = {
+        onEvent: event => {
+            if (event.kind === 'waiting-for-rate-limit') {
+                const { millisToWait, hostname, limit, remaining, reset, millisTillReset } = event;
+                console.log(`Waiting ${(millisToWait / 1000).toFixed(2)}s before calling ${hostname}, ${JSON.stringify({ limit, remaining, reset, millisTillReset })}`);
+            } else {
+                console.log(JSON.stringify(event));
+            }
+        }
+    };
     const minipubFetcher = makeMinipubFetcher();
     const loggedFetcher = async (url: string, opts?: { headers?: Record<string, string>}) => {
         console.log(`fetching: ${url}`);
@@ -20,13 +30,13 @@ export async function threadcap(args: (string | number)[], options: Record<strin
         console.log(`${res.status} ${res.url}`);
         console.log([...res.headers].map(v => v.join(': ')).join('\n') + '\n');
         return res;
-    }
-    const fetcher = makeRateLimitedFetcher(loggedFetcher);
+    };
+    const fetcher = makeRateLimitedFetcher(loggedFetcher, { callbacks });
     const cache = new InMemoryCache();
 
     const threadcap = await makeThreadcap(url, { fetcher, cache });
     const updateTime = new Date().toISOString();
-    await updateThreadcap(threadcap, { updateTime, maxLevels, fetcher, cache });
+    await updateThreadcap(threadcap, { updateTime, maxLevels, fetcher, cache, callbacks });
     console.log(JSON.stringify(threadcap, undefined, 2));
 }
 
