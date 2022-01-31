@@ -109,21 +109,27 @@ export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache
     return { root: id, nodes: { }, commenters: { } };
 }
 
-export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: Instant, maxLevels?: number, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
-    const { fetcher, cache, updateTime, callbacks, maxLevels } = opts;
+export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: Instant, maxLevels?: number, maxNodes?: number, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
+    const { fetcher, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput } = opts;
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
+    const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0)
 
     if (maxLevel === 0) return;
+    if (maxNodes === 0) return;
 
     const idsBylevel: string[][] = [ [ threadcap.root ]];
-
     let remaining = 1;
+    let processed = 0;
+
     const processLevel = async (level: number) => {
         callbacks?.onEvent({ kind: 'process-level', phase: 'before', level: level + 1 });
         const nextLevel = level + 1;
         for (const id of idsBylevel[level] || []) {
-            const node = await processNode(id, threadcap, updateTime, fetcher, cache, callbacks);
+            const processReplies = nextLevel < maxLevel;
+            const node = await processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks);
             remaining--;
+            processed++;
+            if (maxNodes && processed >= maxNodes) return;
             if (node.replies && nextLevel < maxLevel) {
                 if (!idsBylevel[nextLevel]) idsBylevel[nextLevel] = [];
                 idsBylevel[nextLevel].push(...node.replies);
@@ -182,7 +188,7 @@ async function findOrFetchActivityPubResponse(url: string, after: Instant, fetch
     return res;
 }
 
-async function processNode(id: string, threadcap: Threadcap, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
+async function processNode(id: string, processReplies: boolean, threadcap: Threadcap, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
     // ensure node exists
     let node = threadcap.nodes[id];
     if (!node) {
@@ -204,13 +210,15 @@ async function processNode(id: string, threadcap: Threadcap, updateTime: Instant
 
     callbacks?.onEvent({ kind: 'node-processed', part: 'comment', updated: updateComment });
 
-    // update the replies
-    const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
-    if (updateReplies) {
-        node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
-        node.repliesAsof  = updateTime;
+    if (processReplies) {
+        // update the replies
+        const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
+        if (updateReplies) {
+            node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
+            node.repliesAsof = updateTime;
+        }
+        callbacks?.onEvent({ kind: 'node-processed', part: 'replies', updated: updateReplies });
     }
-    callbacks?.onEvent({ kind: 'node-processed', part: 'replies', updated: updateReplies });
 
     return node;
 }
