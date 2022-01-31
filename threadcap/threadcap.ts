@@ -59,6 +59,8 @@ export type Fetcher = (url: string, opts?: { headers?: Record<string, string> })
 
 //
 
+export const MAX_LEVELS = 1000; // go down at most this many levels (this would be quite the reply chain) we hit max recursion at about 3600
+
 export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache: Cache }): Promise<Threadcap> {
     const { fetcher, cache } = opts;
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
@@ -69,33 +71,31 @@ export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache
     return { root: id, nodes: { }, commenters: { } };
 }
 
-export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
-    const { fetcher, cache, updateTime, callbacks } = opts;
+export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: string, maxLevels?: number, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
+    const { fetcher, cache, updateTime, callbacks, maxLevels } = opts;
+    const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
 
-    // ensure node exists
-    const id = threadcap.root;
-    let node = threadcap.nodes[id];
-    if (!node) {
-        node = { };
-        threadcap.nodes[id] = node;
-    }
+    if (maxLevel === 0) return;
 
-    // update the comment + commenter
-    node.comment = await fetchComment(id, updateTime, fetcher, cache);
-    const { attributedTo } = node.comment;
-    const existingCommenter = threadcap.commenters[attributedTo];
-    if (!existingCommenter || existingCommenter.asof < updateTime) {
-        threadcap.commenters[attributedTo] = await fetchCommenter(attributedTo, updateTime, fetcher, cache);
-    }
-    node.commentAsof = updateTime;
+    const idsBylevel: string[][] = [ [ threadcap.root ]];
 
-    // TODO: callback? UI could update at least this comment's content at this point
-
-    // update the replies
-    node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
-    node.repliesAsof  = updateTime;
-
-    // TODO: breadth-first descent down into children, up to some optional maxLevel
+    let remaining = 1;
+    const processLevel = async (level: number) => {
+        // TODO raise event process level
+        const nextLevel = level + 1;
+        for (const id of idsBylevel[level] || []) {
+            const node = await updateNode(id, threadcap, updateTime, fetcher, cache, callbacks);
+            remaining--;
+            if (node.replies && nextLevel < maxLevel) {
+                if (!idsBylevel[nextLevel]) idsBylevel[nextLevel] = [];
+                idsBylevel[nextLevel].push(...node.replies);
+                remaining += node.replies.length;
+            }
+            // TODO raise event remaining
+        }
+        if (idsBylevel[nextLevel]) await processLevel(nextLevel);
+    };
+    await processLevel(0);
 }
 
 export function makeRateLimitedFetcher(fetcher: Fetcher): Fetcher {
@@ -140,6 +140,35 @@ async function findOrFetchActivityPubResponse(url: string, after: string, fetche
     const res = await fetcher(url, { headers: { accept: APPLICATION_ACTIVITY_JSON }});
     await cache.put(url, new Date().toISOString(), res);
     return res;
+}
+
+async function updateNode(id: string, threadcap: Threadcap, updateTime: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
+    // ensure node exists
+    let node = threadcap.nodes[id];
+    if (!node) {
+        node = { };
+        threadcap.nodes[id] = node;
+    }
+
+    // update the comment + commenter
+    if (!node.commentAsof || node.commentAsof < updateTime) {
+        node.comment = await fetchComment(id, updateTime, fetcher, cache);
+        const { attributedTo } = node.comment;
+        const existingCommenter = threadcap.commenters[attributedTo];
+        if (!existingCommenter || existingCommenter.asof < updateTime) {
+            threadcap.commenters[attributedTo] = await fetchCommenter(attributedTo, updateTime, fetcher, cache);
+        }
+        node.commentAsof = updateTime;
+    }
+
+    // TODO: callback? UI could update at least this comment's content at this point
+
+    // update the replies
+    if (!node.repliesAsof || node.repliesAsof < updateTime) {
+        node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
+        node.repliesAsof  = updateTime;
+    }
+    return node;
 }
 
 async function fetchComment(id: string, updateTime: string, fetcher: Fetcher, cache: Cache): Promise<Comment> {

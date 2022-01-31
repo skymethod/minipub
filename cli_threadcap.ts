@@ -1,5 +1,6 @@
+import { isPositiveInteger } from './check.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
-import { Cache, makeRateLimitedFetcher, makeThreadcap, updateThreadcap } from './threadcap/threadcap.ts';
+import { Cache, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, updateThreadcap } from './threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
 export const threadcapDescription = 'Enumerates an ActivityPub reply thread for a given root post url';
@@ -9,6 +10,8 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const [ url ] = args;
     if (typeof url !== 'string') throw new Error('Provide url as an argument, e.g. minipub threadcap https://example.social/users/alice/statuses/123456');
+    const { 'max-levels': maxLevels } = options;
+    if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
 
     const minipubFetcher = makeMinipubFetcher();
     const loggedFetcher = async (url: string, opts?: { headers?: Record<string, string>}) => {
@@ -23,7 +26,7 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const threadcap = await makeThreadcap(url, { fetcher, cache });
     const updateTime = new Date().toISOString();
-    await updateThreadcap(threadcap, { updateTime, fetcher, cache });
+    await updateThreadcap(threadcap, { updateTime, maxLevels, fetcher, cache });
     console.log(JSON.stringify(threadcap, undefined, 2));
 }
 
@@ -38,11 +41,13 @@ function dumpHelp() {
         '    minipub threadcap [ARGS] [OPTIONS]',
         '',
         'ARGS:',
-        '    <url>        Url to fetch, e.g. https://example.social/users/alice/statuses/123456',
+        '    <url>           Url to fetch, e.g. https://example.social/users/alice/statuses/123456',
         '',
         'OPTIONS:',
-        '    --help       Prints help information',
-        '    --verbose    Toggle verbose output (when applicable)',
+        `    --max-levels    If provided, stop processing the thread after descending this many levels (positive integer, default: ${MAX_LEVELS})`,
+        '',
+        '    --help          Prints help information',
+        '    --verbose       Toggle verbose output (when applicable)',
     ];
     for (const line of lines) {
         console.log(line);
