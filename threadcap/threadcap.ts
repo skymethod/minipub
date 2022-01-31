@@ -51,8 +51,34 @@ export interface Cache {
     put(id: string, fetched: string, response: Response): Promise<void>;
 }
 
+export type Event = WarningEvent | ProcessLevelEvent | NodesRemainingEvent | NodeProcessedEvent;
+
+export interface WarningEvent {
+    readonly kind: 'warning';
+    readonly nodeId: string;
+    readonly url: string;
+    readonly message: string;
+}
+
+export interface ProcessLevelEvent {
+    readonly kind: 'process-level';
+    readonly phase: 'before' | 'after';
+    readonly level: number;
+}
+
+export interface NodesRemainingEvent {
+    readonly kind: 'nodes-remaining';
+    readonly remaining: number;
+}
+
+export interface NodeProcessedEvent {
+    readonly kind: 'node-processed';
+    readonly part: 'comment' | 'replies';
+    readonly updated: boolean;
+}
+
 export interface Callbacks {
-    onWarning(nodeId: string, url: string, message: string): void;
+    onEvent(event: Event): void;
 }
 
 export type Fetcher = (url: string, opts?: { headers?: Record<string, string> }) => Promise<Response>;
@@ -81,18 +107,19 @@ export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: 
 
     let remaining = 1;
     const processLevel = async (level: number) => {
-        // TODO raise event process level
+        callbacks?.onEvent({ kind: 'process-level', phase: 'before', level: level + 1 });
         const nextLevel = level + 1;
         for (const id of idsBylevel[level] || []) {
-            const node = await updateNode(id, threadcap, updateTime, fetcher, cache, callbacks);
+            const node = await processNode(id, threadcap, updateTime, fetcher, cache, callbacks);
             remaining--;
             if (node.replies && nextLevel < maxLevel) {
                 if (!idsBylevel[nextLevel]) idsBylevel[nextLevel] = [];
                 idsBylevel[nextLevel].push(...node.replies);
                 remaining += node.replies.length;
             }
-            // TODO raise event remaining
+            callbacks?.onEvent({ kind: 'nodes-remaining', remaining });
         }
+        callbacks?.onEvent({ kind: 'process-level', phase: 'after', level: level + 1 });
         if (idsBylevel[nextLevel]) await processLevel(nextLevel);
     };
     await processLevel(0);
@@ -142,7 +169,7 @@ async function findOrFetchActivityPubResponse(url: string, after: string, fetche
     return res;
 }
 
-async function updateNode(id: string, threadcap: Threadcap, updateTime: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
+async function processNode(id: string, threadcap: Threadcap, updateTime: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
     // ensure node exists
     let node = threadcap.nodes[id];
     if (!node) {
@@ -151,7 +178,8 @@ async function updateNode(id: string, threadcap: Threadcap, updateTime: string, 
     }
 
     // update the comment + commenter
-    if (!node.commentAsof || node.commentAsof < updateTime) {
+    const updateComment = !node.commentAsof || node.commentAsof < updateTime;
+    if (updateComment) {
         node.comment = await fetchComment(id, updateTime, fetcher, cache);
         const { attributedTo } = node.comment;
         const existingCommenter = threadcap.commenters[attributedTo];
@@ -161,13 +189,16 @@ async function updateNode(id: string, threadcap: Threadcap, updateTime: string, 
         node.commentAsof = updateTime;
     }
 
-    // TODO: callback? UI could update at least this comment's content at this point
+    callbacks?.onEvent({ kind: 'node-processed', part: 'comment', updated: updateComment });
 
     // update the replies
-    if (!node.repliesAsof || node.repliesAsof < updateTime) {
+    const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
+    if (updateReplies) {
         node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
         node.repliesAsof  = updateTime;
     }
+    callbacks?.onEvent({ kind: 'node-processed', part: 'replies', updated: updateReplies });
+
     return node;
 }
 
@@ -276,7 +307,7 @@ function collectRepliesFromItems(items: readonly any[], outReplies: string[], no
             if (typeof id !== 'string') throw new Error(`Expected item 'id' to be a string, found ${JSON.stringify(itemObj)}`);
             outReplies.push(id);
             if (typeof item === 'string') {
-                if (callbacks) callbacks.onWarning(nodeId, url, 'Found item incorrectly double encoded as a json string');
+                callbacks?.onEvent({ kind: 'warning', nodeId, url, message: 'Found item incorrectly double encoded as a json string' });
             }
         }
     }
