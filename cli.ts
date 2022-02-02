@@ -63,7 +63,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         server,
         tmp,
         uuid,
-        threadcap,
+        threadcap, tc: threadcap,
         webfinger,
     }[command];
     if (!fn) {

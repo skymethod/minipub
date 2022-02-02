@@ -66,6 +66,7 @@ export interface WarningEvent {
     readonly nodeId: string;
     readonly url: string;
     readonly message: string;
+    readonly object?: any;
 }
 
 export interface ProcessLevelEvent {
@@ -104,7 +105,7 @@ export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id, type } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
-    if (type !== 'Note') throw new Error(`Unexpected type: ${type}`);
+    if (!/^(Note|Article|Video)$/.test(type)) throw new Error(`Unexpected type: ${type}`);
     if (typeof id !== 'string') throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
     return { root: id, nodes: { }, commenters: { } };
 }
@@ -236,7 +237,10 @@ async function fetchCommenter(attributedTo: string, updateTime: Instant, fetcher
 async function fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const { replies } = object;
-    if (!replies) throw new Error(`Expected 'replies', found ${JSON.stringify(object)}`);
+    if (replies === undefined) {
+        callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message: `No 'replies' found on object`, object });
+        return [];
+    }
 
     const rt: string[] = [];
     const fetched = new Set<string>();
@@ -328,7 +332,7 @@ function collectRepliesFromItems(items: readonly any[], outReplies: string[], no
             if (typeof id !== 'string') throw new Error(`Expected item 'id' to be a string, found ${JSON.stringify(itemObj)}`);
             outReplies.push(id);
             if (typeof item === 'string') {
-                callbacks?.onEvent({ kind: 'warning', nodeId, url, message: 'Found item incorrectly double encoded as a json string' });
+                callbacks?.onEvent({ kind: 'warning', nodeId, url, message: 'Found item incorrectly double encoded as a json string', object: itemObj });
             }
         }
     }
@@ -337,12 +341,37 @@ function collectRepliesFromItems(items: readonly any[], outReplies: string[], no
 function computeComment(object: any, id: string): Comment {
     const content = computeContent(object);
     const attachments = computeAttachments(object);
-    const url = (object.url === null ? undefined : object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
-    const { attributedTo, published } = object;
-    if (typeof attributedTo !== 'string') throw new Error(`Expected 'attributedTo' to be a string, found ${JSON.stringify(attributedTo)}`);
+    const url = computeUrl(object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
+    const { published } = object;
+    const attributedTo = computeAttributedTo(object.attributedTo);
     if (typeof published !== 'string') throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
-    if (url !== undefined && typeof url !== 'string') throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
     return { url, published, attachments, content, attributedTo }
+}
+
+function computeUrl(url: unknown): string | undefined {
+    if (url === undefined || url === null) return undefined;
+    if (typeof url === 'string') return url;
+    if (Array.isArray(url)) {
+        const v = url.find(v => v.type === 'Link' && v.mediaType === 'text/html' && typeof v.href === 'string');
+        if (v) return v.href;
+    }
+    throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
+}
+
+function computeAttributedTo(attributedTo: unknown): string {
+    if (typeof attributedTo === 'string') return attributedTo;
+    if (Array.isArray(attributedTo) && attributedTo.length > 0) {
+        if (attributedTo.every(v => typeof v === 'string')) return attributedTo[0];
+        if (attributedTo.every(v => isStringRecord(v))) {
+            for (const item of attributedTo) {
+                if (item.type === 'Person' && typeof item.id === 'string') {
+                    return item.id;
+                }
+            }
+            throw new Error(`Expected 'attributedTo' object array to have a Person with an 'id', found ${JSON.stringify(attributedTo)}`);
+        }
+    }
+    throw new Error(`Expected 'attributedTo' to be a string or non-empty string/object array, found ${JSON.stringify(attributedTo)}`);
 }
 
 function computeContent(obj: any): Record<string, string> {

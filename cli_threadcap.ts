@@ -26,6 +26,9 @@ export async function threadcap(args: (string | number)[], options: Record<strin
                 nodesProcessed++;
             } else if (event.kind === 'process-level') {
                 maxLevelProcessed = Math.max(maxLevelProcessed, event.level);
+            } else if (event.kind === 'warning') {
+                const { url, nodeId, message, object } = event;
+                console.warn(`WARNING: ${message}\n${nodeId}\n${url !== nodeId ? `${url}\n` : ''}`, object);
             } else {
                 console.log(JSON.stringify(event));
             }
