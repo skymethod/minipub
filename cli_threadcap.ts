@@ -10,10 +10,11 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const [ urlOrPath ] = args;
     if (typeof urlOrPath !== 'string') throw new Error('Provide url to root post (or local path to a saved threadcap) as an argument, e.g. minipub threadcap https://example.social/users/alice/statuses/123456');
-    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out } = options;
+    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode } = options;
     if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
     if (maxNodes !== undefined && (typeof maxNodes !== 'number' || !isPositiveInteger(maxNodes))) throw new Error(`'max-nodes' should be a positive integer, if provided`);
     if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
+    if (startNode !== undefined && (typeof startNode !== 'string' || !isValidUrl(startNode))) throw new Error(`'start-node' should be a valid node id for where to start updating the threadcap, if provided`);
 
     let maxLevelProcessed = 0;
     let nodesProcessed = 0;
@@ -50,15 +51,16 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { fetcher, cache }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     const updateTime = new Date().toISOString();
-    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, fetcher, cache, callbacks });
+    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, fetcher, cache, callbacks });
     const threadcapJson = JSON.stringify(threadcap, undefined, 2);
     console.log(threadcapJson);
-    if (out) {
-        await Deno.writeTextFile(out, threadcapJson);
+    const outFile = out ? out : !isValidUrl(urlOrPath) ? urlOrPath : undefined;
+    if (outFile) {
+        await Deno.writeTextFile(outFile, threadcapJson);
     }
     dumpNode(threadcap.root, threadcap, 0);
     console.log({ fetches, nodesProcessed, maxLevelProcessed });
-    if (out) console.log(`Saved threadcap json to: ${out}`);
+    if (outFile) console.log(`Saved threadcap json to: ${outFile}`);
 }
 
 //

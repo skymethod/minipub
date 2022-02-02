@@ -13,10 +13,12 @@ export interface Node {
 
     // inline comment info, enough to render the comment itself (no replies)
     comment?: Comment;
+    commentError?: string;
     commentAsof?: Instant;
 
     // AP ids of the direct children, once known completely
     replies?: readonly string[];
+    repliesError?: string;
     repliesAsof?: Instant;
 }
 
@@ -110,15 +112,16 @@ export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache
     return { root: id, nodes: { }, commenters: { } };
 }
 
-export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: Instant, maxLevels?: number, maxNodes?: number, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
-    const { fetcher, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput } = opts;
+export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
+    const { fetcher, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode } = opts;
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
-    const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0)
+    const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
+    if (startNode && !threadcap.nodes[startNode]) throw new Error(`Invalid start node: ${startNode}`);
 
     if (maxLevel === 0) return;
     if (maxNodes === 0) return;
 
-    const idsBylevel: string[][] = [ [ threadcap.root ]];
+    const idsBylevel: string[][] = [ [ startNode || threadcap.root ]];
     let remaining = 1;
     let processed = 0;
 
@@ -200,11 +203,17 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
     // update the comment + commenter
     const updateComment = !node.commentAsof || node.commentAsof < updateTime;
     if (updateComment) {
-        node.comment = await fetchComment(id, updateTime, fetcher, cache);
-        const { attributedTo } = node.comment;
-        const existingCommenter = threadcap.commenters[attributedTo];
-        if (!existingCommenter || existingCommenter.asof < updateTime) {
-            threadcap.commenters[attributedTo] = await fetchCommenter(attributedTo, updateTime, fetcher, cache);
+        try {
+            node.comment = await fetchComment(id, updateTime, fetcher, cache, callbacks);
+            const { attributedTo } = node.comment;
+            const existingCommenter = threadcap.commenters[attributedTo];
+            if (!existingCommenter || existingCommenter.asof < updateTime) {
+                threadcap.commenters[attributedTo] = await fetchCommenter(attributedTo, updateTime, fetcher, cache);
+            }
+            node.commentError = undefined;
+        } catch (e) {
+            node.comment = undefined;
+            node.commentError = `${e.stack || e}`;
         }
         node.commentAsof = updateTime;
     }
@@ -215,7 +224,13 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
         // update the replies
         const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
         if (updateReplies) {
-            node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
+            try {
+                node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
+                node.repliesError = undefined;
+            } catch (e) {
+                node.replies = undefined;
+                node.repliesError = `${e.stack || e}`;
+            }
             node.repliesAsof = updateTime;
         }
         callbacks?.onEvent({ kind: 'node-processed', part: 'replies', updated: updateReplies });
@@ -224,9 +239,9 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
     return node;
 }
 
-async function fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Comment> {
+async function fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment> {
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
-    return computeComment(object, id);
+    return computeComment(object, id, callbacks);
 }
 
 async function fetchCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
@@ -235,7 +250,8 @@ async function fetchCommenter(attributedTo: string, updateTime: Instant, fetcher
 }
 
 async function fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
-    const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
+    const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
+    const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const { replies } = object;
     if (replies === undefined) {
         callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message: `No 'replies' found on object`, object });
@@ -321,6 +337,14 @@ async function collectRepliesFromPages(url: string, after: Instant, nodeId: stri
     }
 }
 
+function unwrapActivityIfNecessary(object: any, id: string, callbacks: Callbacks | undefined): any {
+    if (object.type === 'Create' && isStringRecord(object.object)) {
+        callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message: 'Unwrapping a Create activity where an object was expected', object });
+        return object.object;
+    }
+    return object;
+}
+
 function collectRepliesFromItems(items: readonly any[], outReplies: string[], nodeId: string, url: string, callbacks: Callbacks | undefined) {
     for (const item of items) {
         if (typeof item === 'string' && !item.startsWith('{')) {
@@ -338,7 +362,8 @@ function collectRepliesFromItems(items: readonly any[], outReplies: string[], no
     }
 }
 
-function computeComment(object: any, id: string): Comment {
+function computeComment(object: any, id: string, callbacks: Callbacks | undefined): Comment {
+    object = unwrapActivityIfNecessary(object, id, callbacks);
     const content = computeContent(object);
     const attachments = computeAttachments(object);
     const url = computeUrl(object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
@@ -409,13 +434,16 @@ function computeCommenter(person: any, asof: Instant): Commenter {
         if (typeof person.icon !== 'object' || isReadonlyArray(person.icon) || person.icon.type !== 'Image') throw new Error(`Expected person 'icon' to be an object, found: ${JSON.stringify(person.icon)}`);
         icon = computeIcon(person.icon);
     }
-    const { name, url: apUrl, id } = person;
-    if (typeof name !== 'string') throw new Error(`Expected person 'name' to be a string, found: ${JSON.stringify(name)}`);
+    const { name, preferredUsername, url: apUrl, id } = person;
+    if (name !== undefined && typeof name !== 'string') throw new Error(`Expected person 'name' to be a string, found: ${JSON.stringify(person)}`);
+    if (preferredUsername !== undefined && typeof preferredUsername !== 'string') throw new Error(`Expected person 'preferredUsername' to be a string, found: ${JSON.stringify(person)}`);
+    const nameOrPreferredUsername = name || preferredUsername;
+    if (!nameOrPreferredUsername) throw new Error(`Expected person 'name' or 'preferredUsername', found: ${JSON.stringify(person)}`);
     if (apUrl !== undefined && typeof apUrl !== 'string') throw new Error(`Expected person 'url' to be a string, found: ${JSON.stringify(apUrl)}`);
     const url = apUrl || id;
     if (typeof url !== 'string')  throw new Error(`Expected person 'url' or 'id' to be a string, found: ${JSON.stringify(url)}`);
     const fqUsername = computeFqUsername(url, person.preferredUsername);
-    return { icon, name, url, fqUsername, asof };
+    return { icon, name: nameOrPreferredUsername, url, fqUsername, asof };
 }
 
 function computeIcon(image: any): Icon {

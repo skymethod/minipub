@@ -4,14 +4,15 @@ export type Fetcher = (url: string, opts?: { method?: 'GET' | 'POST', headers?: 
 
 export function makeMinipubFetcher(opts: UserAgentOptions = {}): Fetcher {
     const userAgent = computeMinipubUserAgent(opts);
+    const { fetcher } = opts;
     return async (url, opts = {}) => {
         const headers = { ...(opts.headers || {}), 'user-agent': userAgent };
         opts = { ...opts, headers };
-        return await fetch(url, opts);
+        return await (fetcher || fetch)(url, opts);
     }
 }
 
-export type UserAgentOptions = { origin?: string };
+export type UserAgentOptions = { origin?: string, fetcher?: Fetcher };
 
 //
 
