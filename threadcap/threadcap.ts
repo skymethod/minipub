@@ -57,6 +57,8 @@ export interface Cache {
     put(id: string, fetched: Instant, response: Response): Promise<void>;
 }
 
+export type RateLimiterInput = { hostname: string, limit: number, remaining: number, reset: string, millisTillReset: number };
+
 export interface Callbacks {
     onEvent(event: Event): void;
 }
@@ -96,21 +98,6 @@ export interface WaitingForRateLimitEvent {
     readonly limit: number;
     readonly remaining: number;
     readonly reset: Instant;
-}
-
-export class InMemoryCache implements Cache {
-    private readonly map = new Map<string, { response: Response, fetched: Instant }>();
-
-    get(id: string, after: Instant): Promise<Response | undefined> {
-        const { response, fetched } = this.map.get(id) || {};
-        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
-    }
-
-    put(id: string, fetched: Instant, response: Response): Promise<void> {
-        this.map.set(id, { response, fetched });
-        return Promise.resolve();
-    }
-
 }
 
 //
@@ -167,18 +154,43 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
     await processLevel(0);
 }
 
-export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Callbacks } = {}): Fetcher {
+export class InMemoryCache implements Cache {
+    private readonly map = new Map<string, { response: Response, fetched: Instant }>();
+
+    get(id: string, after: Instant): Promise<Response | undefined> {
+        const { response, fetched } = this.map.get(id) || {};
+        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
+    }
+
+    put(id: string, fetched: Instant, response: Response): Promise<void> {
+        this.map.set(id, { response, fetched });
+        return Promise.resolve();
+    }
+
+}
+
+export function computeDefaultMillisToWait(input: RateLimiterInput): number {
+    const { remaining, millisTillReset } = input;
+    if (remaining >= 100) return 0; // allow bursting, mastodon gives you 300 per period
+    return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
+}
+
+export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Callbacks, computeMillisToWait?: (input: RateLimiterInput) => number } = {}): Fetcher {
     const { callbacks } = opts;
+    const computeMillisToWait = opts.computeMillisToWait || computeDefaultMillisToWait;
     const hostLimits = new Map<string, { limit: number, remaining: number, reset: string }>();
+    
     return async (url, opts) => {
         const hostname = new URL(url).hostname;
         const limits = hostLimits.get(hostname);
         if (limits) {
             const { limit, remaining, reset } = limits;
             const millisTillReset = new Date(reset).getTime() - Date.now();
-            const millisToWait = remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
-            callbacks?.onEvent({ kind: 'waiting-for-rate-limit', hostname, millisToWait, millisTillReset, limit, remaining, reset });
-            await sleep(millisToWait);
+            const millisToWait = computeMillisToWait({ hostname, limit, remaining, reset, millisTillReset });
+            if (millisToWait > 0) {
+                callbacks?.onEvent({ kind: 'waiting-for-rate-limit', hostname, millisToWait, millisTillReset, limit, remaining, reset });
+                await sleep(millisToWait);
+            }
         }
         const res = await fetcher(url, opts);
         const limit = tryParseInt(res.headers.get('x-ratelimit-limit') || '');
