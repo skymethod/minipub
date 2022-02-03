@@ -19,6 +19,7 @@ import { server, serverDescription } from './cli_server.ts';
 import { MINIPUB_VERSION } from './version.ts';
 import { generate, generateDescription } from './cli_generate.ts';
 import { threadcap, threadcapDescription } from './cli_threadcap.ts';
+import { generateNpm } from './cli_generate_npm.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -55,11 +56,12 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         'create-user': createUser, cu: createUser,
         'delete-from-storage': deleteFromStorage, dfs: deleteFromStorage,
         'federate-activity': federateActivity, fa: federateActivity,
+        'generate-npm': generateNpm, gn: generateNpm,
         'like-object': likeObject, lo: likeObject,
         'undo-like': undoLike, ul: undoLike,
         'update-user': updateUser, uu: updateUser,
         'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
-        generate, 
+        generate,
         server,
         tmp,
         uuid,

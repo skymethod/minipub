@@ -1,0 +1,16 @@
+{
+  "name": "threadcap",
+  "version": "0.1.0-alpha",
+  "description": "Threadcap helps you take and update snapshots of a public ActivityPub comment thread, given a root post url.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skymethod/minipub.git"
+  },
+  "main": "index.js",
+  "module": "main.js",
+  "keywords": [],
+  "license": "MIT",
+  "dependencies": {
+    "esm": "^3.2.25"
+  }
+}
