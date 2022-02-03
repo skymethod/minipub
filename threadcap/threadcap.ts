@@ -112,8 +112,10 @@ export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache
     return { root: id, nodes: { }, commenters: { } };
 }
 
-export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
-    const { fetcher, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode } = opts;
+export async function updateThreadcap(threadcap: Threadcap, opts: { 
+        updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, keepGoing?: () => boolean, 
+        fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
+    const { fetcher, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
     if (startNode && !threadcap.nodes[startNode]) throw new Error(`Invalid start node: ${startNode}`);
@@ -134,6 +136,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: { updateTime: 
             remaining--;
             processed++;
             if (maxNodes && processed >= maxNodes) return;
+            if (keepGoing && !keepGoing()) return;
             if (node.replies && nextLevel < maxLevel) {
                 if (!idsBylevel[nextLevel]) idsBylevel[nextLevel] = [];
                 idsBylevel[nextLevel].push(...node.replies);
