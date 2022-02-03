@@ -188,7 +188,7 @@ async function findOrFetchActivityPubResponse(url: string, after: Instant, fetch
     const existing = await cache.get(url, after);
     if (existing) return existing;
     const res = await fetcher(url, { headers: { accept: APPLICATION_ACTIVITY_JSON }});
-    await cache.put(url, new Date().toISOString(), res);
+    await cache.put(url, new Date().toISOString(), res.clone());
     return res;
 }
 
