@@ -1,6 +1,6 @@
 import { isPositiveInteger, isValidUrl } from './check.ts';
 import { computeMinipubUserAgent } from './fetcher.ts';
-import { Cache, Callbacks, Instant, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from './threadcap/threadcap.ts';
+import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from './threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
 export const threadcapDescription = 'Enumerates an ActivityPub reply thread for a given root post url';
@@ -104,21 +104,4 @@ function dumpNode(id: string, threadcap: Threadcap, level: number) {
             dumpNode(reply, threadcap, level + 1);
         }
     }
-}
-
-//
-
-class InMemoryCache implements Cache {
-    private readonly map = new Map<string, { response: Response, fetched: Instant }>();
-
-    get(id: string, after: Instant): Promise<Response | undefined> {
-        const { response, fetched } = this.map.get(id) || {};
-        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
-    }
-
-    put(id: string, fetched: Instant, response: Response): Promise<void> {
-        this.map.set(id, { response, fetched });
-        return Promise.resolve();
-    }
-
 }
