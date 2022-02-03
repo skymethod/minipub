@@ -108,7 +108,7 @@ export async function makeThreadcap(url: string, opts: { userAgent: string, fetc
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id, type } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
-    if (!/^(Note|Article|Video)$/.test(type)) throw new Error(`Unexpected type: ${type}`);
+    if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type)) throw new Error(`Unexpected type: ${type}`); // PodcastEpisode = castopod, handled below, non-standard AP
     if (typeof id !== 'string') throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
     return { root: id, nodes: { }, commenters: { } };
 }
@@ -257,9 +257,10 @@ async function fetchCommenter(attributedTo: string, updateTime: Instant, fetcher
 async function fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
-    const { replies } = object;
+    const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies; // castopod uses 'comments' url to an OrderedCollection
     if (replies === undefined) {
-        callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message: `No 'replies' found on object`, object });
+        const message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
+        callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message, object });
         return [];
     }
 
@@ -414,6 +415,7 @@ function computeAttributedTo(attributedTo: unknown): string {
 }
 
 function computeContent(obj: any): Record<string, string> {
+    if (obj.type === 'PodcastEpisode' && isStringRecord(obj.description) && obj.description.type === 'Note') obj = obj.description; // castopod embeds the Note object inline as the 'description'
     const { content, contentMap } = obj;
     if (content !== undefined && typeof content !== 'string') throw new Error(`Expected 'content' to be a string, found ${JSON.stringify(content)}`);
     if (contentMap !== undefined && !isStringRecord(contentMap)) throw new Error(`Expected 'contentMap' to be a string record, found ${JSON.stringify(contentMap)}`);
