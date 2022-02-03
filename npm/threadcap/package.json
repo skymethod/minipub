@@ -12,5 +12,9 @@
   "license": "MIT",
   "dependencies": {
     "esm": "^3.2.25"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/skymethod/minipub/issues"
+  },
+  "homepage": "https://github.com/skymethod/minipub/tree/master/npm/threadcap"
 }
