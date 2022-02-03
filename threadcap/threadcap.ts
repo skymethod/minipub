@@ -302,18 +302,18 @@ async function fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, c
         }
     } else if (replies.first) {
         if (typeof replies.first === 'object' && replies.first.type === 'CollectionPage') {
+            if (!replies.first.items && !replies.first.next) throw new Error(`Expected 'replies.first.items' or 'replies.first.next' to be present, found ${JSON.stringify(replies.first)}`);
             if (Array.isArray(replies.first.items) && replies.first.items.length > 0) {
                 collectRepliesFromItems(replies.first.items, rt, id, id, callbacks);
-                return rt;
             }
             if (replies.first.next) {
                 if (typeof replies.first.next === 'string') {
-                    return await collectRepliesFromPages(replies.first.next, updateTime, id, fetcher, cache, callbacks, fetched);
+                    rt.push(...await collectRepliesFromPages(replies.first.next, updateTime, id, fetcher, cache, callbacks, fetched));
                 } else {
                     throw new Error(`Expected 'replies.first.next' to be a string, found ${JSON.stringify(replies.first.next)}`);
                 }
             }
-            throw new Error(`Expected 'replies.first.next' to be a string, found ${JSON.stringify(replies.first.next)}`);
+            return rt;
         } else {
             throw new Error(`Expected 'replies.first.items' array, or 'replies.first.next' string, found ${JSON.stringify(replies.first)}`);
         }
