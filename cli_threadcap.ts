@@ -1,5 +1,5 @@
 import { isPositiveInteger, isValidUrl } from './check.ts';
-import { makeMinipubFetcher } from './fetcher.ts';
+import { computeMinipubUserAgent } from './fetcher.ts';
 import { Cache, Callbacks, Instant, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from './threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
@@ -37,10 +37,9 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     };
 
     let fetches = 0;
-    const minipubFetcher = makeMinipubFetcher();
     const loggedFetcher = async (url: string, opts?: { headers?: Record<string, string>}) => {
         console.log(`fetching: ${url}`);
-        const res = await minipubFetcher(url, opts);
+        const res = await fetch(url, opts);
         fetches++;
         console.log(`${res.status} ${res.url}`);
         console.log([...res.headers].map(v => v.join(': ')).join('\n') + '\n');
@@ -49,9 +48,10 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     const fetcher = makeRateLimitedFetcher(loggedFetcher, { callbacks });
     const cache = new InMemoryCache();
 
-    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { fetcher, cache }) : JSON.parse(await Deno.readTextFile(urlOrPath));
+    const userAgent = computeMinipubUserAgent();
+    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     const updateTime = new Date().toISOString();
-    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, fetcher, cache, callbacks });
+    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, userAgent, fetcher, cache, callbacks });
     const threadcapJson = JSON.stringify(threadcap, undefined, 2);
     console.log(threadcapJson);
     const outFile = out ? out : !isValidUrl(urlOrPath) ? urlOrPath : undefined;

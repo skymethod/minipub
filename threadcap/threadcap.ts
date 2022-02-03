@@ -102,8 +102,9 @@ export interface WaitingForRateLimitEvent {
 
 export const MAX_LEVELS = 1000; // go down at most this many levels (this would be quite the reply chain) we hit max recursion at about 3600
 
-export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache: Cache }): Promise<Threadcap> {
-    const { fetcher, cache } = opts;
+export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache }): Promise<Threadcap> {
+    const { cache, userAgent } = opts;
+    const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id, type } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
@@ -114,8 +115,9 @@ export async function makeThreadcap(url: string, opts: { fetcher: Fetcher, cache
 
 export async function updateThreadcap(threadcap: Threadcap, opts: { 
         updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, keepGoing?: () => boolean, 
-        fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
-    const { fetcher, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
+        userAgent: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
+    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
+    const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
     if (startNode && !threadcap.nodes[startNode]) throw new Error(`Invalid start node: ${startNode}`);
@@ -337,6 +339,15 @@ async function collectRepliesFromPages(url: string, after: Instant, nodeId: stri
         } else {
             return replies;
         }
+    }
+}
+
+function makeFetcherWithUserAgent(fetcher: Fetcher, userAgent: string): Fetcher {
+    userAgent = userAgent.trim();
+    if (userAgent.length === 0) throw new Error(`Expected non-blank user-agent`);
+    return async (url, opts) => {
+        const headers = { ...(opts?.headers || {}), 'user-agent': userAgent };
+        return await fetcher(url, { headers });
     }
 }
 

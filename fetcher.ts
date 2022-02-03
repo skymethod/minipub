@@ -14,9 +14,7 @@ export function makeMinipubFetcher(opts: UserAgentOptions = {}): Fetcher {
 
 export type UserAgentOptions = { origin?: string, fetcher?: Fetcher };
 
-//
-
-function computeMinipubUserAgent(opts: UserAgentOptions) {
+export function computeMinipubUserAgent(opts: UserAgentOptions = {}) {
     const { origin } = opts;
     const pieces: string[] = [];
     const denoVersion = globalThis && globalThis.Deno && globalThis.Deno.version && typeof globalThis.Deno.version.deno === 'string' ? globalThis.Deno.version.deno : undefined;
