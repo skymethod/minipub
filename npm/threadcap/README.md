@@ -4,6 +4,21 @@ A [Minipub](https://minipub.dev) subproject.
 
 Carefully packaged so that it can be used from either newer-style ESM-based or older-style CommonJS-based Node projects.
 
+## Features
+- Isomorphic, use in the browser or Node
+- No dependencies, bring your own fetch
+- TypeScript typings included
+- Produces a threadcap: a serializable json object snapshot of the comment thread, includes normalized comment/commenter/attachment info along with any errors encountered during enumeration
+- Supports incremental updating scenarios
+- Bring your own caching to control which nodes are refetched
+- Can specify a maximum level of nodes to update in one pass
+- Breadth-first update, can specify a maximum number of levels to update in one pass
+- Can specify a subnode out of the larger reply tree to refresh
+- Tested with Mastodon, PeerTube, Castopod, and others
+- Tested with Pleroma, but replies under any Pleroma comment node will always be empty (since Pleroma does not implement the ActivityPub `replies` property)
+- Internal comment fetching respects rate-limit headers coming back from remote hosts (can also define a custom wait function)
+- Callback events for interesting events that occur while updating the threadcap
+
 ## Usage in an ESM-based Node project
 
 Installation:
