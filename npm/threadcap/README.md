@@ -4,8 +4,10 @@ A [Minipub](https://minipub.dev) subproject.
 
 Carefully packaged so that it can be used from either newer-style ESM-based or older-style CommonJS-based Node projects.
 
+Written using Deno, so also can be used without this NPM package at all (see Deno example below).
+
 ## Features
-- Isomorphic, use in the browser or Node
+- Isomorphic, use in the browser, Node, or Deno
 - No dependencies, bring your own fetch
 - TypeScript typings included
 - Produces a threadcap: a serializable json object snapshot of the comment thread, includes normalized comment/commenter/attachment info along with any errors encountered during enumeration
@@ -19,7 +21,12 @@ Carefully packaged so that it can be used from either newer-style ESM-based or o
 - Internal comment fetching respects rate-limit headers coming back from remote hosts (can also define a custom wait function)
 - Callback events for interesting events that occur while updating the threadcap
 
-## Usage in an ESM-based Node project
+## Documentation
+See the API docs in [threadcap.ts](https://github.com/skymethod/minipub/blob/master/src/threadcap/threadcap.ts) for now. 
+
+These are also used to generate TypeScript typings for this NPM package, so you'll get them as hover documentation in your IDE.
+
+## Example usage in an ESM-based Node project
 
 Installation:
 ```sh
@@ -54,7 +61,7 @@ await updateThreadcap(threadcap, { updateTime: new Date().toISOString(), userAge
 console.log(JSON.stringify(threadcap, undefined, 2));
 ```
 
-## Usage in a CommonJS-based Node project
+## Example usage in a CommonJS-based Node project
 
 Installation:
 ```sh
@@ -94,12 +101,12 @@ run(); // no top-level await when using CommonJS
 
 ```
 
-## Usage in a [Deno](https://deno.land) project
-You don't need this NPM package or to install anything, just remote-import threadcap.ts from the source repo
+## Example usage in a [Deno](https://deno.land) project
+You don't need this NPM package or to install anything, just remote-import `threadcap.ts` from the source repo
 
 `example.ts`
 ```ts
-import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/b5e76c3ef1545bf6e09324fe787a48679e7ff5a9/src/threadcap/threadcap.ts';
+import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/220c2c44ac8d53587a41bb7025f01b25cad390dd/src/threadcap/threadcap.ts';
 
 const userAgent = 'my-podcast-app/1.0';
 const cache = new InMemoryCache();

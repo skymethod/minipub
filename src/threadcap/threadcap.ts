@@ -282,7 +282,6 @@ export async function makeThreadcap(url: string, opts: { userAgent: string, fetc
 /**
  * Update or refresh a {@link Threadcap} in place by making underlying ActivityPub calls to enumerate the reply tree.
  * 
- * 
  * @param threadcap Existing {@link Threadcap} structure, will be modified in-place as the update proceeds.
  * @param opts Inputs to use for the update pass:
  * - `updateTime`: An ISO-8601 time that represents the time of the update request.  You can resume an existing update by passing in the same time.
