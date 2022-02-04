@@ -2,23 +2,23 @@
 import { fromFileUrl, resolve, basename } from './deps_cli.ts';
 
 export async function generateNpm(_args: (string | number)[], _options: Record<string, unknown>) {
-    await generateMainJs();
+    await generateEsmMainJs();
+    await generateCjsMainJs();
     await generateMainTypes();
 }
 
 //
 
-async function generateMainJs() {
-    // requires --unstable
-    const result = await (Deno as any).emit('./threadcap/threadcap.ts', { 
-        bundle: 'module', 
-        compilerOptions: { 
-            // declaration: true, // doesn't work with bundle: module
-            emitDeclarationOnly: true,
-        },
-    });
-    const contents = result.files['deno:///bundle.js'];
-    await saveContentsIfChanged('../npm/threadcap/main.js', contents);
+async function generateEsmMainJs() {
+    const contents = await generateBundleContents();
+    await saveContentsIfChanged('../npm/threadcap/esm/main.js', contents);
+}
+
+async function generateCjsMainJs() {
+    const contents = (await generateBundleContents())
+        .replaceAll(/export { ([A-Z0-9a-z_]+) as ([A-Z0-9a-z_]+) };/g, 'exports.$2 = $1;');
+
+    await saveContentsIfChanged('../npm/threadcap/cjs/main.js', contents);
 }
 
 async function generateMainTypes() {
@@ -35,6 +35,14 @@ async function generateMainTypes() {
     const contents = result.files['file:///Users/js/data/repos-llc/minipub/threadcap/threadcap.ts.d.ts']
         .replaceAll(/\/\/\/ <amd-module name=".*?" \/>\s+/g, '');
     await saveContentsIfChanged('../npm/threadcap/main.d.ts', contents);
+}
+
+async function generateBundleContents(): Promise<string> {
+    // requires --unstable
+    const result = await (Deno as any).emit('./threadcap/threadcap.ts', { 
+        bundle: 'module',
+    });
+    return result.files['deno:///bundle.js'];
 }
 
 async function saveContentsIfChanged(relativePath: string, contents: string) {

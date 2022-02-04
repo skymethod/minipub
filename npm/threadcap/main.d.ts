@@ -84,6 +84,7 @@ export interface WaitingForRateLimitEvent {
     readonly remaining: number;
     readonly reset: Instant;
 }
+/** Maximum number of levels to process in a reply chain */
 export declare const MAX_LEVELS = 1000;
 export declare function makeThreadcap(url: string, opts: {
     userAgent: string;

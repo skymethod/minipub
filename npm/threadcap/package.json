@@ -6,13 +6,17 @@
     "type": "git",
     "url": "https://github.com/skymethod/minipub.git"
   },
-  "main": "index.js",
-  "module": "main.js",
+  "main": "./cjs/main.js",
+  "module": "./esm/main.js",
+  "exports": {
+    ".": {
+      "require":  "./cjs/main.js",
+      "default": "./esm/main.js"
+    }
+  },
+  "types": "main.d.ts",
   "keywords": [],
   "license": "MIT",
-  "dependencies": {
-    "esm": "^3.2.25"
-  },
   "bugs": {
     "url": "https://github.com/skymethod/minipub/issues"
   },

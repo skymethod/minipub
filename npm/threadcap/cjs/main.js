@@ -1,141 +1,54 @@
-// deno-lint-ignore-file no-explicit-any
-import { isReadonlyArray, isStringRecord, isValidIso8601 } from '../check.ts';
+// deno-fmt-ignore-file
+// deno-lint-ignore-file
+// This code was bundled using `deno bundle` and it's not recommended to edit it manually
 
-export interface Threadcap {
-    readonly root: string; // ActivityPub id of the root object
-    readonly nodes: Record<string, Node>; // ActivityPub id -> Node state
-    readonly commenters: Record<string, Commenter>; // attributedTo -> Commenter
+function isStringRecord(obj) {
+    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
-
-export type Instant = string; // ISO-8601 date at GMT, including optional milliseconds, e.g. 1970-01-01T00:00:00Z or 1970-01-01T00:00:00.123Z
-
-export interface Node {
-
-    // inline comment info, enough to render the comment itself (no replies)
-    comment?: Comment;
-    commentError?: string;
-    commentAsof?: Instant;
-
-    // AP ids of the direct children, once known completely
-    replies?: readonly string[];
-    repliesError?: string;
-    repliesAsof?: Instant;
+function isReadonlyArray(arg) {
+    return Array.isArray(arg);
 }
-
-export interface Comment {
-    readonly url?: string;
-    readonly published?: string; // may not be an Instant, from found ActivityPub value
-    readonly attachments: Attachment[];
-    readonly content: Record<string, string>; // lang (or 'und') -> html
-    readonly attributedTo: string;
+function isValidIso8601(text) {
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
 }
-
-export interface Attachment {
-    readonly mediaType: string;
-    readonly width?: number;
-    readonly height?: number;
-    readonly url: string;
-}
-
-export interface Commenter {
-    readonly icon?: Icon; // new users don't have icons
-    readonly name: string;
-    readonly url: string;
-    readonly fqUsername: string; // e.g. @user@example.com
-    readonly asof: Instant;
-}
-
-export interface Icon {
-    readonly url: string;
-    readonly mediaType?: string;
-}
-
-export type Fetcher = (url: string, opts?: { headers?: Record<string, string> }) => Promise<Response>;
-
-export interface Cache {
-    get(id: string, after: Instant): Promise<Response | undefined>;
-    put(id: string, fetched: Instant, response: Response): Promise<void>;
-}
-
-export type RateLimiterInput = { hostname: string, limit: number, remaining: number, reset: string, millisTillReset: number };
-
-export interface Callbacks {
-    onEvent(event: Event): void;
-}
-
-export type Event = WarningEvent | ProcessLevelEvent | NodesRemainingEvent | NodeProcessedEvent | WaitingForRateLimitEvent;
-
-export interface WarningEvent {
-    readonly kind: 'warning';
-    readonly nodeId: string;
-    readonly url: string;
-    readonly message: string;
-    readonly object?: any;
-}
-
-export interface ProcessLevelEvent {
-    readonly kind: 'process-level';
-    readonly phase: 'before' | 'after';
-    readonly level: number;
-}
-
-export interface NodesRemainingEvent {
-    readonly kind: 'nodes-remaining';
-    readonly remaining: number;
-}
-
-export interface NodeProcessedEvent {
-    readonly kind: 'node-processed';
-    readonly part: 'comment' | 'replies';
-    readonly updated: boolean;
-}
-
-export interface WaitingForRateLimitEvent {
-    readonly kind: 'waiting-for-rate-limit';
-    readonly hostname: string;
-    readonly millisToWait: number;
-    readonly millisTillReset: number;
-    readonly limit: number;
-    readonly remaining: number;
-    readonly reset: Instant;
-}
-
-//
-
-/** Maximum number of levels to process in a reply chain */
-export const MAX_LEVELS = 1000; // go down at most this many levels (this would be quite the reply chain) we hit max recursion at about 3600
-
-export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache }): Promise<Threadcap> {
-    const { cache, userAgent } = opts;
+const MAX_LEVELS = 1000;
+async function makeThreadcap(url, opts) {
+    const { cache , userAgent  } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
-    const { id, type } = object;
+    const { id , type  } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
-    if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type)) throw new Error(`Unexpected type: ${type}`); // PodcastEpisode = castopod, handled below, non-standard AP
+    if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type)) throw new Error(`Unexpected type: ${type}`);
     if (typeof id !== 'string') throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
-    return { root: id, nodes: { }, commenters: { } };
+    return {
+        root: id,
+        nodes: {},
+        commenters: {}
+    };
 }
-
-export async function updateThreadcap(threadcap: Threadcap, opts: { 
-        updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, keepGoing?: () => boolean, 
-        userAgent: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
-    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
+async function updateThreadcap(threadcap, opts) {
+    const { userAgent , cache , updateTime , callbacks , maxLevels , maxNodes: maxNodesInput , startNode , keepGoing  } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
-    const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
+    const maxLevel = Math.min(Math.max(maxLevels === undefined ? 1000 : Math.round(maxLevels), 0), 1000);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
     if (startNode && !threadcap.nodes[startNode]) throw new Error(`Invalid start node: ${startNode}`);
-
     if (maxLevel === 0) return;
     if (maxNodes === 0) return;
-
-    const idsBylevel: string[][] = [ [ startNode || threadcap.root ]];
+    const idsBylevel = [
+        [
+            startNode || threadcap.root
+        ]
+    ];
     let remaining = 1;
     let processed = 0;
-
-    const processLevel = async (level: number) => {
-        callbacks?.onEvent({ kind: 'process-level', phase: 'before', level: level + 1 });
+    const processLevel = async (level)=>{
+        callbacks?.onEvent({
+            kind: 'process-level',
+            phase: 'before',
+            level: level + 1
+        });
         const nextLevel = level + 1;
-        for (const id of idsBylevel[level] || []) {
+        for (const id of idsBylevel[level] || []){
             const processReplies = nextLevel < maxLevel;
             const node = await processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks);
             remaining--;
@@ -147,49 +60,66 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
                 idsBylevel[nextLevel].push(...node.replies);
                 remaining += node.replies.length;
             }
-            callbacks?.onEvent({ kind: 'nodes-remaining', remaining });
+            callbacks?.onEvent({
+                kind: 'nodes-remaining',
+                remaining
+            });
         }
-        callbacks?.onEvent({ kind: 'process-level', phase: 'after', level: level + 1 });
+        callbacks?.onEvent({
+            kind: 'process-level',
+            phase: 'after',
+            level: level + 1
+        });
         if (idsBylevel[nextLevel]) await processLevel(nextLevel);
     };
     await processLevel(0);
 }
-
-export class InMemoryCache implements Cache {
-    private readonly map = new Map<string, { response: Response, fetched: Instant }>();
-
-    get(id: string, after: Instant): Promise<Response | undefined> {
-        const { response, fetched } = this.map.get(id) || {};
+class InMemoryCache {
+    map = new Map();
+    get(id, after) {
+        const { response , fetched  } = this.map.get(id) || {};
         return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
     }
-
-    put(id: string, fetched: Instant, response: Response): Promise<void> {
-        this.map.set(id, { response, fetched });
+    put(id, fetched, response) {
+        this.map.set(id, {
+            response,
+            fetched
+        });
         return Promise.resolve();
     }
-
 }
-
-export function computeDefaultMillisToWait(input: RateLimiterInput): number {
-    const { remaining, millisTillReset } = input;
-    if (remaining >= 100) return 0; // allow bursting, mastodon gives you 300 per period
+function computeDefaultMillisToWait(input) {
+    const { remaining , millisTillReset  } = input;
+    if (remaining >= 100) return 0;
     return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
 }
-
-export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Callbacks, computeMillisToWait?: (input: RateLimiterInput) => number } = {}): Fetcher {
-    const { callbacks } = opts;
-    const computeMillisToWait = opts.computeMillisToWait || computeDefaultMillisToWait;
-    const hostLimits = new Map<string, { limit: number, remaining: number, reset: string }>();
-    
-    return async (url, opts) => {
+function makeRateLimitedFetcher(fetcher, opts1 = {}) {
+    const { callbacks  } = opts1;
+    const computeMillisToWait = opts1.computeMillisToWait || computeDefaultMillisToWait;
+    const hostLimits = new Map();
+    return async (url, opts)=>{
         const hostname = new URL(url).hostname;
         const limits = hostLimits.get(hostname);
         if (limits) {
-            const { limit, remaining, reset } = limits;
+            const { limit , remaining , reset  } = limits;
             const millisTillReset = new Date(reset).getTime() - Date.now();
-            const millisToWait = computeMillisToWait({ hostname, limit, remaining, reset, millisTillReset });
+            const millisToWait = computeMillisToWait({
+                hostname,
+                limit,
+                remaining,
+                reset,
+                millisTillReset
+            });
             if (millisToWait > 0) {
-                callbacks?.onEvent({ kind: 'waiting-for-rate-limit', hostname, millisToWait, millisTillReset, limit, remaining, reset });
+                callbacks?.onEvent({
+                    kind: 'waiting-for-rate-limit',
+                    hostname,
+                    millisToWait,
+                    millisTillReset,
+                    limit,
+                    remaining,
+                    reset
+                });
                 await sleep(millisToWait);
             }
         }
@@ -198,47 +128,46 @@ export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Cal
         const remaining = tryParseInt(res.headers.get('x-ratelimit-remaining') || '');
         const reset = tryParseIso8601(res.headers.get('x-ratelimit-reset') || '');
         if (limit !== undefined && remaining !== undefined && reset !== undefined) {
-            hostLimits.set(hostname, { limit, remaining, reset });
+            hostLimits.set(hostname, {
+                limit,
+                remaining,
+                reset
+            });
         }
         return res;
-    }
+    };
 }
-
-//
-
 const APPLICATION_ACTIVITY_JSON = 'application/activity+json';
-
-async function findOrFetchActivityPubObject(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<any> {
+async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
     const response = await findOrFetchActivityPubResponse(url, after, fetcher, cache);
-    const { status, headers } = response;
+    const { status , headers  } = response;
     if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${await response.text()}`);
     const contentType = headers.get('content-type') || '<none>';
     if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${await response.text()}`);
     return await response.json();
 }
-
-async function findOrFetchActivityPubResponse(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<Response> {
+async function findOrFetchActivityPubResponse(url, after, fetcher, cache) {
     const existing = await cache.get(url, after);
     if (existing) return existing;
-    const res = await fetcher(url, { headers: { accept: APPLICATION_ACTIVITY_JSON }});
+    const res = await fetcher(url, {
+        headers: {
+            accept: APPLICATION_ACTIVITY_JSON
+        }
+    });
     await cache.put(url, new Date().toISOString(), res.clone());
     return res;
 }
-
-async function processNode(id: string, processReplies: boolean, threadcap: Threadcap, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {
-    // ensure node exists
+async function processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks) {
     let node = threadcap.nodes[id];
     if (!node) {
-        node = { };
+        node = {};
         threadcap.nodes[id] = node;
     }
-
-    // update the comment + commenter
     const updateComment = !node.commentAsof || node.commentAsof < updateTime;
     if (updateComment) {
         try {
             node.comment = await fetchComment(id, updateTime, fetcher, cache, callbacks);
-            const { attributedTo } = node.comment;
+            const { attributedTo  } = node.comment;
             const existingCommenter = threadcap.commenters[attributedTo];
             if (!existingCommenter || existingCommenter.asof < updateTime) {
                 threadcap.commenters[attributedTo] = await fetchCommenter(attributedTo, updateTime, fetcher, cache);
@@ -250,11 +179,12 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
         }
         node.commentAsof = updateTime;
     }
-
-    callbacks?.onEvent({ kind: 'node-processed', part: 'comment', updated: updateComment });
-
+    callbacks?.onEvent({
+        kind: 'node-processed',
+        part: 'comment',
+        updated: updateComment
+    });
     if (processReplies) {
-        // update the replies
         const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
         if (updateReplies) {
             try {
@@ -266,34 +196,39 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
             }
             node.repliesAsof = updateTime;
         }
-        callbacks?.onEvent({ kind: 'node-processed', part: 'replies', updated: updateReplies });
+        callbacks?.onEvent({
+            kind: 'node-processed',
+            part: 'replies',
+            updated: updateReplies
+        });
     }
-
     return node;
 }
-
-async function fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment> {
+async function fetchComment(id, updateTime, fetcher, cache, callbacks) {
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     return computeComment(object, id, callbacks);
 }
-
-async function fetchCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
+async function fetchCommenter(attributedTo, updateTime, fetcher, cache) {
     const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
     return computeCommenter(object, updateTime);
 }
-
-async function fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
+async function fetchReplies(id, updateTime, fetcher, cache, callbacks) {
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
-    const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies; // castopod uses 'comments' url to an OrderedCollection
+    const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies;
     if (replies === undefined) {
         const message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
-        callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message, object });
+        callbacks?.onEvent({
+            kind: 'warning',
+            url: id,
+            nodeId: id,
+            message,
+            object
+        });
         return [];
     }
-
-    const rt: string[] = [];
-    const fetched = new Set<string>();
+    const rt = [];
+    const fetched = new Set();
     if (typeof replies === 'string') {
         const obj = await findOrFetchActivityPubObject(replies, updateTime, fetcher, cache);
         if (obj.type === 'OrderedCollection') {
@@ -319,24 +254,20 @@ async function fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, c
             throw new Error(`Expected 'replies.first.items' array, or 'replies.first.next' string, found ${JSON.stringify(replies.first)}`);
         }
     } else if (Array.isArray(replies)) {
-        // Pleroma: found invalid  "replies": [], "replies_count": 0, on an object resulting from an AP c2s Create Activity
         if (replies.length > 0) throw new Error(`Expected 'replies' array to be empty, found ${JSON.stringify(replies)}`);
         return [];
     } else if (Array.isArray(replies.items)) {
-        // Pleroma: items: [ 'url' ]
         collectRepliesFromItems(replies.items, rt, id, id, callbacks);
         return rt;
     } else {
         throw new Error(`Expected 'replies' to be a string, array or object with 'first' or 'items', found ${JSON.stringify(replies)}`);
     }
 }
-
-async function collectRepliesFromOrderedCollection(orderedCollection: any, after: Instant, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
+async function collectRepliesFromOrderedCollection(orderedCollection, after, nodeId, fetcher, cache, callbacks, fetched) {
     if ((orderedCollection.items?.length || 0) > 0 || (orderedCollection.orderedItems?.length || 0) > 0) {
         throw new Error(`Expected OrderedCollection 'items'/'orderedItems' to be empty, found ${JSON.stringify(orderedCollection)}`);
     }
     if (orderedCollection.first === undefined && orderedCollection.totalItems === 0) {
-        // fine, empty
         return [];
     } else if (typeof orderedCollection.first === 'string') {
         return await collectRepliesFromPages(orderedCollection.first, after, nodeId, fetcher, cache, callbacks, fetched);
@@ -344,11 +275,10 @@ async function collectRepliesFromOrderedCollection(orderedCollection: any, after
         throw new Error(`Expected OrderedCollection 'first' to be a string, found ${JSON.stringify(orderedCollection)}`);
     }
 }
-
-async function collectRepliesFromPages(url: string, after: Instant, nodeId: string, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, fetched: Set<string>): Promise<readonly string[]> {
-    const replies: string[] = [];
+async function collectRepliesFromPages(url, after, nodeId, fetcher, cache, callbacks, fetched) {
+    const replies = [];
     let page = await findOrFetchActivityPubObject(url, after, fetcher, cache);
-    while (true) {
+    while(true){
         if (page.type !== 'CollectionPage' && page.type !== 'OrderedCollectionPage') {
             throw new Error(`Expected page 'type' of CollectionPage or OrderedCollectionPage, found ${JSON.stringify(page)}`);
         }
@@ -362,7 +292,7 @@ async function collectRepliesFromPages(url: string, after: Instant, nodeId: stri
         }
         if (page.next) {
             if (typeof page.next !== 'string') throw new Error(`Expected page 'next' to be a string, found ${JSON.stringify(page)}`);
-            if (fetched.has(page.next)) return replies; // mastodon will return a page with items: [] and id === next!
+            if (fetched.has(page.next)) return replies;
             page = await findOrFetchActivityPubObject(page.next, after, fetcher, cache);
             fetched.add(page.next);
         } else {
@@ -370,68 +300,87 @@ async function collectRepliesFromPages(url: string, after: Instant, nodeId: stri
         }
     }
 }
-
-function makeFetcherWithUserAgent(fetcher: Fetcher, userAgent: string): Fetcher {
+function makeFetcherWithUserAgent(fetcher, userAgent) {
     userAgent = userAgent.trim();
     if (userAgent.length === 0) throw new Error(`Expected non-blank user-agent`);
-    return async (url, opts) => {
-        const headers = { ...(opts?.headers || {}), 'user-agent': userAgent };
-        return await fetcher(url, { headers });
-    }
+    return async (url, opts)=>{
+        const headers = {
+            ...opts?.headers || {},
+            'user-agent': userAgent
+        };
+        return await fetcher(url, {
+            headers
+        });
+    };
 }
-
-function unwrapActivityIfNecessary(object: any, id: string, callbacks: Callbacks | undefined): any {
+function unwrapActivityIfNecessary(object, id, callbacks) {
     if (object.type === 'Create' && isStringRecord(object.object)) {
-        callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message: 'Unwrapping a Create activity where an object was expected', object });
+        callbacks?.onEvent({
+            kind: 'warning',
+            url: id,
+            nodeId: id,
+            message: 'Unwrapping a Create activity where an object was expected',
+            object
+        });
         return object.object;
     }
     return object;
 }
-
-function collectRepliesFromItems(items: readonly any[], outReplies: string[], nodeId: string, url: string, callbacks: Callbacks | undefined) {
-    for (const item of items) {
+function collectRepliesFromItems(items, outReplies, nodeId, url, callbacks) {
+    for (const item of items){
         if (typeof item === 'string' && !item.startsWith('{')) {
-            // it's a link to another AP entity
             outReplies.push(item);
         } else {
             const itemObj = typeof item === 'string' ? JSON.parse(item) : item;
-            const { id } = itemObj;
+            const { id  } = itemObj;
             if (typeof id !== 'string') throw new Error(`Expected item 'id' to be a string, found ${JSON.stringify(itemObj)}`);
             outReplies.push(id);
             if (typeof item === 'string') {
-                callbacks?.onEvent({ kind: 'warning', nodeId, url, message: 'Found item incorrectly double encoded as a json string', object: itemObj });
+                callbacks?.onEvent({
+                    kind: 'warning',
+                    nodeId,
+                    url,
+                    message: 'Found item incorrectly double encoded as a json string',
+                    object: itemObj
+                });
             }
         }
     }
 }
-
-function computeComment(object: any, id: string, callbacks: Callbacks | undefined): Comment {
+function computeComment(object, id, callbacks) {
     object = unwrapActivityIfNecessary(object, id, callbacks);
     const content = computeContent(object);
     const attachments = computeAttachments(object);
-    const url = computeUrl(object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
-    const { published } = object;
+    const url = computeUrl(object.url) || id;
+    const { published  } = object;
     const attributedTo = computeAttributedTo(object.attributedTo);
     if (typeof published !== 'string') throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
-    return { url, published, attachments, content, attributedTo }
+    return {
+        url,
+        published,
+        attachments,
+        content,
+        attributedTo
+    };
 }
-
-function computeUrl(url: unknown): string | undefined {
+function computeUrl(url) {
     if (url === undefined || url === null) return undefined;
     if (typeof url === 'string') return url;
     if (Array.isArray(url)) {
-        const v = url.find(v => v.type === 'Link' && v.mediaType === 'text/html' && typeof v.href === 'string');
-        if (v) return v.href;
+        const v1 = url.find((v)=>v.type === 'Link' && v.mediaType === 'text/html' && typeof v.href === 'string'
+        );
+        if (v1) return v1.href;
     }
     throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
 }
-
-function computeAttributedTo(attributedTo: unknown): string {
+function computeAttributedTo(attributedTo) {
     if (typeof attributedTo === 'string') return attributedTo;
     if (Array.isArray(attributedTo) && attributedTo.length > 0) {
-        if (attributedTo.every(v => typeof v === 'string')) return attributedTo[0];
-        if (attributedTo.every(v => isStringRecord(v))) {
-            for (const item of attributedTo) {
+        if (attributedTo.every((v)=>typeof v === 'string'
+        )) return attributedTo[0];
+        if (attributedTo.every((v)=>isStringRecord(v)
+        )) {
+            for (const item of attributedTo){
                 if (item.type === 'Person' && typeof item.id === 'string') {
                     return item.id;
                 }
@@ -441,83 +390,98 @@ function computeAttributedTo(attributedTo: unknown): string {
     }
     throw new Error(`Expected 'attributedTo' to be a string or non-empty string/object array, found ${JSON.stringify(attributedTo)}`);
 }
-
-function computeContent(obj: any): Record<string, string> {
-    if (obj.type === 'PodcastEpisode' && isStringRecord(obj.description) && obj.description.type === 'Note') obj = obj.description; // castopod embeds the Note object inline as the 'description'
-    const { content, contentMap } = obj;
+function computeContent(obj) {
+    if (obj.type === 'PodcastEpisode' && isStringRecord(obj.description) && obj.description.type === 'Note') obj = obj.description;
+    const { content , contentMap  } = obj;
     if (content !== undefined && typeof content !== 'string') throw new Error(`Expected 'content' to be a string, found ${JSON.stringify(content)}`);
     if (contentMap !== undefined && !isStringRecord(contentMap)) throw new Error(`Expected 'contentMap' to be a string record, found ${JSON.stringify(contentMap)}`);
     if (contentMap !== undefined) return contentMap;
-    if (content !== undefined) return { und: content };
+    if (content !== undefined) return {
+        und: content
+    };
     throw new Error(`Expected either 'contentMap' or 'content' to be present ${JSON.stringify(obj)}`);
 }
-
-function computeAttachments(object: any): Attachment[] {
-    const rt: Attachment[] = [];
+function computeAttachments(object) {
+    const rt = [];
     if (!object.attachment) return rt;
-    const attachments = isReadonlyArray(object.attachment) ? object.attachment : [ object.attachment ];
-    for (const attachment of attachments) {
+    const attachments = isReadonlyArray(object.attachment) ? object.attachment : [
+        object.attachment
+    ];
+    for (const attachment of attachments){
         rt.push(computeAttachment(attachment));
     }
     return rt;
 }
-
-function computeAttachment(object: any): Attachment {
-    if (typeof object !== 'object' || (object.type !== 'Document' && object.type !== 'Image')) throw new Error(`Expected attachment 'type' of Document or Image, found ${JSON.stringify(object.type)}`);
-    const { mediaType, width, height, url } = object;
+function computeAttachment(object) {
+    if (typeof object !== 'object' || object.type !== 'Document' && object.type !== 'Image') throw new Error(`Expected attachment 'type' of Document or Image, found ${JSON.stringify(object.type)}`);
+    const { mediaType , width , height , url  } = object;
     if (typeof mediaType !== 'string') throw new Error(`Expected attachment 'mediaType' to be a string, found ${JSON.stringify(mediaType)}`);
     if (width !== undefined && typeof width !== 'number') throw new Error(`Expected attachment 'width' to be a number, found ${JSON.stringify(width)}`);
     if (height !== undefined && typeof height !== 'number') throw new Error(`Expected attachment 'height' to be a number, found ${JSON.stringify(height)}`);
     if (typeof url !== 'string') throw new Error(`Expected attachment 'url' to be a string, found ${JSON.stringify(url)}`);
-    return { mediaType, width, height, url};
+    return {
+        mediaType,
+        width,
+        height,
+        url
+    };
 }
-
-function computeCommenter(person: any, asof: Instant): Commenter {
-    let icon: Icon | undefined;
+function computeCommenter(person, asof) {
+    let icon;
     if (person.icon) {
         if (typeof person.icon !== 'object' || isReadonlyArray(person.icon) || person.icon.type !== 'Image') throw new Error(`Expected person 'icon' to be an object, found: ${JSON.stringify(person.icon)}`);
         icon = computeIcon(person.icon);
     }
-    const { name, preferredUsername, url: apUrl, id } = person;
+    const { name , preferredUsername , url: apUrl , id  } = person;
     if (name !== undefined && typeof name !== 'string') throw new Error(`Expected person 'name' to be a string, found: ${JSON.stringify(person)}`);
     if (preferredUsername !== undefined && typeof preferredUsername !== 'string') throw new Error(`Expected person 'preferredUsername' to be a string, found: ${JSON.stringify(person)}`);
     const nameOrPreferredUsername = name || preferredUsername;
     if (!nameOrPreferredUsername) throw new Error(`Expected person 'name' or 'preferredUsername', found: ${JSON.stringify(person)}`);
     if (apUrl !== undefined && typeof apUrl !== 'string') throw new Error(`Expected person 'url' to be a string, found: ${JSON.stringify(apUrl)}`);
     const url = apUrl || id;
-    if (typeof url !== 'string')  throw new Error(`Expected person 'url' or 'id' to be a string, found: ${JSON.stringify(url)}`);
+    if (typeof url !== 'string') throw new Error(`Expected person 'url' or 'id' to be a string, found: ${JSON.stringify(url)}`);
     const fqUsername = computeFqUsername(url, person.preferredUsername);
-    return { icon, name: nameOrPreferredUsername, url, fqUsername, asof };
+    return {
+        icon,
+        name: nameOrPreferredUsername,
+        url,
+        fqUsername,
+        asof
+    };
 }
-
-function computeIcon(image: any): Icon {
-    const { url, mediaType } = image;
+function computeIcon(image) {
+    const { url , mediaType  } = image;
     if (typeof url !== 'string') throw new Error(`Expected icon 'url' to be a string, found: ${JSON.stringify(url)}`);
-    if (mediaType !== undefined && typeof mediaType !== 'string')  throw new Error(`Expected icon 'mediaType' to be a string, found: ${JSON.stringify(mediaType)}`);
-    return { url, mediaType };
+    if (mediaType !== undefined && typeof mediaType !== 'string') throw new Error(`Expected icon 'mediaType' to be a string, found: ${JSON.stringify(mediaType)}`);
+    return {
+        url,
+        mediaType
+    };
 }
-
-function computeFqUsername(url: string, preferredUsername: string | undefined): string {
-    // https://example.org/@user -> @user@example.org
+function computeFqUsername(url, preferredUsername) {
     const u = new URL(url);
     const m = /^\/(@[^\/]+)$/.exec(u.pathname);
     const username = m ? m[1] : preferredUsername;
     if (!username) throw new Error(`Unable to compute username from url: ${url}`);
     return `${username}@${u.hostname}`;
 }
-
-function tryParseInt(value: string): number | undefined {
+function tryParseInt(value) {
     try {
         return parseInt(value);
-    } catch {
+    } catch  {
         return undefined;
     }
 }
-
-function tryParseIso8601(value: string): Instant | undefined {
+function tryParseIso8601(value) {
     return isValidIso8601(value) ? value : undefined;
 }
-
-function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+function sleep(ms) {
+    return new Promise((resolve)=>setTimeout(resolve, ms)
+    );
 }
+exports.MAX_LEVELS = MAX_LEVELS;
+exports.makeThreadcap = makeThreadcap;
+exports.updateThreadcap = updateThreadcap;
+exports.InMemoryCache = InMemoryCache;
+exports.computeDefaultMillisToWait = computeDefaultMillisToWait;
+exports.makeRateLimitedFetcher = makeRateLimitedFetcher;
