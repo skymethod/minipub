@@ -106,7 +106,7 @@ You don't need this NPM package or to install anything, just remote-import `thre
 
 `example.ts`
 ```ts
-import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/220c2c44ac8d53587a41bb7025f01b25cad390dd/src/threadcap/threadcap.ts';
+import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/v0.1.1/src/threadcap/threadcap.ts';
 
 const userAgent = 'my-podcast-app/1.0';
 const cache = new InMemoryCache();
