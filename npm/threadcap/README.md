@@ -6,9 +6,10 @@ Carefully packaged so that it can be used from either newer-style ESM-based or o
 
 ## Usage in an ESM-based Node project
 
-You'll need a fetch implementation: 
+Installation:
 ```sh
-npm install node-fetch
+npm install threadcap
+npm install node-fetch # you'll need a fetch implementation
 ```
 
 `example.mjs`
@@ -40,9 +41,10 @@ console.log(JSON.stringify(threadcap, undefined, 2));
 
 ## Usage in a CommonJS-based Node project
 
-You'll need a commonjs-based fetch implementation: 
+Installation:
 ```sh
-npm install node-fetch@2
+npm install threadcap
+npm install node-fetch@2 # you'll need a commonjs-based fetch implementation
 ```
 
 `example.js`
