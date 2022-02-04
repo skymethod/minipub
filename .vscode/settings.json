@@ -12,5 +12,18 @@
     },
 
     // This one forces the tab to be **space**
-    "editor.insertSpaces": true
+    "editor.insertSpaces": true,
+
+    "files.exclude": {
+        "**/.DS_Store": true,
+        "**/node_modules": true,
+        "npm/threadcap/cjs": true,
+        "npm/threadcap/esm": true,
+        "npm/threadcap/main.d.ts": true,
+    },
+
+    // inherits from files.exclude
+    "search.exclude": {
+
+    }
 }

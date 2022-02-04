@@ -33,7 +33,7 @@ const callbacks = {
         }
     }
 }
-await updateThreadcap(threadcap, { updateTime: new Date().toISOString(), userAgent, fetcher, cache, fetcher, callbacks });
+await updateThreadcap(threadcap, { updateTime: new Date().toISOString(), userAgent, cache, fetcher, callbacks });
 
 // final threadcap includes the comment/commenter info for the root post and all replies
 console.log(JSON.stringify(threadcap, undefined, 2));
@@ -69,7 +69,7 @@ async function run() {
             }
         }
     }
-    await updateThreadcap(threadcap, { updateTime: new Date().toISOString(), userAgent, fetcher, cache, fetcher, callbacks });
+    await updateThreadcap(threadcap, { updateTime: new Date().toISOString(), userAgent, cache, fetcher, callbacks });
 
     // final threadcap includes the comment/commenter info for the root post and all replies
     console.log(JSON.stringify(threadcap, undefined, 2));
@@ -77,4 +77,33 @@ async function run() {
 
 run(); // no top-level await when using CommonJS
 
+```
+
+## Usage in a [Deno](https://deno.land) project
+You don't need this NPM package or to install anything, just remote-import threadcap.ts from the source repo
+
+`example.ts`
+```ts
+import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/b5e76c3ef1545bf6e09324fe787a48679e7ff5a9/src/threadcap/threadcap.ts';
+
+const userAgent = 'my-podcast-app/1.0';
+const cache = new InMemoryCache();
+const fetcher = makeRateLimitedFetcher(fetch); // respect any rate-limits defined by remote hosts
+
+// initialize the threadcap
+const threadcap = await makeThreadcap('https://example.social/users/alice/statuses/123456123456123456', { userAgent, cache, fetcher }); 
+
+// update the threadcap, process all replies
+const callbacks: Callbacks = {
+    onEvent: e => {
+        if (e.kind === 'node-processed' && e.part === 'comment') {
+            console.log(`Processed ${e.nodeId}`);
+            // threadcap is now updated with a new comment, update your UI incrementally
+        }
+    }
+}
+await updateThreadcap(threadcap, { updateTime: new Date().toISOString(), userAgent, cache, fetcher, callbacks });
+
+// final threadcap includes the comment/commenter info for the root post and all replies
+console.log(JSON.stringify(threadcap, undefined, 2));
 ```
