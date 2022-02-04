@@ -181,6 +181,7 @@ async function processNode(id, processReplies, threadcap, updateTime, fetcher, c
     }
     callbacks?.onEvent({
         kind: 'node-processed',
+        nodeId: id,
         part: 'comment',
         updated: updateComment
     });
@@ -198,6 +199,7 @@ async function processNode(id, processReplies, threadcap, updateTime, fetcher, c
         }
         callbacks?.onEvent({
             kind: 'node-processed',
+            nodeId: id,
             part: 'replies',
             updated: updateReplies
         });

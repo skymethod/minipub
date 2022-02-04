@@ -72,6 +72,7 @@ export interface NodesRemainingEvent {
 }
 export interface NodeProcessedEvent {
     readonly kind: 'node-processed';
+    readonly nodeId: string;
     readonly part: 'comment' | 'replies';
     readonly updated: boolean;
 }

@@ -86,6 +86,7 @@ export interface NodesRemainingEvent {
 
 export interface NodeProcessedEvent {
     readonly kind: 'node-processed';
+    readonly nodeId: string;
     readonly part: 'comment' | 'replies';
     readonly updated: boolean;
 }
@@ -251,7 +252,7 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
         node.commentAsof = updateTime;
     }
 
-    callbacks?.onEvent({ kind: 'node-processed', part: 'comment', updated: updateComment });
+    callbacks?.onEvent({ kind: 'node-processed', nodeId: id, part: 'comment', updated: updateComment });
 
     if (processReplies) {
         // update the replies
@@ -266,7 +267,7 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
             }
             node.repliesAsof = updateTime;
         }
-        callbacks?.onEvent({ kind: 'node-processed', part: 'replies', updated: updateReplies });
+        callbacks?.onEvent({ kind: 'node-processed', nodeId: id, part: 'replies', updated: updateReplies });
     }
 
     return node;
