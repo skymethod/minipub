@@ -1,70 +1,220 @@
 // deno-lint-ignore-file no-explicit-any
 import { isReadonlyArray, isStringRecord, isValidIso8601 } from '../check.ts';
 
+/**
+ * Snapshot of an ActivityPub thread tree, starting at a given root object url.
+ * 
+ * Serializable json object that can be saved, then reloaded to resume or update.
+ * 
+ * Create a new threadcap using {@link makeThreadcap}.
+ * 
+ * Update an existing threadcap using {@link updateThreadcap}.
+ */
 export interface Threadcap {
-    readonly root: string; // ActivityPub id of the root object
-    readonly nodes: Record<string, Node>; // ActivityPub id -> Node state
-    readonly commenters: Record<string, Commenter>; // attributedTo -> Commenter
+    
+    /** 
+     * ActivityPub id of the root object url.
+     * 
+     * Use this to lookup the corresponding root {@link Node} when starting to recurse down a reply tree.
+    */
+    readonly root: string;
+
+    /** 
+     * Comment data nodes captured so far, keyed by ActivityPub id.
+     * 
+     * Each {@link Node} has information on any comment content or error found, and pointers to its direct replies or error found.
+     */
+    readonly nodes: Record<string, Node>;
+
+    /**
+     * Information about each {@link Commenter} captured so far, keyed by ActivityPub id (e.g the {@link Comment#attributedTo}).
+     * 
+     * Kept here, outside of {@link nodes}, to minimize data duplication if a reply tree has multiple comments from the same commenter.
+     * 
+     * In general, you can assume that all {@link Comment#attributedTo} references inside {@link nodes} have corresponding referents here. 
+     */
+    readonly commenters: Record<string, Commenter>;
 }
 
-export type Instant = string; // ISO-8601 date at GMT, including optional milliseconds, e.g. 1970-01-01T00:00:00Z or 1970-01-01T00:00:00.123Z
+/** An ISO-8601 date at GMT, including optional milliseconds, e.g. `1970-01-01T00:00:00Z` or `1970-01-01T00:00:00.123Z` */
+export type Instant = string;
 
+/**
+ * Snapshot of a single comment inside of a larger {@link Threadcap}.
+ * 
+ * Includes data about the comment content itself and pointers to its direct reply nodes.
+ */
 export interface Node {
 
-    // inline comment info, enough to render the comment itself (no replies)
+    /** Inline comment info, enough to render the comment itself (no replies). **/
     comment?: Comment;
+
+    /** 
+     * Error encountered when trying to fetch and parse this comment info.
+     * 
+     * Either `comment` or `commentError` will be defined, never both.
+     */
     commentError?: string;
+
+    /** Time when the comment info or error was updated. */
     commentAsof?: Instant;
 
-    // AP ids of the direct children, once known completely
+    /** 
+     * ActivityPub ids of the direct child replies, once found completely.
+     * 
+     * Use these to lookup the corresponding {@link Node nodes} when recursing down a reply tree.
+     * 
+     * An empty array indicates no child replies were found, `undefined` means they have yet to be fetched, or failed to fetch.
+     */
     replies?: readonly string[];
+
+    /** 
+     * Error encountered when trying to fetch and parse the direct child replies.
+     * 
+     * Either `replies` or `repliesError` will be defined, never both.
+     */
     repliesError?: string;
+
+    /** Time when the replies info or error was updated. */
     repliesAsof?: Instant;
 }
 
+/** Inline comment info, enough to render the comment itself (no replies). */
 export interface Comment {
+
+    /** Public web link to this comment, if available. */
     readonly url?: string;
-    readonly published?: string; // may not be an Instant, from found ActivityPub value
+
+    /** 
+     * Time this comment was published.
+     * 
+     * Value comes directly from the ActivityPub payload, which is usually ISO-8601. 
+     */
+    readonly published?: string;
+
+    /** Media attachments included in this comment, if any. */
     readonly attachments: Attachment[];
-    readonly content: Record<string, string>; // lang (or 'und') -> html
+
+    /** 
+     * Content (which may include html) for this comment, broken out by language code.
+     * 
+     * ActivityPub technically supports multiple translations of a single post, though most servers will capture only one in their user interface.
+     * 
+     * A language code of `und` indicates the server did not specify a language.
+     * 
+     * One way to get the content html for the first (and usually only) language is `Object.values(content)[0]`.
+     */
+    readonly content: Record<string, string>;
+
+    /**
+     * ActivityPub id to the [Person](https://www.w3.org/TR/activitystreams-vocabulary/#dfn-person) (or [Service](https://www.w3.org/TR/activitystreams-vocabulary/#dfn-service)) actor that is responsible for this comment.
+     * 
+     * Look up the full {@link Commenter} info using {@link Threadcap#commenters }, with this value as the index.
+     */
     readonly attributedTo: string;
 }
 
+/** Media attachments to a comment */
 export interface Attachment {
+
+    /** Mime type of the attachment. */
     readonly mediaType: string;
+
+    /** Width of the attachment image or video, if applicable. */
     readonly width?: number;
+
+    /** Height of the attachment image or video, if applicable. */
     readonly height?: number;
+
+    /** Source url to the attachment image or video. */
     readonly url: string;
 }
 
+/** Information about the commenter, typically a [Person](https://www.w3.org/TR/activitystreams-vocabulary/#dfn-person) or [Service](https://www.w3.org/TR/activitystreams-vocabulary/#dfn-service) actor. */
 export interface Commenter {
-    readonly icon?: Icon; // new users don't have icons
+
+    /** Profile icon for the commenter, if any */
+    readonly icon?: Icon;
+
+    /** Display name of the commenter. */
     readonly name: string;
+
+    /** Web link to the commenter profile. */
     readonly url: string;
-    readonly fqUsername: string; // e.g. @user@example.com
+
+    /** Fully-qualified fediverse username, e.g. `@user@example.com` */
+    readonly fqUsername: string;
+
+    /** Time this information was last fetched */
     readonly asof: Instant;
 }
 
+/** Information about an icon associated with a {@link Commenter} */
 export interface Icon {
+
+    /** Source url to the icon image. */
     readonly url: string;
+
+    /** Mime type of the icon image, if known. */
     readonly mediaType?: string;
 }
 
+/** 
+ * Function that performs an underlying HTTP GET call for `url` with the specified request `headers`, if any.
+ *
+ * Since many ActivityPub implementations do not make their data available over CORS, you may need to provide
+ * a function that tries a browser-side call first, with a server-side proxy fallback.
+ * 
+ * If running on the server, you can simply provide any standard `fetch` function. In Node, you can use `node-fetch` for example. In Deno, you can simply use the standard built-in `fetch` global.
+ */
 export type Fetcher = (url: string, opts?: { headers?: Record<string, string> }) => Promise<Response>;
 
+/**
+ * HTTP response cache utilized when calling {@link makeThreadcap} or {@link updateThreadcap}.
+ * 
+ * You can implement your own to tie into your own data storage backend, or use {@link InMemoryCache} to keep a cache around only in memory.
+ */
 export interface Cache {
+
+    /**
+     * Find a cached {@link Response} for the given ActivityPub id that is still considered current after the specified time.
+     * 
+     * Can return `undefined` if none are found.  This will usually trigger a refetch during the update process.
+     * 
+     * Assume that any {@link Response} returned here will be read.  Clone any responses you are keeping around only in memory, since response body streams can only be read once.
+     */
     get(id: string, after: Instant): Promise<Response | undefined>;
+
+    /**
+     * Save the given {@link Response} as the current value (as of `fetched`) for the given ActivityPub id.
+     * 
+     * Its up to the cache implementation to decide where/whether to store it somewhere before returning.
+     */
     put(id: string, fetched: Instant, response: Response): Promise<void>;
 }
 
+/** If customizing the rate-limiter wait function used in {@link makeRateLimitedFetcher}, these are the inputs you have to work with. */
 export type RateLimiterInput = { hostname: string, limit: number, remaining: number, reset: string, millisTillReset: number };
 
+/** 
+ * Real-time callbacks fired when running {@link updateThreadcap}.
+ *
+ * Long threads can take while to update, so this is often a good way to trigger incremental progress updates as it continues to process. 
+ */
 export interface Callbacks {
+
+    /**
+     * Receive a callback event.
+     * 
+     * @param event See the possible event types in {@link Event}.
+     */
     onEvent(event: Event): void;
 }
 
+/** All possible callback event types. See {@link Callbacks#onEvent} */
 export type Event = WarningEvent | ProcessLevelEvent | NodesRemainingEvent | NodeProcessedEvent | WaitingForRateLimitEvent;
 
+/** Fired when a non-fatal warning has occurred, like an ActivityPub object was found without the 'replies' property. */
 export interface WarningEvent {
     readonly kind: 'warning';
     readonly nodeId: string;
@@ -73,17 +223,20 @@ export interface WarningEvent {
     readonly object?: any;
 }
 
+/** Fired right before, and right after processing a given level of the reply tree. */
 export interface ProcessLevelEvent {
     readonly kind: 'process-level';
     readonly phase: 'before' | 'after';
     readonly level: number;
 }
 
+/** Fired when the known number of nodes remaining in an update changes. */
 export interface NodesRemainingEvent {
     readonly kind: 'nodes-remaining';
     readonly remaining: number;
 }
 
+/** Fired right after a single Node's inline comment information is updated, and also after a single Node's direct reply ids are updated. */
 export interface NodeProcessedEvent {
     readonly kind: 'node-processed';
     readonly nodeId: string;
@@ -91,6 +244,7 @@ export interface NodeProcessedEvent {
     readonly updated: boolean;
 }
 
+/** Fired when an update is waiting (sleeping) due to rate-limiting by the server. */
 export interface WaitingForRateLimitEvent {
     readonly kind: 'waiting-for-rate-limit';
     readonly hostname: string;
@@ -103,9 +257,17 @@ export interface WaitingForRateLimitEvent {
 
 //
 
-/** Maximum number of levels to process in a reply chain */
+/** Maximum number of levels to process in the reply tree. */
 export const MAX_LEVELS = 1000; // go down at most this many levels (this would be quite the reply chain) we hit max recursion at about 3600
 
+/**
+ * Creates a new threadcap for a given root post url.
+ * 
+ * @param url Root post url, should return ActivityPub data if requested with `Accept: application/activity+json`.
+ * @param opts The user-agent to use when fetching, the underlying {@link Fetcher} function, and the {@link Cache} implemention to use.
+ * 
+ * @returns A new {@link Threadcap} structure, or throws if the input url does not respond to an ActivityPub request.
+ */
 export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache }): Promise<Threadcap> {
     const { cache, userAgent } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
@@ -117,6 +279,22 @@ export async function makeThreadcap(url: string, opts: { userAgent: string, fetc
     return { root: id, nodes: { }, commenters: { } };
 }
 
+/**
+ * Update or refresh a {@link Threadcap} in place by making underlying ActivityPub calls to enumerate the reply tree.
+ * 
+ * 
+ * @param threadcap Existing {@link Threadcap} structure, will be modified in-place as the update proceeds.
+ * @param opts Inputs to use for the update pass:
+ * - `updateTime`: An ISO-8601 time that represents the time of the update request.  You can resume an existing update by passing in the same time.
+ * - `maxLevels`: (optional) Stop processing after processing a certain number of levels.  For example, `2` would flesh out the root comment (level 1) and also its direct reply comments (level 2).
+ * - `maxNodes`: (optional) Stop processing after processing a certain total number of nodes.
+ * - `startNode`: (optional) Start processing at a subnode, not the root node.  This is useful when a user hits 'refresh' on a given comment subnode.
+ * - `keepGoing`: (optional) Stop processing when this custom function returns `false`, if provided.  Can be used to safely abort a long-running update.
+ * - `userAgent`: The user-agent to use when fetching.
+ * - `fetcher`: The underlying {@link Fetcher} function, and the {@link Cache} implemention to use.
+ * - `cache`: The {@link Cache} implemention to use.
+ * - `callbacks`: (optional) The {@link Callbacks} interface to listen to interesting events in real-time during the update.
+ */
 export async function updateThreadcap(threadcap: Threadcap, opts: { 
         updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, keepGoing?: () => boolean, 
         userAgent: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
@@ -156,6 +334,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
     await processLevel(0);
 }
 
+/** Simple implementation of {@link Cache} that keeps everything around in memory. */
 export class InMemoryCache implements Cache {
     private readonly map = new Map<string, { response: Response, fetched: Instant }>();
 
@@ -171,12 +350,23 @@ export class InMemoryCache implements Cache {
 
 }
 
+/** If no custom function is passed to {@link makeRateLimitedFetcher}, this is the function that is used to determine how long to wait (sleep) before making a rate-limited fetch call. */
 export function computeDefaultMillisToWait(input: RateLimiterInput): number {
     const { remaining, millisTillReset } = input;
     if (remaining >= 100) return 0; // allow bursting, mastodon gives you 300 per period
     return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
 }
 
+/**
+ * Creates a rate-limiting {@link Fetcher} out of an underlying {@link Fetcher}.
+ * 
+ * This will respect the standard rate limit headers coming back from remote servers when making ActivityPub calls.
+ * 
+ * @param fetcher Underlying (non-rate-limited) fetcher.
+ * @param opts (optional) Optional callbacks and custom function to use when determining how long to wait (sleep) before a rate-limited fetch call.
+ * 
+ * @returns A rate-limited fetcher.
+ */
 export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Callbacks, computeMillisToWait?: (input: RateLimiterInput) => number } = {}): Fetcher {
     const { callbacks } = opts;
     const computeMillisToWait = opts.computeMillisToWait || computeDefaultMillisToWait;
