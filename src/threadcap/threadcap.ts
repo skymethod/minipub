@@ -291,7 +291,7 @@ export async function makeThreadcap(url: string, opts: { userAgent: string, fetc
  * - `keepGoing`: (optional) Stop processing when this custom function returns `false`, if provided.  Can be used to safely abort a long-running update.
  * - `userAgent`: The user-agent to use when fetching.
  * - `fetcher`: The underlying {@link Fetcher} function to use.
- * - `cache`: The {@link Cache} implemention to use.
+ * - `cache`: The {@link Cache} implementation to use.
  * - `callbacks`: (optional) The {@link Callbacks} interface to listen to interesting events in real-time during the update.
  */
 export async function updateThreadcap(threadcap: Threadcap, opts: { 
