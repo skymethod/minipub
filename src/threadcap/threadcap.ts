@@ -290,7 +290,7 @@ export async function makeThreadcap(url: string, opts: { userAgent: string, fetc
  * - `startNode`: (optional) Start processing at a subnode, not the root node.  This is useful when a user hits 'refresh' on a given comment subnode.
  * - `keepGoing`: (optional) Stop processing when this custom function returns `false`, if provided.  Can be used to safely abort a long-running update.
  * - `userAgent`: The user-agent to use when fetching.
- * - `fetcher`: The underlying {@link Fetcher} function, and the {@link Cache} implemention to use.
+ * - `fetcher`: The underlying {@link Fetcher} function to use.
  * - `cache`: The {@link Cache} implemention to use.
  * - `callbacks`: (optional) The {@link Callbacks} interface to listen to interesting events in real-time during the update.
  */
