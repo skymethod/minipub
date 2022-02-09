@@ -20,6 +20,7 @@ import { MINIPUB_VERSION } from './version.ts';
 import { generate, generateDescription } from './cli_generate.ts';
 import { threadcap, threadcapDescription } from './cli_threadcap.ts';
 import { generateNpm } from './cli_generate_npm.ts';
+import { updateNote, updateNoteDescription } from './cli_update_note.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -59,6 +60,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         'generate-npm': generateNpm, gn: generateNpm,
         'like-object': likeObject, lo: likeObject,
         'undo-like': undoLike, ul: undoLike,
+        'update-note': updateNote, un: updateNote,
         'update-user': updateUser, uu: updateUser,
         'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
         generate,
@@ -109,6 +111,7 @@ function dumpHelp() {
         `    server                 ${serverDescription}`,
         `    threadcap              ${threadcapDescription}`,
         `    undo-like              ${undoLikeDescription}`,
+        `    update-note            ${updateNoteDescription}`,
         `    update-user            ${updateUserDescription}`,
         `    uuid                   Generates a new Minipub uuid`,
         `    webfinger              ${webfingerDescription}`,

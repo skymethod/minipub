@@ -164,8 +164,8 @@ export async function fetchActivityPub(url: string, fetcher: Fetcher): Promise<A
 
 function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, storage: BackendStorage, fetcher: Fetcher): { recipientProvider: () => Promise<Set<string>>, recipientType: 'actor' | 'inbox' } {
 
-    // Create Note
-    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Create') {
+    // Create/Update Note
+    if (['https://www.w3.org/ns/activitystreams#Create', 'https://www.w3.org/ns/activitystreams#Update'].includes(apo.getIriString('type'))) {
         const object = apo.get('object');
         if (object instanceof ApObjectValue) {
             if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Note') {

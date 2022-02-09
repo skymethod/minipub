@@ -25,7 +25,7 @@ export async function createNote(args: (string | number)[], options: Record<stri
         kind: 'create-note',
         actorUuid,
         inReplyTo,
-        content: { lang: 'en', value: content },
+        content: { lang: contentLang || 'und', value: content },
         to: [ to ],
         cc: cc ? [ cc ] : undefined,
     };
@@ -49,7 +49,7 @@ function dumpHelp() {
         `    --origin          (required) Origin of the minipub server (e.g. https://comments.example.com)`,
         `    --pem             (required) Path to the admin's private key pem file (e.g. /path/to/admin.private.pem)`,
         '    --content         (required) Content used as the body of the Note',
-        `    --content-lang    Language code for the content (default: 'en')`,
+        `    --content-lang    Language code for the content (default: 'und')`,
         `    --to              (required) ActivityPub 'to' attribute, should be a valid url`,
         `    --cc              ActivityPub 'cc' attribute, should be a valid url`,
         `    --in-reply-to     ActivityPub 'inReplyTo' attribute`,
