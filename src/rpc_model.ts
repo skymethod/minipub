@@ -8,6 +8,7 @@ export type RpcRequest = CreateUserRequest
     | UpdateUserRequest 
     | DeleteUserRequest 
     | CreateNoteRequest 
+    | UpdateNoteRequest 
     | FederateActivityRequest 
     | DeleteFromStorageRequest 
     | LikeObjectRequest
@@ -18,6 +19,7 @@ export type RpcResponse = CreateUserResponse
     | UpdateUserResponse 
     | DeleteUserResponse 
     | CreateNoteResponse 
+    | UpdateNoteResponse 
     | FederateActivityResponse 
     | DeleteFromStorageResponse 
     | LikeObjectResponse
@@ -210,6 +212,29 @@ export interface CreateNoteResponse {
     readonly kind: 'create-note';
     readonly objectUuid: string,
     readonly activityUuid: string,
+}
+
+// update-note
+
+export interface UpdateNoteRequest {
+    readonly kind: 'update-note';
+    readonly objectUuid: string;
+    readonly content: LangString; // e.g. <p>Hello world</p>
+}
+
+export function checkUpdateNoteRequest(obj: any): obj is UpdateNoteRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'update-note')
+        && check('objectUuid', obj.objectUuid, v => typeof v === 'string' && isValidUuid(v))
+        && check('content', obj.content, v => checkLangString(v))
+        ;
+}
+
+export interface UpdateNoteResponse {
+    readonly kind: 'update-note';
+    readonly objectUuid: string,
+    readonly modified: boolean;
+    readonly activityUuid?: string, // if modified
 }
 
 // federate-activity

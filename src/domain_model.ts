@@ -74,7 +74,7 @@ function isValidBlobReferences(obj: any): boolean {
 export interface ObjectRecord extends Record<string, unknown> {
     readonly objectUuid: string;
     readonly actorUuid: string;
-    readonly activityPub: Record<string, unknown>;
+    activityPub: Record<string, unknown>;
 }
 
 export function checkObjectRecord(obj: any): obj is ObjectRecord {

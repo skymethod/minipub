@@ -70,9 +70,7 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
     return { kind: 'create-note', objectUuid, activityUuid };
 }
 
-//
-
-function computeContentMap(langString: LangString) {
+export function computeContentMap(langString: LangString) {
     const { lang, value } = langString;
     const rt: Record<string, string> = {};
     rt[lang] = value;
