@@ -24,6 +24,13 @@ export class ApObjectValue {
         throw new Error(`Bad ${property}: expected string, found ${value}`);
     }
 
+    optString(property: string): string | undefined {
+        const value = this.opt(property);
+        if (value === undefined) return undefined;
+        if (typeof value === 'string') return value;
+        throw new Error(`Bad ${property}: expected string, found ${value}`);
+    }
+
     getIriString(property: string): string {
         const value = this.get(property);
         if (value instanceof Iri) return value.toString();
@@ -34,6 +41,15 @@ export class ApObjectValue {
         const value = this.opt(property);
         if (value === undefined) return undefined;
         if (value instanceof Iri) return value.toString();
+        throw new Error(`Bad ${property}: expected Iri, found ${value}`);
+    }
+
+    optIriStringOrStrings(property: string): string | readonly string[] | undefined {
+        const value = this.opt(property);
+        if (value === undefined) return undefined;
+        if (value instanceof Iri) return value.toString();
+        if (Array.isArray(value) && value.every(v => typeof v === 'string')) return value;
+        if (Array.isArray(value) && value.every(v => v instanceof Iri)) return value.map(v => v.toString());
         throw new Error(`Bad ${property}: expected Iri, found ${value}`);
     }
 

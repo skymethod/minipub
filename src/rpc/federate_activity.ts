@@ -116,8 +116,8 @@ export async function computeFederateActivity(req: FederateActivityRequest, orig
     return { kind: 'federate-activity', record, recipientLogs, modified };
 }
 
-export function findNonPublicRecipientsForNote(note: ApObjectValue): Set<string> {
-    const urls = new Set([ ...findRecipientsForNoteProperty(note, 'to'), ...findRecipientsForNoteProperty(note, 'cc') ].map(v => v.toString()));
+export function findNonPublicRecipientsForObject(object: ApObjectValue): Set<string> {
+    const urls = new Set([ ...findRecipientsForObjectProperty(object, 'to'), ...findRecipientsForObjectProperty(object, 'cc') ].map(v => v.toString()));
     urls.delete('https://www.w3.org/ns/activitystreams#Public');
     return urls;
 }
@@ -170,7 +170,20 @@ function computeRecipientProviderForActivity(apo: ApObject, actorUuid: string, s
         if (object instanceof ApObjectValue) {
             if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Note') {
                 return {
-                    recipientProvider: () => Promise.resolve(findNonPublicRecipientsForNote(object)), 
+                    recipientProvider: () => Promise.resolve(findNonPublicRecipientsForObject(object)),
+                    recipientType: 'actor',
+                };
+            }
+        }
+    }
+
+    // Delete Note
+    if (apo.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Delete') {
+        const object = apo.get('object');
+        if (object instanceof ApObjectValue) {
+            if (object.getIriString('type') === 'https://www.w3.org/ns/activitystreams#Tombstone' && object.optIriString('formerType') === 'https://www.w3.org/ns/activitystreams#Note') {
+                return {
+                    recipientProvider: () => Promise.resolve(findNonPublicRecipientsForObject(apo)), // to,cc on the activity object, not the inline tombstone object
                     recipientType: 'actor',
                 };
             }
@@ -234,13 +247,13 @@ async function computeInitialReceipientStates(recipientProvider: () => Promise<S
     return rt;
 }
 
-function findRecipientsForNoteProperty(note: ApObjectValue, propertyName: string): readonly Iri[] {
+function findRecipientsForObjectProperty(note: ApObjectValue, propertyName: string): readonly Iri[] {
     const value = note.opt(propertyName);
     if (value === undefined) return [];
     if (value instanceof Iri) return [ value ];
     if (typeof value === 'string') return [ new Iri(value) ];
     if (isIriArray(value)) return value;
-    throw new Error(`findRecipientsForNoteProperty: Unimplemented ${propertyName} value ${JSON.stringify(value)}`);    
+    throw new Error(`findRecipientsForObjectProperty: Unimplemented ${propertyName} value ${JSON.stringify(value)}`);    
 }
 
 async function findInboxesForActorUrl(actorUrl: string, fetcher: Fetcher): Promise<{ inbox?: string, sharedInbox?: string }> {

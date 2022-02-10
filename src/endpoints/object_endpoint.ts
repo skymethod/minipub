@@ -17,7 +17,7 @@ export function matchObject(method: string, pathname: string): { actorUuid: stri
 
 export async function computeObject(actorUuid: string, objectUuid: string, storage: BackendStorage): Promise<Response> {
     const object = await storage.transaction(async txn => await getRecord(txn, 'object', objectUuid));
-    if (object && checkObjectRecord(object) && object.actorUuid === actorUuid) {
+    if (object && checkObjectRecord(object) && object.actorUuid === actorUuid && object.deleted === undefined) {
         return Responses.activityPub(object.activityPub);
     }
     return Responses.notFound();

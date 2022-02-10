@@ -75,6 +75,7 @@ export interface ObjectRecord extends Record<string, unknown> {
     readonly objectUuid: string;
     readonly actorUuid: string;
     activityPub: Record<string, unknown>;
+    deleted?: string; // time (instant) of deletion
 }
 
 export function checkObjectRecord(obj: any): obj is ObjectRecord {
@@ -82,6 +83,7 @@ export function checkObjectRecord(obj: any): obj is ObjectRecord {
         && check('objectUuid', obj.objectUuid, v => typeof v === 'string' && isValidUuid(v))
         && check('actorUuid', obj.actorUuid, v => typeof v === 'string' && isValidUuid(v) && v !== obj.uuid)
         && check('activityPub', obj.activityPub, v => isStringRecord(v))
+        && check('deleted', obj.deleted, v => v === undefined || (typeof v === 'string' && isValidIso8601(v)))
         ;
 }
 

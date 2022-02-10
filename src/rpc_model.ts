@@ -8,7 +8,8 @@ export type RpcRequest = CreateUserRequest
     | UpdateUserRequest 
     | DeleteUserRequest 
     | CreateNoteRequest 
-    | UpdateNoteRequest 
+    | UpdateNoteRequest
+    | DeleteNoteRequest
     | FederateActivityRequest 
     | DeleteFromStorageRequest 
     | LikeObjectRequest
@@ -20,6 +21,7 @@ export type RpcResponse = CreateUserResponse
     | DeleteUserResponse 
     | CreateNoteResponse 
     | UpdateNoteResponse 
+    | DeleteNoteResponse 
     | FederateActivityResponse 
     | DeleteFromStorageResponse 
     | LikeObjectResponse
@@ -232,9 +234,29 @@ export function checkUpdateNoteRequest(obj: any): obj is UpdateNoteRequest {
 
 export interface UpdateNoteResponse {
     readonly kind: 'update-note';
-    readonly objectUuid: string,
+    readonly objectUuid: string;
     readonly modified: boolean;
-    readonly activityUuid?: string, // if modified
+    readonly activityUuid?: string; // if modified
+}
+
+// delete-note
+
+export interface DeleteNoteRequest {
+    readonly kind: 'delete-note';
+    readonly objectUuid: string;
+}
+
+export function checkDeleteNoteRequest(obj: any): obj is DeleteNoteRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'delete-note')
+        && check('objectUuid', obj.objectUuid, v => typeof v === 'string' && isValidUuid(v))
+        ;
+}
+
+export interface DeleteNoteResponse {
+    readonly kind: 'delete-note';
+    readonly objectUuid: string;
+    readonly activityUuid: string;
 }
 
 // federate-activity

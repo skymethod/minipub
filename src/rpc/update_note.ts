@@ -20,6 +20,7 @@ export async function computeUpdateNote(req: UpdateNoteRequest, origin: string, 
         const objectRecord = await txn.get('object', objectUuid);
         if (objectRecord === undefined) throw new Error(`computeUpdateNote: Object ${objectUuid} not found`);
         if (!checkObjectRecord(objectRecord)) throw new Error(`computeUpdateNote: Object ${objectUuid} data is not valid`);
+        if (objectRecord.deleted) throw new Error(`computeUpdateNote: Object ${objectUuid} was deleted on ${objectRecord.deleted}`);
 
         if (isStringRecord(objectRecord.activityPub.contentMap) && JSON.stringify(objectRecord.activityPub.contentMap) === JSON.stringify(contentMap)) {
             return; // no changes
