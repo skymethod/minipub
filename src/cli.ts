@@ -21,6 +21,7 @@ import { generate, generateDescription } from './cli_generate.ts';
 import { threadcap, threadcapDescription } from './cli_threadcap.ts';
 import { generateNpm } from './cli_generate_npm.ts';
 import { updateNote, updateNoteDescription } from './cli_update_note.ts';
+import { deleteNote, deleteNoteDescription } from './cli_delete_note.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -56,6 +57,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         'create-note': createNote, cn: createNote,
         'create-user': createUser, cu: createUser,
         'delete-from-storage': deleteFromStorage, dfs: deleteFromStorage,
+        'delete-note': deleteNote, dn: deleteNote,
         'federate-activity': federateActivity, fa: federateActivity,
         'generate-npm': generateNpm, gn: generateNpm,
         'like-object': likeObject, lo: likeObject,
@@ -105,6 +107,7 @@ function dumpHelp() {
         `    create-note            ${createNoteDescription}`,
         `    create-user            ${createUserDescription}`,
         `    delete-from-storage    ${deleteFromStorageDescription}`,
+        `    delete-note            ${deleteNoteDescription}`,
         `    federate-activity      ${federateActivityDescription}`,
         `    generate               ${generateDescription}`,
         `    like-object            ${likeObjectDescription}`,

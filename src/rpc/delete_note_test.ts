@@ -84,7 +84,7 @@ Deno.test('computeDeleteNote', async () => {
              // deno-lint-ignore no-explicit-any
              && (activityRecord.activityPub.object as any)['@context'] === undefined
         );
-        console.log(JSON.stringify(activityRecord.activityPub, undefined, 2));
+        // console.log(JSON.stringify(activityRecord.activityPub, undefined, 2));
     }
 
     // ensure it's inaccessible
