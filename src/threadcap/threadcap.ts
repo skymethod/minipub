@@ -177,20 +177,30 @@ export type Fetcher = (url: string, opts?: { headers?: Record<string, string> })
 export interface Cache {
 
     /**
-     * Find a cached {@link Response} for the given ActivityPub id that is still considered current after the specified time.
+     * Find a cached {@link TextResponse} for the given ActivityPub id that is still considered current after the specified time.
      * 
      * Can return `undefined` if none are found.  This will usually trigger a refetch during the update process.
-     * 
-     * Assume that any {@link Response} returned here will be read.  Clone any responses you are keeping around only in memory, since response body streams can only be read once.
      */
-    get(id: string, after: Instant): Promise<Response | undefined>;
+    get(id: string, after: Instant): Promise<TextResponse | undefined>;
 
     /**
-     * Save the given {@link Response} as the current value (as of `fetched`) for the given ActivityPub id.
+     * Save the given {@link TextResponse} as the current value (as of `fetched`) for the given ActivityPub id.
      * 
      * Its up to the cache implementation to decide where/whether to store it somewhere before returning.
      */
-    put(id: string, fetched: Instant, response: Response): Promise<void>;
+    put(id: string, fetched: Instant, response: TextResponse): Promise<void>;
+}
+
+/** HTTP response with a text body. */
+export interface TextResponse {
+    /** The HTTP response {@link Response#status}. */
+    readonly status: number;
+
+    /** The HTTP response {@link Response#headers}. */
+    readonly headers: Record<string, string>;
+
+    /** The HTTP response body {@link Response#text} as a string. */
+    readonly bodyText: string;
 }
 
 /** If customizing the rate-limiter wait function used in {@link makeRateLimitedFetcher}, these are the inputs you have to work with. */
@@ -335,14 +345,20 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
 
 /** Simple implementation of {@link Cache} that keeps everything around in memory. */
 export class InMemoryCache implements Cache {
-    private readonly map = new Map<string, { response: Response, fetched: Instant }>();
+    private readonly map = new Map<string, { response: TextResponse, fetched: Instant }>();
 
-    get(id: string, after: Instant): Promise<Response | undefined> {
+    onReturningCachedResponse?: (id: string, after: Instant, fetched: Instant, response: TextResponse) => void;
+
+    get(id: string, after: Instant): Promise<TextResponse | undefined> {
         const { response, fetched } = this.map.get(id) || {};
-        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
+        if (response && fetched && fetched > after) {
+            if (this.onReturningCachedResponse) this.onReturningCachedResponse(id, after, fetched, response);
+            return Promise.resolve(response);
+        }
+        return Promise.resolve(undefined);
     }
 
-    put(id: string, fetched: Instant, response: Response): Promise<void> {
+    put(id: string, fetched: Instant, response: TextResponse): Promise<void> {
         this.map.set(id, { response, fetched });
         return Promise.resolve();
     }
@@ -400,19 +416,24 @@ const APPLICATION_ACTIVITY_JSON = 'application/activity+json';
 
 async function findOrFetchActivityPubObject(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<any> {
     const response = await findOrFetchActivityPubResponse(url, after, fetcher, cache);
-    const { status, headers } = response;
-    if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${await response.text()}`);
-    const contentType = headers.get('content-type') || '<none>';
-    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${await response.text()}`);
-    return await response.json();
+    const { status, headers, bodyText } = response;
+    if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
+    const contentType = headers['content-type'] || '<none>';
+    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
+    return JSON.parse(bodyText);
 }
 
-async function findOrFetchActivityPubResponse(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<Response> {
+async function findOrFetchActivityPubResponse(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<TextResponse> {
     const existing = await cache.get(url, after);
     if (existing) return existing;
     const res = await fetcher(url, { headers: { accept: APPLICATION_ACTIVITY_JSON }});
-    await cache.put(url, new Date().toISOString(), res.clone());
-    return res;
+    const response: TextResponse = {
+        status: res.status,
+        headers: Object.fromEntries([...res.headers]),
+        bodyText: await res.text(),
+    }
+    await cache.put(url, new Date().toISOString(), response);
+    return response;
 }
 
 async function processNode(id: string, processReplies: boolean, threadcap: Threadcap, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Node> {

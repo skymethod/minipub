@@ -76,9 +76,14 @@ async function updateThreadcap(threadcap, opts) {
 }
 class InMemoryCache {
     map = new Map();
+    onReturningCachedResponse;
     get(id, after) {
         const { response , fetched  } = this.map.get(id) || {};
-        return Promise.resolve(response && fetched && fetched > after ? response.clone() : undefined);
+        if (response && fetched && fetched > after) {
+            if (this.onReturningCachedResponse) this.onReturningCachedResponse(id, after, fetched, response);
+            return Promise.resolve(response);
+        }
+        return Promise.resolve(undefined);
     }
     put(id, fetched, response) {
         this.map.set(id, {
@@ -140,11 +145,11 @@ function makeRateLimitedFetcher(fetcher, opts1 = {}) {
 const APPLICATION_ACTIVITY_JSON = 'application/activity+json';
 async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
     const response = await findOrFetchActivityPubResponse(url, after, fetcher, cache);
-    const { status , headers  } = response;
-    if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${await response.text()}`);
-    const contentType = headers.get('content-type') || '<none>';
-    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${await response.text()}`);
-    return await response.json();
+    const { status , headers , bodyText  } = response;
+    if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
+    const contentType = headers['content-type'] || '<none>';
+    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
+    return JSON.parse(bodyText);
 }
 async function findOrFetchActivityPubResponse(url, after, fetcher, cache) {
     const existing = await cache.get(url, after);
@@ -154,8 +159,15 @@ async function findOrFetchActivityPubResponse(url, after, fetcher, cache) {
             accept: APPLICATION_ACTIVITY_JSON
         }
     });
-    await cache.put(url, new Date().toISOString(), res.clone());
-    return res;
+    const response = {
+        status: res.status,
+        headers: Object.fromEntries([
+            ...res.headers
+        ]),
+        bodyText: await res.text()
+    };
+    await cache.put(url, new Date().toISOString(), response);
+    return response;
 }
 async function processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks) {
     let node = threadcap.nodes[id];

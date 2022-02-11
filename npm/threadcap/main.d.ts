@@ -142,19 +142,26 @@ export declare type Fetcher = (url: string, opts?: {
  */
 export interface Cache {
     /**
-     * Find a cached {@link Response} for the given ActivityPub id that is still considered current after the specified time.
+     * Find a cached {@link TextResponse} for the given ActivityPub id that is still considered current after the specified time.
      *
      * Can return `undefined` if none are found.  This will usually trigger a refetch during the update process.
-     *
-     * Assume that any {@link Response} returned here will be read.  Clone any responses you are keeping around only in memory, since response body streams can only be read once.
      */
-    get(id: string, after: Instant): Promise<Response | undefined>;
+    get(id: string, after: Instant): Promise<TextResponse | undefined>;
     /**
-     * Save the given {@link Response} as the current value (as of `fetched`) for the given ActivityPub id.
+     * Save the given {@link TextResponse} as the current value (as of `fetched`) for the given ActivityPub id.
      *
      * Its up to the cache implementation to decide where/whether to store it somewhere before returning.
      */
-    put(id: string, fetched: Instant, response: Response): Promise<void>;
+    put(id: string, fetched: Instant, response: TextResponse): Promise<void>;
+}
+/** HTTP response with a text body. */
+export interface TextResponse {
+    /** The HTTP response {@link Response#status}. */
+    readonly status: number;
+    /** The HTTP response {@link Response#headers}. */
+    readonly headers: Record<string, string>;
+    /** The HTTP response body {@link Response#text} as a string. */
+    readonly bodyText: string;
 }
 /** If customizing the rate-limiter wait function used in {@link makeRateLimitedFetcher}, these are the inputs you have to work with. */
 export declare type RateLimiterInput = {
@@ -241,8 +248,8 @@ export declare function makeThreadcap(url: string, opts: {
  * - `startNode`: (optional) Start processing at a subnode, not the root node.  This is useful when a user hits 'refresh' on a given comment subnode.
  * - `keepGoing`: (optional) Stop processing when this custom function returns `false`, if provided.  Can be used to safely abort a long-running update.
  * - `userAgent`: The user-agent to use when fetching.
- * - `fetcher`: The underlying {@link Fetcher} function, and the {@link Cache} implemention to use.
- * - `cache`: The {@link Cache} implemention to use.
+ * - `fetcher`: The underlying {@link Fetcher} function to use.
+ * - `cache`: The {@link Cache} implementation to use.
  * - `callbacks`: (optional) The {@link Callbacks} interface to listen to interesting events in real-time during the update.
  */
 export declare function updateThreadcap(threadcap: Threadcap, opts: {
@@ -259,8 +266,9 @@ export declare function updateThreadcap(threadcap: Threadcap, opts: {
 /** Simple implementation of {@link Cache} that keeps everything around in memory. */
 export declare class InMemoryCache implements Cache {
     private readonly map;
-    get(id: string, after: Instant): Promise<Response | undefined>;
-    put(id: string, fetched: Instant, response: Response): Promise<void>;
+    onReturningCachedResponse?: (id: string, after: Instant, fetched: Instant, response: TextResponse) => void;
+    get(id: string, after: Instant): Promise<TextResponse | undefined>;
+    put(id: string, fetched: Instant, response: TextResponse): Promise<void>;
 }
 /** If no custom function is passed to {@link makeRateLimitedFetcher}, this is the function that is used to determine how long to wait (sleep) before making a rate-limited fetch call. */
 export declare function computeDefaultMillisToWait(input: RateLimiterInput): number;

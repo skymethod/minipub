@@ -47,6 +47,8 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     };
     const fetcher = makeRateLimitedFetcher(loggedFetcher, { callbacks });
     const cache = new InMemoryCache();
+    let cacheHits = 0;
+    cache.onReturningCachedResponse = id => { cacheHits++; console.log(`Returning CACHED response for ${id}`); };
 
     const userAgent = computeMinipubUserAgent();
     const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache }) : JSON.parse(await Deno.readTextFile(urlOrPath));
@@ -59,7 +61,7 @@ export async function threadcap(args: (string | number)[], options: Record<strin
         await Deno.writeTextFile(outFile, threadcapJson);
     }
     dumpNode(threadcap.root, threadcap, 0);
-    console.log({ fetches, nodesProcessed, maxLevelProcessed });
+    console.log({ fetches, nodesProcessed, maxLevelProcessed, cacheHits });
     if (outFile) console.log(`Saved threadcap json to: ${outFile}`);
 }
 
