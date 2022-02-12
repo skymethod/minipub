@@ -1,5 +1,5 @@
-import { isStringRecord } from './check.ts';
-import { ColoFromTrace, DurableObjectState, DurableObjectStorage, DurableObjectStorageTransaction, DurableObjectStorageValue } from './deps.ts';
+import { ColoFromTrace, DurableObjectState } from './deps.ts';
+import { DurableObjectBackendStorage } from './durable_object_backend_storage.ts';
 import { computeActivity, matchActivity } from './endpoints/activity_endpoint.ts';
 import { computeActor, matchActor } from './endpoints/actor_endpoint.ts';
 import { computeBlob, matchBlob } from './endpoints/blob_endpoint.ts';
@@ -8,7 +8,6 @@ import { Responses } from './endpoints/responses.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { makeMinipubFetcher } from './fetcher.ts';
-import { BackendStorage, BackendStorageListOptions, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
 
 export class BackendDO {
 
@@ -34,7 +33,7 @@ export class BackendDO {
         try {
             const fetcher = makeMinipubFetcher({ origin });
 
-            const storage = Tx.makeStorage(state.storage);
+            const storage = new DurableObjectBackendStorage(state.storage);
             if (matchRpc(method, pathname)) return await computeRpc(request, origin, storage, fetcher); // assumes auth happened earlier
             const actor = matchActor(method, pathname); if (actor) return await computeActor(actor.actorUuid, storage);
             const object = matchObject(method, pathname); if (object) return await computeObject(object.actorUuid, object.objectUuid, storage);
@@ -48,81 +47,4 @@ export class BackendDO {
         }
     }
     
-}
-
-//
-
-function packKey(domain: string, key: string): string {
-    return `${domain}:${key}`;
-}
-
-function unpackValue(value: DurableObjectStorageValue): BackendStorageValue {
-    if (value instanceof Uint8Array) return value;
-    if (isStringRecord(value)) return value;
-    throw new Error(`unpackValue: unable to unpack ${JSON.stringify(value)}`);
-}
-
-//
-
-class Tx implements BackendStorageTransaction {
-
-    private readonly transaction: DurableObjectStorageTransaction;
-    
-    constructor(transaction: DurableObjectStorageTransaction) {
-        this.transaction = transaction;
-    }
-
-    static makeStorage(storage: DurableObjectStorage): BackendStorage {
-        return {
-            transaction: closure => {
-                return storage.transaction(txn => {
-                    const tx = new Tx(txn);
-                    return closure(tx);
-                });
-            }
-        }
-    }
-
-    rollback() {
-        this.transaction.rollback();
-    }
-
-    async get(domain: string, key: string): Promise<BackendStorageValue | undefined> {
-        const value = await this.transaction.get(packKey(domain, key));
-        return value ? unpackValue(value) : undefined;
-    }
-
-    async put(domain: string, key: string, value: BackendStorageValue): Promise<void> {
-        await this.transaction.put(packKey(domain, key), value);
-    }
-
-    async putAll(domainsToKeysToValues: Record<string, Record<string, BackendStorageValue>>): Promise<void> {
-        const values: Record<string, unknown> = {};
-        for (const [ domain, keysToValues ] of Object.entries(domainsToKeysToValues)) {
-            for (const [ key, value ] of Object.entries(keysToValues)) {
-                values[packKey(domain, key)] = value;
-            }
-        }
-        await this.transaction.put(values);
-    }
-
-    async delete(domain: string, key: string): Promise<boolean> {
-        return await this.transaction.delete(packKey(domain, key));
-    }
-
-    async list(domain: string, opts: BackendStorageListOptions = {}): Promise<Map<string, BackendStorageValue>> {
-        if (opts.start !== undefined) throw new Error(`BackendStorage: implement list start`);
-        if (opts.end !== undefined) throw new Error(`BackendStorage: implement list end`);
-        if (opts.reverse !== undefined) throw new Error(`BackendStorage: implement list reverse`);
-        if (opts.limit !== undefined) throw new Error(`BackendStorage: implement list limit`);
-        const prefix = domain + ':';
-        const searchPrefix = prefix + (opts.prefix || '');
-        const values = await this.transaction.list({ prefix: searchPrefix });
-        const rt = new Map<string, BackendStorageValue>();
-        for (const [ key, value ] of values) {
-            rt.set(key.substring(prefix.length), unpackValue(value));
-        }
-        return rt;
-    }
-
 }
