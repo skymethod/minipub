@@ -3,3 +3,4 @@ export { ColoFromTrace } from 'https://raw.githubusercontent.com/skymethod/denof
 export { Bytes } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.4.3/common/bytes.ts';
 export { chunk } from 'https://deno.land/std@0.125.0/collections/chunk.ts';
 export { toIMF } from 'https://deno.land/std@0.125.0/datetime/mod.ts';
+export { encode as encodeAscii85 } from 'https://deno.land/std@0.125.0/encoding/ascii85.ts';

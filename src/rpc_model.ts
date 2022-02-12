@@ -14,6 +14,8 @@ export type RpcRequest = CreateUserRequest
     | DeleteFromStorageRequest 
     | LikeObjectRequest
     | UndoLikeRequest
+    | GenerateAdminTokenRequest
+    | RevokeAdminTokenRequest
     ;
 
 export type RpcResponse = CreateUserResponse 
@@ -26,6 +28,8 @@ export type RpcResponse = CreateUserResponse
     | DeleteFromStorageResponse 
     | LikeObjectResponse
     | UndoLikeResponse
+    | GenerateAdminTokenResponse
+    | RevokeAdminTokenResponse
     ;
 
 // validation
@@ -341,4 +345,38 @@ export function checkUndoLikeRequest(obj: any): obj is UndoLikeRequest {
 export interface UndoLikeResponse {
     readonly kind: 'undo-like';
     readonly activityUuid: string;
+}
+
+// generate admin token
+
+export interface GenerateAdminTokenRequest {
+    readonly kind: 'generate-admin-token';
+}
+
+export function checkGenerateAdminTokenRequest(obj: any): obj is GenerateAdminTokenRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'generate-admin-token')
+        ;
+}
+
+export interface GenerateAdminTokenResponse {
+    readonly kind: 'generate-admin-token';
+    readonly token: string;
+}
+
+// revoke admin token
+
+export interface RevokeAdminTokenRequest {
+    readonly kind: 'revoke-admin-token';
+}
+
+export function checkRevokeAdminTokenRequest(obj: any): obj is RevokeAdminTokenRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'revoke-admin-token')
+        ;
+}
+
+export interface RevokeAdminTokenResponse {
+    readonly kind: 'revoke-admin-token';
+    readonly existed: boolean;
 }

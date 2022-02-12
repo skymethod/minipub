@@ -17,11 +17,13 @@ import { makeMinipubFetcher } from './fetcher.ts';
 import { webfinger, webfingerDescription } from './cli_webfinger.ts';
 import { server, serverDescription } from './cli_server.ts';
 import { MINIPUB_VERSION } from './version.ts';
-import { generate, generateDescription } from './cli_generate.ts';
+import { generateKeypair, generateKeypairDescription } from './cli_generate_keypair.ts';
 import { threadcap, threadcapDescription } from './cli_threadcap.ts';
 import { generateNpm } from './cli_generate_npm.ts';
 import { updateNote, updateNoteDescription } from './cli_update_note.ts';
 import { deleteNote, deleteNoteDescription } from './cli_delete_note.ts';
+import { generateAdminToken, generateAdminTokenDescription } from './cli_generate_admin_token.ts';
+import { revokeAdminToken, revokeAdminTokenDescription } from './cli_revoke_admin_token.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -59,13 +61,15 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         'delete-from-storage': deleteFromStorage, dfs: deleteFromStorage,
         'delete-note': deleteNote, dn: deleteNote,
         'federate-activity': federateActivity, fa: federateActivity,
+        'generate-admin-token': generateAdminToken, gat: generateAdminToken,
+        'generate-keypair': generateKeypair, gk: generateKeypair,
         'generate-npm': generateNpm, gn: generateNpm,
         'like-object': likeObject, lo: likeObject,
+        'revoke-admin-token': revokeAdminToken, rat: revokeAdminToken,
         'undo-like': undoLike, ul: undoLike,
         'update-note': updateNote, un: updateNote,
         'update-user': updateUser, uu: updateUser,
         'validate-http-signature': validateHttpSignature, vhs: validateHttpSignature,
-        generate,
         server,
         tmp,
         uuid,
@@ -103,21 +107,23 @@ function dumpHelp() {
         '    minipub [command] [ARGS] [OPTIONS]',
         '',
         'COMMANDS:',
-        `    activity-pub           ${activityPubDescription}`,
-        `    create-note            ${createNoteDescription}`,
-        `    create-user            ${createUserDescription}`,
-        `    delete-from-storage    ${deleteFromStorageDescription}`,
-        `    delete-note            ${deleteNoteDescription}`,
-        `    federate-activity      ${federateActivityDescription}`,
-        `    generate               ${generateDescription}`,
-        `    like-object            ${likeObjectDescription}`,
-        `    server                 ${serverDescription}`,
-        `    threadcap              ${threadcapDescription}`,
-        `    undo-like              ${undoLikeDescription}`,
-        `    update-note            ${updateNoteDescription}`,
-        `    update-user            ${updateUserDescription}`,
-        `    uuid                   Generates a new Minipub uuid`,
-        `    webfinger              ${webfingerDescription}`,
+        `    activity-pub            ${activityPubDescription}`,
+        `    create-note             ${createNoteDescription}`,
+        `    create-user             ${createUserDescription}`,
+        `    delete-from-storage     ${deleteFromStorageDescription}`,
+        `    delete-note             ${deleteNoteDescription}`,
+        `    federate-activity       ${federateActivityDescription}`,
+        `    generate-admin-token    ${generateAdminTokenDescription}`,
+        `    generate-keypair        ${generateKeypairDescription}`,
+        `    like-object             ${likeObjectDescription}`,
+        `    revoke-admin-token      ${revokeAdminTokenDescription}`,
+        `    server                  ${serverDescription}`,
+        `    threadcap               ${threadcapDescription}`,
+        `    undo-like               ${undoLikeDescription}`,
+        `    update-note             ${updateNoteDescription}`,
+        `    update-user             ${updateUserDescription}`,
+        `    uuid                    Generates a new Minipub uuid`,
+        `    webfinger               ${webfingerDescription}`,
         '',
         '    For any multiple-word command you can also use its abbreviation as an alias',
         '    e.g. "minipub ap <args>" for "minipub activity-pub <args>"',

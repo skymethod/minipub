@@ -1,9 +1,9 @@
 import { exportKeyToPem, generateExportableRsaKeyPair } from './crypto.ts';
 import { MINIPUB_VERSION } from './version.ts';
 
-export const generateDescription = 'Generates a new rsa public/private keypair';
+export const generateKeypairDescription = 'Generates a new rsa public/private keypair';
 
-export async function generate(_args: (string | number)[], options: Record<string, unknown>) {
+export async function generateKeypair(_args: (string | number)[], options: Record<string, unknown>) {
     if (options.help) { dumpHelp(); return; }
 
     const json = !!options.json;
@@ -25,10 +25,10 @@ export async function generate(_args: (string | number)[], options: Record<strin
 function dumpHelp() {
     const lines = [
         `minipub-cli ${MINIPUB_VERSION}`,
-        generateDescription,
+        generateKeypairDescription,
         '',
         'USAGE:',
-        '    minipub generate [OPTIONS]',
+        '    minipub generate-keypair [OPTIONS]',
         '',
         'OPTIONS:',
         '    --json       Also dump the same keypair as json string constants (useful for pasting into config)',
