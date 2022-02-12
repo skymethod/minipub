@@ -22,7 +22,7 @@ export async function updateUser(args: (string | number)[], options: Record<stri
         url,
         icon,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

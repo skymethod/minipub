@@ -18,7 +18,7 @@ export async function deleteNote(args: (string | number)[], options: Record<stri
         kind: 'delete-note',
         objectUuid,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

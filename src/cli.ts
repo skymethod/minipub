@@ -34,15 +34,23 @@ export async function parseRpcOptions(options: Record<string, unknown>) {
     return { origin, privateKey };
 }
 
-export async function sendRpc(request: RpcRequest, origin: string, privateKey: CryptoKey) {
+export async function sendRpc(request: RpcRequest, origin: string, credential: { privateKey: CryptoKey } | { bearerToken: string }) {
     const body = JSON.stringify(request);
     const method = 'POST';
     const url = `${origin}/rpc`;
     const keyId = 'admin';
-    const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId })
-    const headers = { date, signature, digest, 'content-type': APPLICATION_JSON_UTF8 };
-    console.log(Object.entries(headers).map(v => v.join(': ')).join('\n'));
-    console.log(stringToSign);
+    let headers: Record<string, string> = { 'content-type': APPLICATION_JSON_UTF8 };
+    if ('privateKey' in credential) {
+        // http-signature-based authorization
+        const { privateKey } = credential;
+        const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId });
+        headers = { ...headers, date, signature, digest };
+        if (_verbose) console.log(stringToSign);
+    } else {
+        // bearer-token-based authorization
+        headers = { ...headers, authorization: `Bearer ${credential.bearerToken}` };
+    }
+    if (_verbose) console.log(Object.entries(headers).map(v => v.join(': ')).join('\n'));
 
     const fetcher = makeMinipubFetcher();
     const res = await fetcher(url, { method, body, headers });
@@ -52,7 +60,10 @@ export async function sendRpc(request: RpcRequest, origin: string, privateKey: C
 
 //
 
+let _verbose = false;
+
 async function minipub(args: (string | number)[], options: Record<string, unknown>) {
+    _verbose = !!options.verbose;
     const command = args[0];
     const fn = { 
         'activity-pub': activityPub, ap: activityPub,
@@ -83,15 +94,11 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
     await fn(args.slice(1), options);
 }
 
-async function tmp() {
-    const txt = await Deno.readTextFile('asdf');
-    const obj = JSON.parse(txt);
-    if (obj.signature && obj.signature.type === 'RsaSignature2017') {
-        // https://docs.joinmastodon.org/spec/security/#ld-sign
-        delete obj.signature;
+async function tmp(_args: (string | number)[], options: Record<string, unknown>) {
+    const { origin, token } = options;
+    if (typeof origin === 'string' && typeof token === 'string') {
+        await sendRpc({ kind: 'delete-note', objectUuid: newUuid() }, origin, { bearerToken: token });
     }
-    const apo = ApObject.parseObj(obj);
-    console.log(apo.toObj());
 }
 
 function uuid() {

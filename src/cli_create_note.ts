@@ -29,7 +29,7 @@ export async function createNote(args: (string | number)[], options: Record<stri
         to: [ to ],
         cc: cc ? [ cc ] : undefined,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

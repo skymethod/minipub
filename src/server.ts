@@ -9,16 +9,17 @@ export type ServerRequestOptionsProvider = () => Promise<ServerRequestOptions>;
 
 export type ServerRequestRouterOptions = { isRpc: boolean, method: string, pathname: string, searchParams: URLSearchParams, headers: Headers, bodyText: string | undefined, canonicalUrl: string, fetcher: Fetcher };
 export type ServerRequestRouter = (opts: ServerRequestRouterOptions) => Promise<Response | undefined>;
+export type ServerAdminBearerTokenChecker = (bearerToken: string, origin: string) => Promise<boolean>;
 
-export async function computeServerResponse(request: Request, optionsProvider: ServerRequestOptionsProvider, router: ServerRequestRouter): Promise<Response> {
-    const response = await computeResponse(request, optionsProvider, router);
+export async function computeServerResponse(request: Request, optionsProvider: ServerRequestOptionsProvider, router: ServerRequestRouter, adminBearerTokenChecker: ServerAdminBearerTokenChecker): Promise<Response> {
+    const response = await computeResponse(request, optionsProvider, router, adminBearerTokenChecker);
     console.log(`${response.status} response, content-type=${response.headers.get('content-type')}`);
     return response;
 }
 
 //
 
-async function computeResponse(request: Request, optionsProvider: ServerRequestOptionsProvider, router: ServerRequestRouter): Promise<Response> {
+async function computeResponse(request: Request, optionsProvider: ServerRequestOptionsProvider, router: ServerRequestRouter, adminBearerTokenChecker: ServerAdminBearerTokenChecker): Promise<Response> {
     const { url, method, headers } = request;
     const urlObj = new URL(url);
     const { pathname, searchParams } = urlObj;
@@ -42,16 +43,30 @@ async function computeResponse(request: Request, optionsProvider: ServerRequestO
             console.log('canonicalUrl', canonicalUrl);
         }
 
-        const isRpc = whitelisted && !!bodyText && matchRpc(method, pathname);
+        const isRpc = matchRpc(method, pathname);
         if (isRpc) {
+            if (!whitelisted || !bodyText) return Responses.notFound();
+            
             // auth is required (admin)
-            // check http signature
-            const publicKeyProvider = (keyId: string) => {
-                if (keyId !== 'admin') throw new Error(`Unsupported keyId: ${keyId}`);
-                return Promise.resolve(adminPublicKey);
-            };
-            const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider });
-            console.log(`admin request sent ${diffMillis} millis ago`);
+            const authorization = request.headers.get('authorization');
+            if (authorization) {
+                // check for admin bearer token
+                const [ _, bearerToken ] = /^Bearer\s+(.*?)$/.exec(authorization) || [];
+                if (!bearerToken) throw new Error(`No authorization bearer token`);
+                const authorized = await adminBearerTokenChecker(bearerToken, origin);
+                if (!authorized) {
+                    throw new Error(`Bad authorization bearer token`);
+                }
+                console.log(`bearer-token admin request`);
+            } else {
+                // check http signature
+                const publicKeyProvider = (keyId: string) => {
+                    if (keyId !== 'admin') throw new Error(`Unsupported keyId: ${keyId}`);
+                    return Promise.resolve(adminPublicKey);
+                };
+                const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider });
+                console.log(`signed admin request sent ${diffMillis} millis ago`);
+            }
         }
 
         const response = await router({ isRpc, method, pathname, searchParams, headers, bodyText, canonicalUrl, fetcher });

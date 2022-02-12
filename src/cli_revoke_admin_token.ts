@@ -12,7 +12,7 @@ export async function revokeAdminToken(_args: (string | number)[], options: Reco
     const req: RevokeAdminTokenRequest = {
         kind: 'revoke-admin-token',
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

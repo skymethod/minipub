@@ -1,4 +1,4 @@
-import { checkCreateNoteRequest, checkCreateUserRequest, checkDeleteFromStorageRequest, checkDeleteNoteRequest, checkFederateActivityRequest, checkGenerateAdminTokenRequest, checkLikeObjectRequest, checkRevokeAdminTokenRequest, checkUndoLikeRequest, checkUpdateNoteRequest, checkUpdateUserRequest } from '../rpc_model.ts';
+import { checkCreateNoteRequest, checkCreateUserRequest, checkDeleteFromStorageRequest, checkDeleteNoteRequest, checkFederateActivityRequest, checkGenerateAdminTokenRequest, checkLikeObjectRequest, checkRevokeAdminTokenRequest, checkUndoLikeRequest, checkUpdateNoteRequest, checkUpdateUserRequest, checkValidateAdminTokenRequest } from '../rpc_model.ts';
 import { BackendStorage } from '../storage.ts';
 import { computeCreateUser } from '../rpc/create_user.ts';
 import { computeUpdateUser } from '../rpc/update_user.ts';
@@ -11,7 +11,7 @@ import { computeLikeObject } from '../rpc/like_object.ts';
 import { computeUndoLike } from '../rpc/undo_like.ts';
 import { computeUpdateNote } from '../rpc/update_note.ts';
 import { computeDeleteNote } from '../rpc/delete_note.ts';
-import { computeGenerateAdminToken, computeRevokeAdminToken } from '../rpc/manage_admin_token.ts';
+import { computeGenerateAdminToken, computeRevokeAdminToken, computeValidateAdminToken } from '../rpc/manage_admin_token.ts';
 
 export const matchRpc = (method: string, pathname: string) => method === 'POST' && pathname === '/rpc';
 
@@ -31,6 +31,7 @@ export async function computeRpc(request: { json(): Promise<unknown>; }, origin:
         if (kind === 'undo-like' && checkUndoLikeRequest(body)) return await computeUndoLike(body, origin, storage);
         if (kind === 'generate-admin-token' && checkGenerateAdminTokenRequest(body)) return await computeGenerateAdminToken(body, storage);
         if (kind === 'revoke-admin-token' && checkRevokeAdminTokenRequest(body)) return await computeRevokeAdminToken(body, storage);
+        if (kind === 'validate-admin-token' && checkValidateAdminTokenRequest(body)) return await computeValidateAdminToken(body, storage);
         throw new Error(`computeRpc: Unable to parse ${JSON.stringify(body)}`);
     }
     return Responses.rpc(await computeRpcResponse());

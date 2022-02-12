@@ -9,9 +9,10 @@ import { computeObject, matchObject } from './endpoints/object_endpoint.ts';
 import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
 import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
 import { makeSqliteStorage } from './sqlite_storage.ts';
-import { computeServerResponse, ServerRequestOptionsProvider, ServerRequestRouter } from './server.ts';
+import { computeServerResponse, ServerAdminBearerTokenChecker, ServerRequestOptionsProvider, ServerRequestRouter } from './server.ts';
 import { ensureDir, dirname } from './deps_cli.ts';
 import { MINIPUB_VERSION } from './version.ts';
+import { computeValidateAdminToken } from './rpc/manage_admin_token.ts';
 
 export const serverDescription = 'Starts a local Minipub server';
 
@@ -34,8 +35,18 @@ export async function server(_args: (string | number)[], options: Record<string,
 
     const handler = async (request: Request, connInfo: ConnInfo): Promise<Response> => {
 
+        const computeRequestIp = () => {
+            const rt = connInfo.remoteAddr.transport === 'tcp' ? connInfo.remoteAddr.hostname : '<unknown>';
+            const cfConnectingIp = request.headers.get('cf-connecting-ip');
+            if (cfConnectingIp && rt === '127.0.0.1') {
+                // cloudflared tunnel
+                return cfConnectingIp;
+            }
+            return rt;
+        };
+
         const optionsProvider: ServerRequestOptionsProvider = () => {
-            const requestIp = connInfo.remoteAddr.transport === 'tcp' ? connInfo.remoteAddr.hostname : '<unknown>';
+            const requestIp = computeRequestIp();
             return Promise.resolve({ origin, adminIp, adminPublicKey, requestIp });
         };
 
@@ -52,7 +63,13 @@ export async function server(_args: (string | number)[], options: Record<string,
             const webfinger = matchWebfinger(method, pathname, searchParams); if (webfinger) return await computeWebfinger(webfinger.username, webfinger.domain, origin, storage);
 
         };
-        return await computeServerResponse(request, optionsProvider, router);
+
+        const adminTokenChecker: ServerAdminBearerTokenChecker = async token => {
+            const { valid } = await computeValidateAdminToken({ kind: 'validate-admin-token', token }, storage);
+            return valid;
+        };
+        
+        return await computeServerResponse(request, optionsProvider, router, adminTokenChecker);
     };
 
     console.log(`Local server: http://localhost:${port}, assuming public access at ${origin}`);

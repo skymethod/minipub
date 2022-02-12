@@ -19,7 +19,7 @@ export async function deleteFromStorage(args: (string | number)[], options: Reco
         domain,
         key,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

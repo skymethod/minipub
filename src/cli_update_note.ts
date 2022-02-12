@@ -24,7 +24,7 @@ export async function updateNote(args: (string | number)[], options: Record<stri
         objectUuid,
         content: { lang: contentLang || 'und', value: content },
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

@@ -20,7 +20,7 @@ export async function federateActivity(args: (string | number)[], options: Recor
         activityUuid,
         dryRun,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

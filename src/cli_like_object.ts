@@ -21,7 +21,7 @@ export async function likeObject(args: (string | number)[], options: Record<stri
         actorUuid,
         objectId,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

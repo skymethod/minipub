@@ -12,7 +12,7 @@ export async function generateAdminToken(_args: (string | number)[], options: Re
     const req: GenerateAdminTokenRequest = {
         kind: 'generate-admin-token',
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //

@@ -21,7 +21,7 @@ export async function createUser(_args: (string | number)[], options: Record<str
         url,
         icon,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 export async function parseUserOptions(options: Record<string, unknown>): Promise<{ origin: string; privateKey: CryptoKey, username?: string; name?: string; url?: string, icon?: Icon; iconSize?: number; }> {

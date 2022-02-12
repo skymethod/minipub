@@ -16,6 +16,7 @@ export type RpcRequest = CreateUserRequest
     | UndoLikeRequest
     | GenerateAdminTokenRequest
     | RevokeAdminTokenRequest
+    | ValidateAdminTokenRequest
     ;
 
 export type RpcResponse = CreateUserResponse 
@@ -30,6 +31,7 @@ export type RpcResponse = CreateUserResponse
     | UndoLikeResponse
     | GenerateAdminTokenResponse
     | RevokeAdminTokenResponse
+    | ValidateAdminTokenResponse
     ;
 
 // validation
@@ -379,4 +381,23 @@ export function checkRevokeAdminTokenRequest(obj: any): obj is RevokeAdminTokenR
 export interface RevokeAdminTokenResponse {
     readonly kind: 'revoke-admin-token';
     readonly existed: boolean;
+}
+
+// validate admin token
+
+export interface ValidateAdminTokenRequest {
+    readonly kind: 'validate-admin-token';
+    readonly token: string;
+}
+
+export function checkValidateAdminTokenRequest(obj: any): obj is ValidateAdminTokenRequest {
+    return isStringRecord(obj)
+        && check('kind', obj.kind, v => v === 'validate-admin-token')
+        && check('token', obj.token, v => typeof v === 'string')
+        ;
+}
+
+export interface ValidateAdminTokenResponse {
+    readonly kind: 'validate-admin-token';
+    readonly valid: boolean;
 }

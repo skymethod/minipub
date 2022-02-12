@@ -18,7 +18,7 @@ export async function undoLike(args: (string | number)[], options: Record<string
         kind: 'undo-like',
         activityUuid,
     };
-    await sendRpc(req, origin, privateKey);
+    await sendRpc(req, origin, { privateKey });
 }
 
 //
