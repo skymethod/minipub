@@ -37,6 +37,8 @@ export async function sendRpc(request: RpcRequest, origin: string, credential: {
     const body = JSON.stringify(request);
     const method = 'POST';
     const url = `${origin}/rpc`;
+    if (_verbose) console.log(`${method} ${url}`);
+
     const keyId = 'admin';
     let headers: Record<string, string> = { 'content-type': APPLICATION_JSON_UTF8 };
     if ('privateKey' in credential) {
@@ -44,12 +46,13 @@ export async function sendRpc(request: RpcRequest, origin: string, credential: {
         const { privateKey } = credential;
         const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId });
         headers = { ...headers, date, signature, digest };
-        if (_verbose) console.log(stringToSign);
+        if (_verbose) console.log(`stringToSign: ${stringToSign.replaceAll('\n', '\\n')}`);
     } else {
         // bearer-token-based authorization
         headers = { ...headers, authorization: `Bearer ${credential.bearerToken}` };
     }
     if (_verbose) console.log(Object.entries(headers).map(v => v.join(': ')).join('\n'));
+    if (_verbose) console.log(JSON.stringify(request, undefined, 2));
 
     const fetcher = makeMinipubFetcher();
     const res = await fetcher(url, { method, body, headers });
