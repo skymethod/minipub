@@ -1,18 +1,17 @@
-import { check, isValidOrigin } from './check.ts';
-import { importKeyFromPem } from './crypto.ts';
-import { ConnInfo, serve } from './deps_cli.ts';
-import { computeActivity, matchActivity } from './endpoints/activity_endpoint.ts';
-import { computeActor, matchActor } from './endpoints/actor_endpoint.ts';
-import { computeBlob, matchBlob } from './endpoints/blob_endpoint.ts';
-import { computeInbox, matchInbox } from './endpoints/inbox_endpoint.ts';
-import { computeObject, matchObject } from './endpoints/object_endpoint.ts';
-import { computeRpc, matchRpc } from './endpoints/rpc_endpoint.ts';
-import { computeWebfinger, matchWebfinger } from './endpoints/webfinger_endpoint.ts';
-import { makeSqliteStorage } from './sqlite_storage.ts';
-import { computeServerResponse, ServerAdminBearerTokenChecker, ServerRequestOptionsProvider, ServerRequestRouter } from './server.ts';
-import { ensureDir, dirname } from './deps_cli.ts';
-import { MINIPUB_VERSION } from './version.ts';
-import { computeValidateAdminToken } from './rpc/manage_admin_token.ts';
+import { check, isValidOrigin } from '../check.ts';
+import { importKeyFromPem } from '../crypto.ts';
+import { ConnInfo, serve, ensureDir, dirname } from './deps_cli.ts';
+import { computeActivity, matchActivity } from '../endpoints/activity_endpoint.ts';
+import { computeActor, matchActor } from '../endpoints/actor_endpoint.ts';
+import { computeBlob, matchBlob } from '../endpoints/blob_endpoint.ts';
+import { computeInbox, matchInbox } from '../endpoints/inbox_endpoint.ts';
+import { computeObject, matchObject } from '../endpoints/object_endpoint.ts';
+import { computeRpc, matchRpc } from '../endpoints/rpc_endpoint.ts';
+import { computeWebfinger, matchWebfinger } from '../endpoints/webfinger_endpoint.ts';
+import { makeSqliteStorage } from '../sqlite_storage.ts';
+import { computeServerResponse, ServerAdminBearerTokenChecker, ServerRequestOptionsProvider, ServerRequestRouter } from '../server.ts';
+import { MINIPUB_VERSION } from '../version.ts';
+import { computeValidateAdminToken } from '../rpc/manage_admin_token.ts';
 
 export const serverDescription = 'Starts a local Minipub server';
 

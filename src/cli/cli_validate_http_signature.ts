@@ -1,6 +1,6 @@
-import { validateHttpSignature as validateHttpSignature_ } from './crypto.ts';
-import { makeMinipubFetcher } from './fetcher.ts';
-import { fetchPublicKey } from './fetch_public_key.ts';
+import { validateHttpSignature as validateHttpSignature_ } from '../crypto.ts';
+import { makeMinipubFetcher } from '../fetcher.ts';
+import { fetchPublicKey } from '../fetch_public_key.ts';
 
 export async function validateHttpSignature(args: (string | number)[], _options: Record<string, unknown>) {
     const [ inputFilePath ] = args;

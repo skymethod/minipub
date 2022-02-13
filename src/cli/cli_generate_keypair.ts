@@ -1,5 +1,5 @@
-import { exportKeyToPem, generateExportableRsaKeyPair } from './crypto.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { exportKeyToPem, generateExportableRsaKeyPair } from '../crypto.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const generateKeypairDescription = 'Generates a new rsa public/private keypair';
 

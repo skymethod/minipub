@@ -1,7 +1,7 @@
-import { ParseCallback } from './activity_pub/ap_context.ts';
-import { ApObject } from './activity_pub/ap_object.ts';
-import { makeMinipubFetcher } from './fetcher.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { ParseCallback } from '../activity_pub/ap_context.ts';
+import { ApObject } from '../activity_pub/ap_object.ts';
+import { makeMinipubFetcher } from '../fetcher.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const activityPubDescription = 'Fetches a url using the ActivityPub accept header and displays the result';
 

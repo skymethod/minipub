@@ -1,6 +1,6 @@
-import { check, checkMatches, isValidHostname } from './check.ts';
-import { makeMinipubFetcher } from './fetcher.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { check, checkMatches, isValidHostname } from '../check.ts';
+import { makeMinipubFetcher } from '../fetcher.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const webfingerDescription = 'Remote lookup of a fediverse user at a domain';
 

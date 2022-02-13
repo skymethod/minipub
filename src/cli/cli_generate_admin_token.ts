@@ -1,16 +1,16 @@
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { RevokeAdminTokenRequest } from './rpc_model.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { GenerateAdminTokenRequest } from '../rpc_model.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
-export const revokeAdminTokenDescription = `Revokes the existing admin bearer token, allowing access only via http-signed calls`;
+export const generateAdminTokenDescription = `Generates or regenerates a bearer token the admin can use to make rpc calls without http signing`;
 
-export async function revokeAdminToken(_args: (string | number)[], options: Record<string, unknown>) {
+export async function generateAdminToken(_args: (string | number)[], options: Record<string, unknown>) {
     if (options.help) { dumpHelp(); return; }
 
     const { origin, privateKey } = await parseRpcOptions(options);
 
-    const req: RevokeAdminTokenRequest = {
-        kind: 'revoke-admin-token',
+    const req: GenerateAdminTokenRequest = {
+        kind: 'generate-admin-token',
     };
     await sendRpc(req, origin, { privateKey });
 }
@@ -20,10 +20,10 @@ export async function revokeAdminToken(_args: (string | number)[], options: Reco
 function dumpHelp() {
     const lines = [
         `minipub-cli ${MINIPUB_VERSION}`,
-        revokeAdminTokenDescription,
+        generateAdminTokenDescription,
         '',
         'USAGE:',
-        '    minipub revoke-admin-token [ARGS] [OPTIONS]',
+        '    minipub generate-admin-token [ARGS] [OPTIONS]',
         '',
         'OPTIONS:',
         `    --origin     (required) Origin of the minipub server (e.g. https://comments.example.com)`,

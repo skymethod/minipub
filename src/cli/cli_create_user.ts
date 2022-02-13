@@ -1,10 +1,10 @@
-import { isValidUrl } from './check.ts';
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { Bytes } from './deps.ts';
+import { isValidUrl } from '../check.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { Bytes } from '../deps.ts';
 import { extname } from './deps_cli.ts';
-import { getMediaTypeForExt } from './media_types.ts';
-import { CreateUserRequest, Icon } from './rpc_model.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { getMediaTypeForExt } from '../media_types.ts';
+import { CreateUserRequest, Icon } from '../rpc_model.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const createUserDescription = 'Creates a new user (Actor) on the server';
 

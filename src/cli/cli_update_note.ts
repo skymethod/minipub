@@ -1,8 +1,8 @@
-import { isValidLang } from './check.ts';
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { UpdateNoteRequest } from './rpc_model.ts';
-import { isValidUuid } from './uuid.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { isValidLang } from '../check.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { UpdateNoteRequest } from '../rpc_model.ts';
+import { isValidUuid } from '../uuid.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const updateNoteDescription = `Updates the content for an existing note object, and generates an Update activity if modified`;
 

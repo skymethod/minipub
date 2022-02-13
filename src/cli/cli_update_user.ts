@@ -1,8 +1,8 @@
-import { sendRpc } from './cli.ts';
+import { sendRpc } from '../cli.ts';
 import { parseUserOptions } from './cli_create_user.ts';
-import { UpdateUserRequest } from './rpc_model.ts';
-import { isValidUuid } from './uuid.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { UpdateUserRequest } from '../rpc_model.ts';
+import { isValidUuid } from '../uuid.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const updateUserDescription = 'Updates a existing user (Actor) on the server';
 

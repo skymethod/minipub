@@ -1,8 +1,8 @@
-import { isValidUrl } from './check.ts';
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { LikeObjectRequest } from './rpc_model.ts';
-import { isValidUuid } from './uuid.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { isValidUrl } from '../check.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { LikeObjectRequest } from '../rpc_model.ts';
+import { isValidUuid } from '../uuid.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const likeObjectDescription = 'Creates a local Like activity on the server for a given remote object id';
 

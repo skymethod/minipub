@@ -1,6 +1,6 @@
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { DeleteFromStorageRequest } from './rpc_model.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { DeleteFromStorageRequest } from '../rpc_model.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const deleteFromStorageDescription = `Deletes a value from backend storage on the server`;
 

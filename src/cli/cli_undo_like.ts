@@ -1,7 +1,7 @@
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { UndoLikeRequest } from './rpc_model.ts';
-import { isValidUuid } from './uuid.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { UndoLikeRequest } from '../rpc_model.ts';
+import { isValidUuid } from '../uuid.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const undoLikeDescription = 'Creates a Undo activity for a given local Like activity on the server';
 

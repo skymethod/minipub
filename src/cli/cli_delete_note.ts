@@ -1,7 +1,7 @@
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { DeleteNoteRequest } from './rpc_model.ts';
-import { isValidUuid } from './uuid.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { DeleteNoteRequest } from '../rpc_model.ts';
+import { isValidUuid } from '../uuid.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const deleteNoteDescription = `Deletes an existing note object, and generates a Delete activity`;
 

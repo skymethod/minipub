@@ -1,8 +1,8 @@
-import { isValidLang, isValidUrl } from './check.ts';
-import { parseRpcOptions, sendRpc } from './cli.ts';
-import { CreateNoteRequest } from './rpc_model.ts';
-import { isValidUuid } from './uuid.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { isValidLang, isValidUrl } from '../check.ts';
+import { parseRpcOptions, sendRpc } from '../cli.ts';
+import { CreateNoteRequest } from '../rpc_model.ts';
+import { isValidUuid } from '../uuid.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const createNoteDescription = 'Creates a Note object and associated Activity on the server';
 

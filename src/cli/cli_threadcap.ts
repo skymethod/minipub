@@ -1,7 +1,7 @@
-import { isPositiveInteger, isValidUrl } from './check.ts';
-import { computeMinipubUserAgent } from './fetcher.ts';
-import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from './threadcap/threadcap.ts';
-import { MINIPUB_VERSION } from './version.ts';
+import { isPositiveInteger, isValidUrl } from '../check.ts';
+import { computeMinipubUserAgent } from '../fetcher.ts';
+import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from '../threadcap/threadcap.ts';
+import { MINIPUB_VERSION } from '../version.ts';
 
 export const threadcapDescription = 'Enumerates an ActivityPub reply thread for a given root post url';
 
