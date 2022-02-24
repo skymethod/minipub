@@ -25,6 +25,7 @@ export async function server(_args: (string | number)[], options: Record<string,
     if (typeof options['admin-ip'] !== 'string') throw new Error('Provide the admin ip address, used for rpc calls.  e.g. minipub server --admin-ip 123.21.23.123');
     if (typeof options['admin-public-key-pem'] !== 'string') throw new Error(`Provide a path to the admin's public key pem text file, used for rpc calls.  e.g. minipub server --admin-public-key-pem /path/to/admin.public.pem`);
     const { origin, 'admin-ip': adminIp, 'admin-public-key-pem': adminPublicKeyPem } = options;
+    const verbose = !!options.verbose;
 
     check('origin', origin, isValidOrigin);
     const adminPublicKey = await importKeyFromPem(await Deno.readTextFile(adminPublicKeyPem), 'public');
@@ -46,7 +47,7 @@ export async function server(_args: (string | number)[], options: Record<string,
 
         const optionsProvider: ServerRequestOptionsProvider = () => {
             const requestIp = computeRequestIp();
-            return Promise.resolve({ origin, adminIp, adminPublicKey, requestIp });
+            return Promise.resolve({ origin, adminIp, adminPublicKey, requestIp, debug: verbose });
         };
 
         const router: ServerRequestRouter = async opts => {

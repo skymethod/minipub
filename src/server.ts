@@ -4,7 +4,7 @@ import { Responses } from './endpoints/responses.ts';
 import { matchRpc } from './endpoints/rpc_endpoint.ts';
 import { Fetcher, makeMinipubFetcher } from './fetcher.ts';
 
-export type ServerRequestOptions = { origin: string, adminIp: string, adminPublicKey: CryptoKey, requestIp: string };
+export type ServerRequestOptions = { origin: string, adminIp: string, adminPublicKey: CryptoKey, requestIp: string, debug?: boolean };
 export type ServerRequestOptionsProvider = () => Promise<ServerRequestOptions>;
 
 export type ServerRequestRouterOptions = { isRpc: boolean, method: string, pathname: string, searchParams: URLSearchParams, headers: Headers, bodyText: string | undefined, canonicalUrl: string, fetcher: Fetcher };
@@ -25,7 +25,7 @@ async function computeResponse(request: Request, optionsProvider: ServerRequestO
     const { pathname, searchParams } = urlObj;
     console.log(`${method} ${url}`);
     try {
-        const { origin, requestIp, adminIp, adminPublicKey } = await optionsProvider();
+        const { origin, requestIp, adminIp, adminPublicKey, debug } = await optionsProvider();
         check('origin', origin, isValidOrigin);
         const fetcher = makeMinipubFetcher({ origin });
         const bodyText = request.body ? await request.text() : undefined;
@@ -64,7 +64,8 @@ async function computeResponse(request: Request, optionsProvider: ServerRequestO
                     if (keyId !== 'admin') throw new Error(`Unsupported keyId: ${keyId}`);
                     return Promise.resolve(adminPublicKey);
                 };
-                const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider });
+                const stringToSignHandler = debug ? (v: string) => console.log(`stringToSign: ${v}`) : undefined;
+                const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider, stringToSignHandler });
                 console.log(`signed admin request sent ${diffMillis} millis ago`);
             }
         }

@@ -87,7 +87,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         tmp,
         uuid,
         threadcap, tc: threadcap,
-        webfinger,
+        webfinger, wf: webfinger,
     }[command];
     if (!fn) {
         dumpHelp();
