@@ -27,6 +27,7 @@ export async function computeUpdateNote(req: UpdateNoteRequest, origin: string, 
         }
 
         objectRecord.activityPub.contentMap = contentMap;
+        objectRecord.activityPub.content = Object.values(contentMap)[0] || ''; // currently required for the WordPress AP plugin: https://github.com/pfefferle/wordpress-activitypub/issues/138
 
         const apo = ApObject.parseObj(objectRecord.activityPub);
 

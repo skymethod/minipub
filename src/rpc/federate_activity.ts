@@ -10,7 +10,6 @@ import { check } from '../check.ts';
 import { Fetcher } from '../fetcher.ts';
 import { computeActorId } from './urls.ts';
 import { ParseCallback } from '../activity_pub/ap_context.ts';
-import { MINIPUB_VERSION } from '../version.ts';
 
 export async function computeFederateActivity(req: FederateActivityRequest, origin: string, storage: BackendStorage, fetcher: Fetcher): Promise<FederateActivityResponse> {
     const { activityUuid, dryRun } = req;
@@ -273,7 +272,7 @@ async function sendServerToServerActivityPub(opts: { activityPub: Record<string,
     const body = JSON.stringify(activityPub, undefined, 2);
     const method = 'POST';
     const { signature, date, digest, stringToSign } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId });
-    const headers = { date, signature, digest, 'content-type': APPLICATION_ACTIVITY_JSON, accept: '*/*', 'user-agent': `Minipub/${MINIPUB_VERSION}` };
+    const headers = { date, signature, digest, 'content-type': APPLICATION_ACTIVITY_JSON, accept: '*/*' }; // user-agent is added by the minipub fetcher
     log.push(`EXTERNAL FETCH ${method} ${url}`);
     log.push('request headers:');
     log.push(...Object.entries(headers).map(v => v.join(': ')));

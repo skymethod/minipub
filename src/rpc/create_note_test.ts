@@ -4,6 +4,7 @@ import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeCreateNote } from './create_note.ts';
 import { isStringRecord } from '../check.ts';
 import { isValidUuid, newUuid } from '../uuid.ts';
+import { getRecord } from '../storage.ts';
 
 Deno.test('computeCreateNote', async () => {
     const actorUuid = newUuid();
@@ -21,6 +22,8 @@ Deno.test('computeCreateNote', async () => {
     const storage = makeSqliteStorage();
     const { objectUuid } = await computeCreateNote(req, 'https://example.social', storage);
     assert(isValidUuid(objectUuid));
+    const record = await storage.transaction(async txn => await getRecord(txn, 'object', objectUuid));
+    assert(isStringRecord(record) && isStringRecord(record.activityPub) && record.activityPub.content === 'Hello'); // test the content fallback for WordPress
 
     const indexValues = await storage.transaction(async txn => {
         return await txn.list('i-actor-object-by-published');

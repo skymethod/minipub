@@ -24,6 +24,7 @@ export async function computeCreateNote(req: CreateNoteRequest, origin: string, 
         attributedTo: actorId,
         inReplyTo,
         contentMap,
+        content: Object.values(contentMap)[0] || '', // currently required for the WordPress AP plugin: https://github.com/pfefferle/wordpress-activitypub/issues/138
         to,
         cc,
     };
