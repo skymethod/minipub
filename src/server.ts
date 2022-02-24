@@ -65,7 +65,7 @@ async function computeResponse(request: Request, optionsProvider: ServerRequestO
                     return Promise.resolve(adminPublicKey);
                 };
                 const stringToSignHandler = debug ? (v: string) => console.log(`stringToSign: ${v}`) : undefined;
-                const { diffMillis } = await validateHttpSignature({ method, url: request.url, body: bodyText, headers: request.headers, publicKeyProvider, stringToSignHandler });
+                const { diffMillis } = await validateHttpSignature({ method, url: canonicalUrl, body: bodyText, headers: request.headers, publicKeyProvider, stringToSignHandler });
                 console.log(`signed admin request sent ${diffMillis} millis ago`);
             }
         }

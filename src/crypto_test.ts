@@ -9,7 +9,7 @@ Deno.test('http signatures', async () => {
     const body = 'the body';
     const { signature, date, digest } = await computeHttpSignatureHeaders({ method, url, body, privateKey, keyId} );
 
-    const headers = new Headers({ signature, date, digest });
+    const headers = new Headers({ signature, date, digest, host: 'localhost:2022' });
     const publicKeyProvider = (v: string) => {
         if (v !== keyId) throw new Error(`Bad keyId: ${v}, expected ${keyId}`);
         return Promise.resolve(publicKey);

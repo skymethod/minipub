@@ -37,7 +37,7 @@ export async function validateHttpSignature(opts: ValidateHttpSignatureOptions):
     const lines: string[] = [];
     for (const name of sigHeaders.split(/\s+/)) {
         const value = name === '(request-target)' ? `${method.toLowerCase()} ${new URL(url).pathname}`
-            : name === 'host' ? headers.get(name) || new URL(url).hostname
+            : name === 'host' ? new URL(url).hostname // always use the one from the url, consider canonical over the raw request headers
             : headers.get(name);
         if (!value) throw new Error(`Bad signature (${name} not found): ${signature}`);
         lines.push(`${name}: ${value}`);
