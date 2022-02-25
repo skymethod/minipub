@@ -12,7 +12,7 @@ export async function updateUser(args: (string | number)[], options: Record<stri
     const [ actorUuid ] = args;
     if (typeof actorUuid !== 'string' || !isValidUuid(actorUuid)) throw new Error('Provide user uuid as an argument, e.g. minipub update-user <uuid>');
     const { origin, privateKey, username, icon, name, url } = await parseUserOptions(options);
-    if ([username, name, icon].every(v => v === undefined)) throw new Error(`Specify at least one property to update`);
+    if ([username, name, icon, url].every(v => v === undefined)) throw new Error(`Specify at least one property to update`);
 
     const req: UpdateUserRequest = {
         kind: 'update-user',

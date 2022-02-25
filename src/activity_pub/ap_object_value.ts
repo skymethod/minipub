@@ -135,6 +135,10 @@ export class ApObjectValue {
             this.record[property] = value;
             this._modified = true;
             return true;
+        } else if (resolution.type === '@id' && typeof value === 'string') {
+            this.record[property] = value;
+            this._modified = true;
+            return true;
         } else {
             throw new Error(`set: Unimplemented resolution ${JSON.stringify(resolution)}`);
         }

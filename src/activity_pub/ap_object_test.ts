@@ -77,4 +77,15 @@ Deno.test('ApObject', () => {
     // content map
     assert(ApObject.parseObj(mastodonStatus).get('contentMap') instanceof LanguageMap);
     assertStrictEquals((ApObject.parseObj(mastodonStatus).get('contentMap') as LanguageMap).get('en'), ApObject.parseObj(mastodonStatus).get('content'));
+
+    // set url value to string
+    const obj = {
+        '@context': [
+            'https://www.w3.org/ns/activitystreams',
+            'https://w3id.org/security/v1',
+        ],
+        'id': 'https://mpd.livewire.io/actors/c836a885674848f9bfc42742802b2703',
+        'type': 'Person',
+    };
+    ApObject.parseObj(obj).set('url', 'https://example.com');
 });
