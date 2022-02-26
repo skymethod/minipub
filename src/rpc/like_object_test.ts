@@ -1,4 +1,4 @@
-import { assert, assertRejects } from 'https://deno.land/std@0.125.0/testing/asserts.ts';
+import { assert, assertRejects } from 'https://deno.land/std@0.127.0/testing/asserts.ts';
 import { ApObject } from '../activity_pub/ap_object.ts';
 import { Fetcher } from '../fetcher.ts';
 import { makeSqliteStorage } from '../sqlite_storage.ts';
