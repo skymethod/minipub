@@ -132,10 +132,14 @@ console.log(JSON.stringify(threadcap, undefined, 2));
 
 ## Example threadcap JSON structure
 
-Typescript type is fully documented in [threadcap.ts](https://github.com/skymethod/minipub/blob/master/src/threadcap/threadcap.ts#L4) to appear in IDEs, but here is an example output JSON
+Typescript type is fully documented in [threadcap.ts](https://github.com/skymethod/minipub/blob/master/src/threadcap/threadcap.ts#L4) to appear in IDEs, but here is a realistic example output JSON
 with the same documentation:
 
 ```jsonc
+// threadcap: Snapshot of an ActivityPub thread tree, starting at a given root object url.
+// Serializable json object that can be saved, then reloaded to resume or update.
+// Create a new threadcap using the 'makeThreadcap' function.
+// Update an existing threadcap using the 'updateThreadcap' function.
 {
   // ActivityPub id of the root object url.
   // Use this to lookup the corresponding root Node in the 'nodes' property when starting to recurse down a reply tree.
