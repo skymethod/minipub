@@ -1,5 +1,6 @@
 import { isValidIso8601 } from '../check.ts';
 import { ActivityPubProtocolImplementation } from './threadcap_activitypub.ts';
+import { ProtocolImplementation } from './threadcap_implementation.ts';
 import { LightningCommentsProtocolImplementation } from './threadcap_lightningcomments.ts';
 import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
 
@@ -15,11 +16,11 @@ import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
 export interface Threadcap {
 
     /** 
-     * ActivityPub id of the root object url.
+     * One or more id urls of the root-level nodes.
      * 
-     * Use this to lookup the corresponding root {@link Node} when starting to recurse down a reply tree.
+     * Use these to lookup the corresponding root {@link Node} when starting to recurse down a reply tree.
     */
-    readonly root: string;
+    readonly roots: readonly string[];
 
     /** 
      * Comment data nodes captured so far, keyed by ActivityPub id.
@@ -152,10 +153,10 @@ export interface Commenter {
     readonly name: string;
 
     /** Web link to the commenter profile. */
-    readonly url: string;
+    readonly url?: string;
 
     /** Fully-qualified fediverse username, e.g. `@user@example.com` */
-    readonly fqUsername: string;
+    readonly fqUsername?: string;
 
     /** Time this information was last fetched */
     readonly asof: Instant;
@@ -327,7 +328,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
 
     const implementation = computeProtocolImplementation(threadcap.protocol);
 
-    const idsBylevel: string[][] = [ [ startNode || threadcap.root ]];
+    const idsBylevel: string[][] = [ startNode ? [ startNode ] : [...threadcap.roots] ];
     let remaining = 1;
     let processed = 0;
 
@@ -419,13 +420,6 @@ export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Cal
         }
         return res;
     }
-}
-
-export interface ProtocolImplementation {
-    initThreadcap(url: string, fetcher: Fetcher, cache: Cache): Promise<Threadcap>;
-    fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment>;
-    fetchCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter>;
-    fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]>;
 }
 
 //

@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-unused-vars
-import { Cache, Callbacks, Comment, Commenter, Fetcher, Instant, ProtocolImplementation, Threadcap } from './threadcap.ts';
+import { Cache, Callbacks, Comment, Commenter, Fetcher, Instant, Threadcap } from './threadcap.ts';
+import { ProtocolImplementation } from './threadcap_implementation.ts';
 
 export const TwitterProtocolImplementation: ProtocolImplementation = {
     async initThreadcap(url: string, fetcher: Fetcher, cache: Cache): Promise<Threadcap> {

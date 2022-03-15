@@ -61,7 +61,10 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     if (outFile) {
         await Deno.writeTextFile(outFile, threadcapJson);
     }
-    dumpNode(threadcap.root, threadcap, 0);
+    for (const root of threadcap.roots) {
+        console.log();
+        dumpNode(root, threadcap, 0);
+    }
     console.log({ fetches, nodesProcessed, maxLevelProcessed, cacheHits });
     if (outFile) console.log(`Saved threadcap json to: ${outFile}`);
 }

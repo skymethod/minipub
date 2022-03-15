@@ -51,6 +51,10 @@ export function isPositiveInteger(value: number) {
     return Number.isInteger(value) && value > 0;
 }
 
+export function isNonNegativeInteger(value: number) {
+    return Number.isInteger(value) && value >= 0;
+}
+
 export function isValidHttpStatus(value: number) {
     return Number.isInteger(value) && value >= 100 && value < 600;
 }

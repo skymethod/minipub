@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { isReadonlyArray, isStringRecord } from '../check.ts';
-import { Attachment, Cache, Callbacks, Comment, Commenter, Fetcher, Icon, Instant, ProtocolImplementation, TextResponse, Threadcap } from './threadcap.ts';
+import { Attachment, Cache, Callbacks, Comment, Commenter, Fetcher, Icon, Instant, Threadcap } from './threadcap.ts';
+import { findOrFetchJson, ProtocolImplementation } from './threadcap_implementation.ts';
 
 export const ActivityPubProtocolImplementation: ProtocolImplementation = {
     initThreadcap: initActivityPubThreadcap,
@@ -11,28 +12,9 @@ export const ActivityPubProtocolImplementation: ProtocolImplementation = {
 
 //
 
-const APPLICATION_ACTIVITY_JSON = 'application/activity+json';
 
 async function findOrFetchActivityPubObject(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<any> {
-    const response = await findOrFetchActivityPubResponse(url, after, fetcher, cache);
-    const { status, headers, bodyText } = response;
-    if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
-    const contentType = headers['content-type'] || '<none>';
-    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
-    return JSON.parse(bodyText);
-}
-
-async function findOrFetchActivityPubResponse(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<TextResponse> {
-    const existing = await cache.get(url, after);
-    if (existing) return existing;
-    const res = await fetcher(url, { headers: { accept: APPLICATION_ACTIVITY_JSON }});
-    const response: TextResponse = {
-        status: res.status,
-        headers: Object.fromEntries([...res.headers]),
-        bodyText: await res.text(),
-    }
-    await cache.put(url, new Date().toISOString(), response);
-    return response;
+    return await findOrFetchJson(url, after, fetcher, cache, 'application/activity+json');
 }
 
 async function initActivityPubThreadcap(url: string, fetcher: Fetcher, cache: Cache): Promise<Threadcap> {
@@ -41,7 +23,7 @@ async function initActivityPubThreadcap(url: string, fetcher: Fetcher, cache: Ca
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
     if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type)) throw new Error(`Unexpected type: ${type}`); // PodcastEpisode = castopod, handled below, non-standard AP
     if (typeof id !== 'string') throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
-    return { root: id, nodes: { }, commenters: { } };
+    return { protocol: 'activitypub', roots: [ id ], nodes: { }, commenters: { } };
 }
 
 async function fetchActivityPubComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment> {
