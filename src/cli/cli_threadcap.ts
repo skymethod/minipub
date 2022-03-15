@@ -51,7 +51,8 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     cache.onReturningCachedResponse = id => { cacheHits++; console.log(`Returning CACHED response for ${id}`); };
 
     const userAgent = computeMinipubUserAgent();
-    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache }) : JSON.parse(await Deno.readTextFile(urlOrPath));
+    const protocol = isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'api.fountain.fm' ? 'lightningcomments' : undefined;
+    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache, protocol }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     const updateTime = new Date().toISOString();
     await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, userAgent, fetcher, cache, callbacks });
     const threadcapJson = JSON.stringify(threadcap, undefined, 2);

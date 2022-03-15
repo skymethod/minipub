@@ -28,9 +28,17 @@ export interface Threadcap {
      * In general, you can assume that all {@link Comment#attributedTo} references inside {@link nodes} have corresponding referents here.
      */
     readonly commenters: Record<string, Commenter>;
+    /**
+     * Underlying protocol used to capture the thread.
+     *
+     * Supported protocols: activitypub (default), lightningcomments, twitter
+     */
+    readonly protocol?: Protocol;
 }
 /** An ISO-8601 date at GMT, including optional milliseconds, e.g. `1970-01-01T00:00:00Z` or `1970-01-01T00:00:00.123Z` */
 export declare type Instant = string;
+/** Supported protocols for capturing comment threads: activitypub, lightningcomments, twitter */
+export declare type Protocol = 'activitypub' | 'lightningcomments' | 'twitter';
 /**
  * Snapshot of a single comment inside of a larger {@link Threadcap}.
  *
@@ -236,6 +244,7 @@ export declare function makeThreadcap(url: string, opts: {
     userAgent: string;
     fetcher: Fetcher;
     cache: Cache;
+    protocol?: Protocol;
 }): Promise<Threadcap>;
 /**
  * Update or refresh a {@link Threadcap} in place by making underlying ActivityPub calls to enumerate the reply tree.
@@ -286,3 +295,9 @@ export declare function makeRateLimitedFetcher(fetcher: Fetcher, opts?: {
     callbacks?: Callbacks;
     computeMillisToWait?: (input: RateLimiterInput) => number;
 }): Fetcher;
+export interface ProtocolImplementation {
+    initThreadcap(url: string, fetcher: Fetcher, cache: Cache): Promise<Threadcap>;
+    fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment>;
+    fetchCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter>;
+    fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]>;
+}

@@ -10,7 +10,7 @@ export async function generateNpm(_args: (string | number)[], _options: Record<s
 //
 
 async function generateEsmMainJs() {
-    const contents = await generateBundleContents({});
+    const contents = await generateBundleContents({ target: 'es2019' }); // remove optional chaining for esm too, to support folks using modules, but still on older environments
     await saveContentsIfChanged('../../../npm/threadcap/esm/main.js', contents);
 }
 

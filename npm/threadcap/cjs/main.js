@@ -7,161 +7,12 @@ function isReadonlyArray(arg) {
 function isValidIso8601(text) {
     return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
 }
-const MAX_LEVELS = 1000;
-async function makeThreadcap(url, opts) {
-    const { cache, userAgent } = opts;
-    const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
-    const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
-    const { id, type } = object;
-    if (typeof type !== 'string')
-        throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
-    if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type))
-        throw new Error(`Unexpected type: ${type}`);
-    if (typeof id !== 'string')
-        throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
-    return {
-        root: id,
-        nodes: {},
-        commenters: {}
-    };
-}
-async function updateThreadcap(threadcap, opts) {
-    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
-    const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
-    const maxLevel = Math.min(Math.max(maxLevels === undefined ? 1000 : Math.round(maxLevels), 0), 1000);
-    const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
-    if (startNode && !threadcap.nodes[startNode])
-        throw new Error(`Invalid start node: ${startNode}`);
-    if (maxLevel === 0)
-        return;
-    if (maxNodes === 0)
-        return;
-    const idsBylevel = [
-        [
-            startNode || threadcap.root
-        ]
-    ];
-    let remaining = 1;
-    let processed = 0;
-    const processLevel = async (level) => {
-        callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
-            kind: 'process-level',
-            phase: 'before',
-            level: level + 1
-        });
-        const nextLevel = level + 1;
-        for (const id of idsBylevel[level] || []) {
-            const processReplies = nextLevel < maxLevel;
-            const node = await processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks);
-            remaining--;
-            processed++;
-            if (maxNodes && processed >= maxNodes)
-                return;
-            if (keepGoing && !keepGoing())
-                return;
-            if (node.replies && nextLevel < maxLevel) {
-                if (!idsBylevel[nextLevel])
-                    idsBylevel[nextLevel] = [];
-                idsBylevel[nextLevel].push(...node.replies);
-                remaining += node.replies.length;
-            }
-            callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
-                kind: 'nodes-remaining',
-                remaining
-            });
-        }
-        callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
-            kind: 'process-level',
-            phase: 'after',
-            level: level + 1
-        });
-        if (idsBylevel[nextLevel])
-            await processLevel(nextLevel);
-    };
-    await processLevel(0);
-}
-class InMemoryCache {
-    constructor() {
-        Object.defineProperty(this, "map", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: new Map()
-        });
-        Object.defineProperty(this, "onReturningCachedResponse", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: void 0
-        });
-    }
-    get(id, after) {
-        const { response, fetched } = this.map.get(id) || {};
-        if (response && fetched && fetched > after) {
-            if (this.onReturningCachedResponse)
-                this.onReturningCachedResponse(id, after, fetched, response);
-            return Promise.resolve(response);
-        }
-        return Promise.resolve(undefined);
-    }
-    put(id, fetched, response) {
-        this.map.set(id, {
-            response,
-            fetched
-        });
-        return Promise.resolve();
-    }
-}
-function computeDefaultMillisToWait(input) {
-    const { remaining, millisTillReset } = input;
-    if (remaining >= 100)
-        return 0;
-    return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
-}
-function makeRateLimitedFetcher(fetcher, opts1 = {}) {
-    const { callbacks } = opts1;
-    const computeMillisToWait = opts1.computeMillisToWait || computeDefaultMillisToWait;
-    const hostLimits = new Map();
-    return async (url, opts) => {
-        const hostname = new URL(url).hostname;
-        const limits = hostLimits.get(hostname);
-        if (limits) {
-            const { limit, remaining, reset } = limits;
-            const millisTillReset = new Date(reset).getTime() - Date.now();
-            const millisToWait = computeMillisToWait({
-                hostname,
-                limit,
-                remaining,
-                reset,
-                millisTillReset
-            });
-            if (millisToWait > 0) {
-                callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
-                    kind: 'waiting-for-rate-limit',
-                    hostname,
-                    millisToWait,
-                    millisTillReset,
-                    limit,
-                    remaining,
-                    reset
-                });
-                await sleep(millisToWait);
-            }
-        }
-        const res = await fetcher(url, opts);
-        const limit = tryParseInt(res.headers.get('x-ratelimit-limit') || '');
-        const remaining = tryParseInt(res.headers.get('x-ratelimit-remaining') || '');
-        const reset = tryParseIso8601(res.headers.get('x-ratelimit-reset') || '');
-        if (limit !== undefined && remaining !== undefined && reset !== undefined) {
-            hostLimits.set(hostname, {
-                limit,
-                remaining,
-                reset
-            });
-        }
-        return res;
-    };
-}
+const ActivityPubProtocolImplementation = {
+    initThreadcap: initActivityPubThreadcap,
+    fetchComment: fetchActivityPubComment,
+    fetchCommenter: fetchActivityPubCommenter,
+    fetchReplies: fetchActivityPubReplies
+};
 const APPLICATION_ACTIVITY_JSON = 'application/activity+json';
 async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
     const response = await findOrFetchActivityPubResponse(url, after, fetcher, cache);
@@ -192,66 +43,30 @@ async function findOrFetchActivityPubResponse(url, after, fetcher, cache) {
     await cache.put(url, new Date().toISOString(), response);
     return response;
 }
-async function processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks) {
-    let node = threadcap.nodes[id];
-    if (!node) {
-        node = {};
-        threadcap.nodes[id] = node;
-    }
-    const updateComment = !node.commentAsof || node.commentAsof < updateTime;
-    if (updateComment) {
-        try {
-            node.comment = await fetchComment(id, updateTime, fetcher, cache, callbacks);
-            const { attributedTo } = node.comment;
-            const existingCommenter = threadcap.commenters[attributedTo];
-            if (!existingCommenter || existingCommenter.asof < updateTime) {
-                threadcap.commenters[attributedTo] = await fetchCommenter(attributedTo, updateTime, fetcher, cache);
-            }
-            node.commentError = undefined;
-        }
-        catch (e) {
-            node.comment = undefined;
-            node.commentError = `${e.stack || e}`;
-        }
-        node.commentAsof = updateTime;
-    }
-    callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
-        kind: 'node-processed',
-        nodeId: id,
-        part: 'comment',
-        updated: updateComment
-    });
-    if (processReplies) {
-        const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
-        if (updateReplies) {
-            try {
-                node.replies = await fetchReplies(id, updateTime, fetcher, cache, callbacks);
-                node.repliesError = undefined;
-            }
-            catch (e) {
-                node.replies = undefined;
-                node.repliesError = `${e.stack || e}`;
-            }
-            node.repliesAsof = updateTime;
-        }
-        callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
-            kind: 'node-processed',
-            nodeId: id,
-            part: 'replies',
-            updated: updateReplies
-        });
-    }
-    return node;
+async function initActivityPubThreadcap(url, fetcher, cache) {
+    const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
+    const { id, type } = object;
+    if (typeof type !== 'string')
+        throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
+    if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type))
+        throw new Error(`Unexpected type: ${type}`);
+    if (typeof id !== 'string')
+        throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
+    return {
+        root: id,
+        nodes: {},
+        commenters: {}
+    };
 }
-async function fetchComment(id, updateTime, fetcher, cache, callbacks) {
+async function fetchActivityPubComment(id, updateTime, fetcher, cache, callbacks) {
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     return computeComment(object, id, callbacks);
 }
-async function fetchCommenter(attributedTo, updateTime, fetcher, cache) {
+async function fetchActivityPubCommenter(attributedTo, updateTime, fetcher, cache) {
     const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
     return computeCommenter(object, updateTime);
 }
-async function fetchReplies(id, updateTime, fetcher, cache, callbacks) {
+async function fetchActivityPubReplies(id, updateTime, fetcher, cache, callbacks) {
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies;
@@ -355,20 +170,6 @@ async function collectRepliesFromPages(url, after, nodeId, fetcher, cache, callb
             return replies;
         }
     }
-}
-function makeFetcherWithUserAgent(fetcher, userAgent) {
-    userAgent = userAgent.trim();
-    if (userAgent.length === 0)
-        throw new Error(`Expected non-blank user-agent`);
-    return async (url, opts) => {
-        const headers = {
-            ...(opts === null || opts === void 0 ? void 0 : opts.headers) || {},
-            'user-agent': userAgent
-        };
-        return await fetcher(url, {
-            headers
-        });
-    };
 }
 function unwrapActivityIfNecessary(object, id, callbacks) {
     if (object.type === 'Create' && isStringRecord(object.object)) {
@@ -547,6 +348,264 @@ function computeFqUsername(url, preferredUsername) {
         throw new Error(`Unable to compute username from url: ${url}`);
     return `${username}@${u.hostname}`;
 }
+const LightningCommentsProtocolImplementation = {
+    async initThreadcap(url, fetcher, cache) {
+        await Promise.resolve();
+        throw new Error('TODO implement initThreadcap');
+    },
+    async fetchComment(id, updateTime, fetcher, cache, callbacks) {
+        await Promise.resolve();
+        throw new Error('TODO implement fetchComment');
+    },
+    async fetchCommenter(attributedTo, updateTime, fetcher, cache) {
+        await Promise.resolve();
+        throw new Error('TODO implement fetchCommenter');
+    },
+    async fetchReplies(id, updateTime, fetcher, cache, callbacks) {
+        await Promise.resolve();
+        throw new Error('TODO implement fetchReplies');
+    }
+};
+const TwitterProtocolImplementation = {
+    async initThreadcap(url, fetcher, cache) {
+        await Promise.resolve();
+        throw new Error('TODO implement initThreadcap');
+    },
+    async fetchComment(id, updateTime, fetcher, cache, callbacks) {
+        await Promise.resolve();
+        throw new Error('TODO implement fetchComment');
+    },
+    async fetchCommenter(attributedTo, updateTime, fetcher, cache) {
+        await Promise.resolve();
+        throw new Error('TODO implement fetchCommenter');
+    },
+    async fetchReplies(id, updateTime, fetcher, cache, callbacks) {
+        await Promise.resolve();
+        throw new Error('TODO implement fetchReplies');
+    }
+};
+const MAX_LEVELS = 1000;
+async function makeThreadcap(url, opts) {
+    const { cache, userAgent, protocol } = opts;
+    const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
+    const implementation = computeProtocolImplementation(protocol);
+    return await implementation.initThreadcap(url, fetcher, cache);
+}
+async function updateThreadcap(threadcap, opts) {
+    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
+    const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
+    const maxLevel = Math.min(Math.max(maxLevels === undefined ? 1000 : Math.round(maxLevels), 0), 1000);
+    const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
+    if (startNode && !threadcap.nodes[startNode])
+        throw new Error(`Invalid start node: ${startNode}`);
+    if (maxLevel === 0)
+        return;
+    if (maxNodes === 0)
+        return;
+    const implementation = computeProtocolImplementation(threadcap.protocol);
+    const idsBylevel = [
+        [
+            startNode || threadcap.root
+        ]
+    ];
+    let remaining = 1;
+    let processed = 0;
+    const processLevel = async (level) => {
+        callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
+            kind: 'process-level',
+            phase: 'before',
+            level: level + 1
+        });
+        const nextLevel = level + 1;
+        for (const id of idsBylevel[level] || []) {
+            const processReplies = nextLevel < maxLevel;
+            const node = await processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks, implementation);
+            remaining--;
+            processed++;
+            if (maxNodes && processed >= maxNodes)
+                return;
+            if (keepGoing && !keepGoing())
+                return;
+            if (node.replies && nextLevel < maxLevel) {
+                if (!idsBylevel[nextLevel])
+                    idsBylevel[nextLevel] = [];
+                idsBylevel[nextLevel].push(...node.replies);
+                remaining += node.replies.length;
+            }
+            callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
+                kind: 'nodes-remaining',
+                remaining
+            });
+        }
+        callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
+            kind: 'process-level',
+            phase: 'after',
+            level: level + 1
+        });
+        if (idsBylevel[nextLevel])
+            await processLevel(nextLevel);
+    };
+    await processLevel(0);
+}
+class InMemoryCache {
+    constructor() {
+        Object.defineProperty(this, "map", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: new Map()
+        });
+        Object.defineProperty(this, "onReturningCachedResponse", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+    }
+    get(id, after) {
+        const { response, fetched } = this.map.get(id) || {};
+        if (response && fetched && fetched > after) {
+            if (this.onReturningCachedResponse)
+                this.onReturningCachedResponse(id, after, fetched, response);
+            return Promise.resolve(response);
+        }
+        return Promise.resolve(undefined);
+    }
+    put(id, fetched, response) {
+        this.map.set(id, {
+            response,
+            fetched
+        });
+        return Promise.resolve();
+    }
+}
+function computeDefaultMillisToWait(input) {
+    const { remaining, millisTillReset } = input;
+    if (remaining >= 100)
+        return 0;
+    return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
+}
+function makeRateLimitedFetcher(fetcher, opts1 = {}) {
+    const { callbacks } = opts1;
+    const computeMillisToWait = opts1.computeMillisToWait || computeDefaultMillisToWait;
+    const hostLimits = new Map();
+    return async (url, opts) => {
+        const hostname = new URL(url).hostname;
+        const limits = hostLimits.get(hostname);
+        if (limits) {
+            const { limit, remaining, reset } = limits;
+            const millisTillReset = new Date(reset).getTime() - Date.now();
+            const millisToWait = computeMillisToWait({
+                hostname,
+                limit,
+                remaining,
+                reset,
+                millisTillReset
+            });
+            if (millisToWait > 0) {
+                callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
+                    kind: 'waiting-for-rate-limit',
+                    hostname,
+                    millisToWait,
+                    millisTillReset,
+                    limit,
+                    remaining,
+                    reset
+                });
+                await sleep(millisToWait);
+            }
+        }
+        const res = await fetcher(url, opts);
+        const limit = tryParseInt(res.headers.get('x-ratelimit-limit') || '');
+        const remaining = tryParseInt(res.headers.get('x-ratelimit-remaining') || '');
+        const reset = tryParseIso8601(res.headers.get('x-ratelimit-reset') || '');
+        if (limit !== undefined && remaining !== undefined && reset !== undefined) {
+            hostLimits.set(hostname, {
+                limit,
+                remaining,
+                reset
+            });
+        }
+        return res;
+    };
+}
+function makeFetcherWithUserAgent(fetcher, userAgent) {
+    userAgent = userAgent.trim();
+    if (userAgent.length === 0)
+        throw new Error(`Expected non-blank user-agent`);
+    return async (url, opts) => {
+        const headers = {
+            ...(opts === null || opts === void 0 ? void 0 : opts.headers) || {},
+            'user-agent': userAgent
+        };
+        return await fetcher(url, {
+            headers
+        });
+    };
+}
+function computeProtocolImplementation(protocol) {
+    if (protocol === undefined || protocol === 'activitypub')
+        return ActivityPubProtocolImplementation;
+    if (protocol === 'lightningcomments')
+        return LightningCommentsProtocolImplementation;
+    if (protocol === 'twitter')
+        return TwitterProtocolImplementation;
+    throw new Error(`Unsupported protocol: ${protocol}`);
+}
+async function processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks, implementation) {
+    let node = threadcap.nodes[id];
+    if (!node) {
+        node = {};
+        threadcap.nodes[id] = node;
+    }
+    const updateComment = !node.commentAsof || node.commentAsof < updateTime;
+    if (updateComment) {
+        try {
+            node.comment = await implementation.fetchComment(id, updateTime, fetcher, cache, callbacks);
+            const { attributedTo } = node.comment;
+            const existingCommenter = threadcap.commenters[attributedTo];
+            if (!existingCommenter || existingCommenter.asof < updateTime) {
+                threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, updateTime, fetcher, cache);
+            }
+            node.commentError = undefined;
+        }
+        catch (e) {
+            node.comment = undefined;
+            node.commentError = `${e.stack || e}`;
+        }
+        node.commentAsof = updateTime;
+    }
+    callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
+        kind: 'node-processed',
+        nodeId: id,
+        part: 'comment',
+        updated: updateComment
+    });
+    if (processReplies) {
+        const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
+        if (updateReplies) {
+            try {
+                node.replies = await implementation.fetchReplies(id, updateTime, fetcher, cache, callbacks);
+                node.repliesError = undefined;
+            }
+            catch (e) {
+                node.replies = undefined;
+                node.repliesError = `${e.stack || e}`;
+            }
+            node.repliesAsof = updateTime;
+        }
+        callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
+            kind: 'node-processed',
+            nodeId: id,
+            part: 'replies',
+            updated: updateReplies
+        });
+    }
+    return node;
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 function tryParseInt(value) {
     try {
         return parseInt(value);
@@ -557,9 +616,6 @@ function tryParseInt(value) {
 }
 function tryParseIso8601(value) {
     return isValidIso8601(value) ? value : undefined;
-}
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 exports.MAX_LEVELS = MAX_LEVELS;
 exports.makeThreadcap = makeThreadcap;
