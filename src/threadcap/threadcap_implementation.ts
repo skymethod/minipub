@@ -7,11 +7,17 @@ export interface ProtocolMethodOptions {
     readonly cache: Cache;
 }
 
+export interface ProtocolUpdateMethodOptions extends ProtocolMethodOptions {
+    readonly updateTime: Instant;
+    readonly callbacks?: Callbacks;
+    readonly state: Map<string, unknown>;
+}
+
 export interface ProtocolImplementation {
     initThreadcap(url: string, opts: ProtocolMethodOptions): Promise<Threadcap>;
-    fetchComment(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<Comment>;
-    fetchCommenter(attributedTo: string, updateTime: Instant, opts: ProtocolMethodOptions): Promise<Commenter>;
-    fetchReplies(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<readonly string[]>;
+    fetchComment(id: string, opts: ProtocolUpdateMethodOptions): Promise<Comment>;
+    fetchCommenter(attributedTo: string, opts: ProtocolUpdateMethodOptions): Promise<Commenter>;
+    fetchReplies(id: string, opts: ProtocolUpdateMethodOptions): Promise<readonly string[]>;
 }
 
 // deno-lint-ignore no-explicit-any

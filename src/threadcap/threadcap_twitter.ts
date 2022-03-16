@@ -1,6 +1,5 @@
-// deno-lint-ignore-file no-unused-vars no-explicit-any
-import { Callbacks, Comment, Commenter, Fetcher, Icon, Instant, Threadcap } from './threadcap.ts';
-import { findOrFetchJson, ProtocolImplementation, ProtocolMethodOptions } from './threadcap_implementation.ts';
+import { Comment, Commenter, Icon, Instant, Threadcap } from './threadcap.ts';
+import { findOrFetchJson, ProtocolImplementation, ProtocolMethodOptions, ProtocolUpdateMethodOptions } from './threadcap_implementation.ts';
 
 export const TwitterProtocolImplementation: ProtocolImplementation = {
 
@@ -16,7 +15,8 @@ export const TwitterProtocolImplementation: ProtocolImplementation = {
         return { protocol: 'twitter', roots: [ tweetApiUrl ], nodes: {}, commenters: {} };
     },
     
-    async fetchComment(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<Comment> {
+    async fetchComment(id: string, opts: ProtocolUpdateMethodOptions): Promise<Comment> {
+        const { updateTime } = opts;
         const url = new URL(id);
         url.searchParams.set('tweet.fields', 'author_id,lang,created_at');
         const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
@@ -38,7 +38,8 @@ export const TwitterProtocolImplementation: ProtocolImplementation = {
         }
     },
     
-    async fetchCommenter(attributedTo: string, updateTime: Instant, opts: ProtocolMethodOptions): Promise<Commenter> {
+    async fetchCommenter(attributedTo: string, opts: ProtocolUpdateMethodOptions): Promise<Commenter> {
+        const { updateTime } = opts;
         const url = new URL(attributedTo);
         url.searchParams.set('user.fields', 'url,profile_image_url');
         const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
@@ -62,7 +63,8 @@ export const TwitterProtocolImplementation: ProtocolImplementation = {
         }
     },
     
-    async fetchReplies(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<readonly string[]> {
+    async fetchReplies(id: string, opts: ProtocolUpdateMethodOptions): Promise<readonly string[]> {
+        const { updateTime } = opts;
         const m = /^https:\/\/api\.twitter\.com\/2\/tweets\/(.*?)$/.exec(id);
         if (!m) throw new Error(`Unexpected tweet id: ${id}`);
         const [ _, tweetId ] = m;
@@ -71,6 +73,7 @@ export const TwitterProtocolImplementation: ProtocolImplementation = {
         url.searchParams.set('expansions', `referenced_tweets.id`);
         const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
         if (DEBUG) console.log('fetchReplies', JSON.stringify(obj, undefined, 2));
+        // deno-lint-ignore no-explicit-any
         return obj.data.filter((v: any) => v.referenced_tweets.some((w: any) => w.type === 'replied_to' && w.id === tweetId)).map((v: any) => v.id).map((v: any) => `https://api.twitter.com/2/tweets/${v}`);
     },
 };
@@ -79,6 +82,7 @@ export const TwitterProtocolImplementation: ProtocolImplementation = {
 
 const DEBUG = false;
 
+// deno-lint-ignore no-explicit-any
 async function findOrFetchTwitter(url: string, after: Instant, opts: ProtocolMethodOptions): Promise<any> {
     const { fetcher, cache, bearerToken } = opts;
     const obj = await findOrFetchJson(url, after, fetcher, cache, { accept: 'application/json', authorization: `Bearer ${bearerToken}` });

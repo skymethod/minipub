@@ -1,6 +1,6 @@
 import { isValidIso8601 } from '../check.ts';
 import { ActivityPubProtocolImplementation } from './threadcap_activitypub.ts';
-import { ProtocolImplementation, ProtocolMethodOptions } from './threadcap_implementation.ts';
+import { ProtocolImplementation, ProtocolUpdateMethodOptions } from './threadcap_implementation.ts';
 import { LightningCommentsProtocolImplementation } from './threadcap_lightningcomments.ts';
 import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
 
@@ -327,6 +327,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
     if (maxNodes === 0) return;
 
     const implementation = computeProtocolImplementation(threadcap.protocol);
+    const state = new Map<string, unknown>();
 
     const idsBylevel: string[][] = [ startNode ? [ startNode ] : [...threadcap.roots] ];
     let remaining = 1;
@@ -337,7 +338,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
         const nextLevel = level + 1;
         for (const id of idsBylevel[level] || []) {
             const processReplies = nextLevel < maxLevel;
-            const node = await processNode(id, processReplies, threadcap, updateTime, callbacks, implementation, { fetcher, cache, bearerToken });
+            const node = await processNode(id, processReplies, threadcap, implementation, { updateTime, callbacks, state, fetcher, cache, bearerToken });
             remaining--;
             processed++;
             if (maxNodes && processed >= maxNodes) return;
@@ -440,7 +441,8 @@ function computeProtocolImplementation(protocol?: Protocol): ProtocolImplementat
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
 
-async function processNode(id: string, processReplies: boolean, threadcap: Threadcap, updateTime: Instant, callbacks: Callbacks | undefined, implementation: ProtocolImplementation, opts: ProtocolMethodOptions): Promise<Node> {
+async function processNode(id: string, processReplies: boolean, threadcap: Threadcap, implementation: ProtocolImplementation, opts: ProtocolUpdateMethodOptions): Promise<Node> {
+    const { updateTime, callbacks } = opts;
     // ensure node exists
     let node = threadcap.nodes[id];
     if (!node) {
@@ -452,11 +454,11 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
     const updateComment = !node.commentAsof || node.commentAsof < updateTime;
     if (updateComment) {
         try {
-            node.comment = await implementation.fetchComment(id, updateTime, callbacks, opts);
+            node.comment = await implementation.fetchComment(id, opts);
             const { attributedTo } = node.comment;
             const existingCommenter = threadcap.commenters[attributedTo];
             if (!existingCommenter || existingCommenter.asof < updateTime) {
-                threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, updateTime, opts);
+                threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, opts);
             }
             node.commentError = undefined;
         } catch (e) {
@@ -473,7 +475,7 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
         const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
         if (updateReplies) {
             try {
-                node.replies = await implementation.fetchReplies(id, updateTime, callbacks, opts);
+                node.replies = await implementation.fetchReplies(id, opts);
                 node.repliesError = undefined;
             } catch (e) {
                 node.replies = undefined;
