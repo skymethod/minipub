@@ -1,3 +1,6 @@
+function isNonEmpty(value) {
+    return value.trim().length > 0;
+}
 function isStringRecord(obj) {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
@@ -7,15 +10,11 @@ function isReadonlyArray(arg) {
 function isValidIso8601(text) {
     return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
 }
-const ActivityPubProtocolImplementation = {
-    initThreadcap: initActivityPubThreadcap,
-    fetchComment: fetchActivityPubComment,
-    fetchCommenter: fetchActivityPubCommenter,
-    fetchReplies: fetchActivityPubReplies
-};
-const APPLICATION_ACTIVITY_JSON = 'application/activity+json';
-async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
-    const response = await findOrFetchActivityPubResponse(url, after, fetcher, cache);
+function isNonNegativeInteger(value) {
+    return Number.isInteger(value) && value >= 0;
+}
+async function findOrFetchJson(url, after, fetcher, cache, opts) {
+    const response = await findOrFetchTextResponse(url, after, fetcher, cache, opts);
     const { status, headers, bodyText } = response;
     if (status !== 200)
         throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
@@ -24,14 +23,18 @@ async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
         throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
     return JSON.parse(bodyText);
 }
-async function findOrFetchActivityPubResponse(url, after, fetcher, cache) {
+async function findOrFetchTextResponse(url, after, fetcher, cache, opts) {
     const existing = await cache.get(url, after);
     if (existing)
         return existing;
+    const { accept, authorization } = opts;
+    const headers = {
+        accept
+    };
+    if (authorization)
+        headers.authorization = authorization;
     const res = await fetcher(url, {
-        headers: {
-            accept: APPLICATION_ACTIVITY_JSON
-        }
+        headers
     });
     const response = {
         status: res.status,
@@ -43,7 +46,19 @@ async function findOrFetchActivityPubResponse(url, after, fetcher, cache) {
     await cache.put(url, new Date().toISOString(), response);
     return response;
 }
-async function initActivityPubThreadcap(url, fetcher, cache) {
+const ActivityPubProtocolImplementation = {
+    initThreadcap: initActivityPubThreadcap,
+    fetchComment: fetchActivityPubComment,
+    fetchCommenter: fetchActivityPubCommenter,
+    fetchReplies: fetchActivityPubReplies
+};
+async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
+    return await findOrFetchJson(url, after, fetcher, cache, {
+        accept: 'application/activity+json'
+    });
+}
+async function initActivityPubThreadcap(url, opts) {
+    const { fetcher, cache } = opts;
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id, type } = object;
     if (typeof type !== 'string')
@@ -53,20 +68,26 @@ async function initActivityPubThreadcap(url, fetcher, cache) {
     if (typeof id !== 'string')
         throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
     return {
-        root: id,
+        protocol: 'activitypub',
+        roots: [
+            id
+        ],
         nodes: {},
         commenters: {}
     };
 }
-async function fetchActivityPubComment(id, updateTime, fetcher, cache, callbacks) {
+async function fetchActivityPubComment(id, opts) {
+    const { fetcher, cache, updateTime, callbacks } = opts;
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     return computeComment(object, id, callbacks);
 }
-async function fetchActivityPubCommenter(attributedTo, updateTime, fetcher, cache) {
+async function fetchActivityPubCommenter(attributedTo, opts) {
+    const { fetcher, cache, updateTime } = opts;
     const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
     return computeCommenter(object, updateTime);
 }
-async function fetchActivityPubReplies(id, updateTime, fetcher, cache, callbacks) {
+async function fetchActivityPubReplies(id, opts) {
+    const { fetcher, cache, updateTime, callbacks } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies;
@@ -349,50 +370,233 @@ function computeFqUsername(url, preferredUsername) {
     return `${username}@${u.hostname}`;
 }
 const LightningCommentsProtocolImplementation = {
-    async initThreadcap(url, fetcher, cache) {
-        await Promise.resolve();
-        throw new Error('TODO implement initThreadcap');
+    async initThreadcap(url, opts) {
+        const { fetcher, cache } = opts;
+        const time = new Date().toISOString();
+        const comments = await findOrFetchLightningComments(url, time, fetcher, cache);
+        const roots = comments.filter((v) => v.depth === 0).map((v) => computeUrlWithHash(url, `comment-${v.id}`));
+        return {
+            protocol: 'lightningcomments',
+            roots,
+            nodes: {},
+            commenters: {}
+        };
     },
-    async fetchComment(id, updateTime, fetcher, cache, callbacks) {
-        await Promise.resolve();
-        throw new Error('TODO implement fetchComment');
+    async fetchComment(id, opts) {
+        const { fetcher, cache, updateTime } = opts;
+        const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
+        if (m) {
+            const [_, commentId] = m;
+            const comments = await findOrFetchLightningComments(computeUrlWithHash(id, ''), updateTime, fetcher, cache);
+            const comment = comments.find((v) => v.id === commentId);
+            if (!comment)
+                throw new Error(`Comment not found: ${commentId}`);
+            return {
+                attachments: [],
+                attributedTo: computeUrlWithHash(id, `commenter-${computeCommenterId(comment.sender)}`),
+                content: {
+                    und: comment.message
+                },
+                published: comment.created
+            };
+        }
+        throw new Error(`fetchComment: unexpected id=${id}`);
     },
-    async fetchCommenter(attributedTo, updateTime, fetcher, cache) {
-        await Promise.resolve();
-        throw new Error('TODO implement fetchCommenter');
+    async fetchCommenter(attributedTo, opts) {
+        const { fetcher, cache, updateTime } = opts;
+        const m = /^#commenter-(.*?)$/.exec(new URL(attributedTo).hash);
+        if (m) {
+            const [_, commenterId] = m;
+            const comments = await findOrFetchLightningComments(computeUrlWithHash(attributedTo, ''), updateTime, fetcher, cache);
+            const commenter = comments.map((v) => v.sender).find((v) => computeCommenterId(v) === commenterId);
+            if (!commenter)
+                throw new Error(`Commenter not found: ${commenterId}`);
+            return {
+                asof: updateTime,
+                name: `${commenter.name} from ${commenter.app}`
+            };
+        }
+        throw new Error(`fetchCommenter: unexpected attributedTo=${attributedTo}`);
     },
-    async fetchReplies(id, updateTime, fetcher, cache, callbacks) {
-        await Promise.resolve();
-        throw new Error('TODO implement fetchReplies');
+    async fetchReplies(id, opts) {
+        const { fetcher, cache, updateTime } = opts;
+        const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
+        if (m) {
+            const [_, commentId] = m;
+            const url = computeUrlWithHash(id, '');
+            const comments = await findOrFetchLightningComments(url, updateTime, fetcher, cache);
+            const comment = comments.find((v) => v.id === commentId);
+            if (!comment)
+                throw new Error(`Comment not found: ${commentId}`);
+            return comment.children.map((v) => computeUrlWithHash(url, `comment-${v}`));
+        }
+        throw new Error(`fetchReplies: unexpected id=${id}`);
     }
 };
+async function findOrFetchLightningComments(url, after, fetcher, cache) {
+    const obj = await findOrFetchJson(url, after, fetcher, cache, {
+        accept: 'application/json'
+    });
+    if (!isStringRecord(obj) || !isStringRecord(obj.data) || !Array.isArray(obj.data.comments))
+        throw new Error(`Unable to find obj.data.comments array: ${JSON.stringify(obj)}`);
+    return obj.data.comments.map((v, i) => {
+        if (!isValidLightningComment(v))
+            throw new Error(`Unexpected lightning comment at index ${i}: ${JSON.stringify(v)}`);
+        return v;
+    });
+}
+function computeUrlWithHash(url, hash) {
+    const u = new URL(url);
+    u.hash = hash;
+    return u.toString();
+}
+function computeCommenterId(sender) {
+    return sender.id === null ? `null-${sender.name}` : sender.id;
+}
+function isValidLightningComment(obj) {
+    return isStringRecord(obj) && typeof obj.id === 'string' && isNonEmpty(obj.id) && typeof obj.message === 'string' && isNonEmpty(obj.message) && (typeof obj.parent === 'string' && isNonEmpty(obj.parent) || obj.parent === null) && Array.isArray(obj.children) && obj.children.every((v) => typeof v === 'string' && isNonEmpty(v)) && typeof obj.depth === 'number' && isNonNegativeInteger(obj.depth) && typeof obj.created === 'string' && isValidIso8601(obj.created) && isValidLightningSender(obj.sender);
+}
+function isValidLightningSender(obj) {
+    return isStringRecord(obj) && typeof obj.app === 'string' && isNonEmpty(obj.app) && (obj.id === null || typeof obj.id === 'string' && isNonEmpty(obj.id)) && typeof obj.name === 'string' && isNonEmpty(obj.name);
+}
 const TwitterProtocolImplementation = {
-    async initThreadcap(url, fetcher, cache) {
-        await Promise.resolve();
-        throw new Error('TODO implement initThreadcap');
+    async initThreadcap(url, opts) {
+        const { hostname, pathname } = new URL(url);
+        const m = /^\/.*?\/status\/(\d+)$/.exec(pathname);
+        if (hostname !== 'twitter.com' || !m)
+            throw new Error(`Unexpected tweet url: ${url}`);
+        const [_, id] = m;
+        const tweetApiUrl = `https://api.twitter.com/2/tweets/${id}`;
+        const obj = await findOrFetchTwitter(tweetApiUrl, new Date().toISOString(), opts);
+        if (DEBUG)
+            console.log(JSON.stringify(obj, undefined, 2));
+        return {
+            protocol: 'twitter',
+            roots: [
+                tweetApiUrl
+            ],
+            nodes: {},
+            commenters: {}
+        };
     },
-    async fetchComment(id, updateTime, fetcher, cache, callbacks) {
-        await Promise.resolve();
-        throw new Error('TODO implement fetchComment');
+    async fetchComment(id, opts) {
+        const { updateTime } = opts;
+        const url = new URL(id);
+        url.searchParams.set('tweet.fields', 'author_id,lang,created_at');
+        const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+        if (DEBUG)
+            console.log(JSON.stringify(obj, undefined, 2));
+        const tweetId = obj.data.id;
+        const text = obj.data.text;
+        const authorId = obj.data.author_id;
+        const lang = obj.data.lang;
+        const createdAt = obj.data.created_at;
+        const content = {};
+        content[lang] = text;
+        const tweetUrl = `https://twitter.com/i/web/status/${tweetId}`;
+        return {
+            attachments: [],
+            attributedTo: `https://api.twitter.com/2/users/${authorId}`,
+            content,
+            published: createdAt,
+            url: tweetUrl
+        };
     },
-    async fetchCommenter(attributedTo, updateTime, fetcher, cache) {
-        await Promise.resolve();
-        throw new Error('TODO implement fetchCommenter');
+    async fetchCommenter(attributedTo, opts) {
+        const { updateTime } = opts;
+        const url = new URL(attributedTo);
+        url.searchParams.set('user.fields', 'url,profile_image_url');
+        const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+        if (DEBUG)
+            console.log('fetchCommenter', JSON.stringify(obj, undefined, 2));
+        const name = obj.data.name;
+        const fqUsername = '@' + obj.data.username;
+        const userUrl = `https://twitter.com/${obj.data.username}`;
+        const iconUrl = obj.data.profile_image_url;
+        const iconUrlLower = (iconUrl || '').toLowerCase();
+        const iconMediaType = iconUrlLower.endsWith('.jpg') ? 'image/jpeg' : iconUrlLower.endsWith('.png') ? 'image/png' : undefined;
+        const icon = iconUrl ? {
+            url: iconUrl,
+            mediaType: iconMediaType
+        } : undefined;
+        return {
+            asof: updateTime,
+            name,
+            fqUsername,
+            url: userUrl,
+            icon
+        };
     },
-    async fetchReplies(id, updateTime, fetcher, cache, callbacks) {
-        await Promise.resolve();
-        throw new Error('TODO implement fetchReplies');
+    async fetchReplies(id, opts) {
+        const m = /^https:\/\/api\.twitter\.com\/2\/tweets\/(.*?)$/.exec(id);
+        if (!m)
+            throw new Error(`Unexpected tweet id: ${id}`);
+        const [_, tweetId] = m;
+        const convo = await findOrFetchConversation(tweetId, opts);
+        return Object.values(convo.tweets).filter((v) => v.referenced_tweets.some((w) => w.type === 'replied_to' && w.id === tweetId)).map((v) => `https://api.twitter.com/2/tweets/${v.id}`);
     }
 };
+const DEBUG = false;
+async function findOrFetchTwitter(url, after, opts) {
+    const { fetcher, cache, bearerToken } = opts;
+    const obj = await findOrFetchJson(url, after, fetcher, cache, {
+        accept: 'application/json',
+        authorization: `Bearer ${bearerToken}`
+    });
+    return obj;
+}
+async function findOrFetchConversation(tweetId, opts) {
+    const { updateTime, state } = opts;
+    let { conversation } = state;
+    if (!conversation) {
+        const conversationId = await findOrFetchConversationId(tweetId, opts);
+        const url = new URL('https://api.twitter.com/2/tweets/search/recent');
+        url.searchParams.set('query', `conversation_id:${conversationId}`);
+        url.searchParams.set('expansions', `referenced_tweets.id`);
+        url.searchParams.set('tweet.fields', `author_id,lang,created_at`);
+        const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+        const tweets = {};
+        for (const tweetObj of obj.data) {
+            const tweet = tweetObj;
+            tweets[tweet.id] = tweet;
+        }
+        conversation = {
+            tweets
+        };
+        state.conversation = conversation;
+    }
+    return conversation;
+}
+async function findOrFetchConversationId(tweetId, opts) {
+    const { updateTime, state } = opts;
+    let { conversationId } = state;
+    if (typeof conversationId === 'string')
+        return conversationId;
+    const url = new URL(`https://api.twitter.com/2/tweets/${tweetId}`);
+    url.searchParams.set('tweet.fields', 'conversation_id');
+    const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+    conversationId = obj.data.conversation_id;
+    if (typeof conversationId !== 'string')
+        throw new Error(`Unexpected conversationId in payload: ${JSON.stringify(obj, undefined, 2)}`);
+    state.conversationId = conversationId;
+    return conversationId;
+}
+function isValidProtocol(protocol) {
+    return protocol === 'activitypub' || protocol === 'lightningcomments' || protocol === 'twitter';
+}
 const MAX_LEVELS = 1000;
 async function makeThreadcap(url, opts) {
-    const { cache, userAgent, protocol } = opts;
+    const { cache, userAgent, protocol, bearerToken } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const implementation = computeProtocolImplementation(protocol);
-    return await implementation.initThreadcap(url, fetcher, cache);
+    return await implementation.initThreadcap(url, {
+        fetcher,
+        cache,
+        bearerToken
+    });
 }
 async function updateThreadcap(threadcap, opts) {
-    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
+    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? 1000 : Math.round(maxLevels), 0), 1000);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
@@ -403,9 +607,12 @@ async function updateThreadcap(threadcap, opts) {
     if (maxNodes === 0)
         return;
     const implementation = computeProtocolImplementation(threadcap.protocol);
+    const state = {};
     const idsBylevel = [
-        [
-            startNode || threadcap.root
+        startNode ? [
+            startNode
+        ] : [
+            ...threadcap.roots
         ]
     ];
     let remaining = 1;
@@ -419,7 +626,14 @@ async function updateThreadcap(threadcap, opts) {
         const nextLevel = level + 1;
         for (const id of idsBylevel[level] || []) {
             const processReplies = nextLevel < maxLevel;
-            const node = await processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks, implementation);
+            const node = await processNode(id, processReplies, threadcap, implementation, {
+                updateTime,
+                callbacks,
+                state,
+                fetcher,
+                cache,
+                bearerToken
+            });
             remaining--;
             processed++;
             if (maxNodes && processed >= maxNodes)
@@ -488,15 +702,17 @@ function computeDefaultMillisToWait(input) {
 function makeRateLimitedFetcher(fetcher, opts1 = {}) {
     const { callbacks } = opts1;
     const computeMillisToWait = opts1.computeMillisToWait || computeDefaultMillisToWait;
-    const hostLimits = new Map();
+    const endpointLimits = new Map();
     return async (url, opts) => {
-        const hostname = new URL(url).hostname;
-        const limits = hostLimits.get(hostname);
+        const { hostname, pathname } = new URL(url);
+        const twitterEndpoint = computeTwitterEndpoint(hostname, pathname);
+        const endpoint = twitterEndpoint || hostname;
+        const limits = endpointLimits.get(endpoint);
         if (limits) {
             const { limit, remaining, reset } = limits;
             const millisTillReset = new Date(reset).getTime() - Date.now();
             const millisToWait = computeMillisToWait({
-                hostname,
+                endpoint,
                 limit,
                 remaining,
                 reset,
@@ -505,7 +721,7 @@ function makeRateLimitedFetcher(fetcher, opts1 = {}) {
             if (millisToWait > 0) {
                 callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
                     kind: 'waiting-for-rate-limit',
-                    hostname,
+                    endpoint,
                     millisToWait,
                     millisTillReset,
                     limit,
@@ -516,11 +732,15 @@ function makeRateLimitedFetcher(fetcher, opts1 = {}) {
             }
         }
         const res = await fetcher(url, opts);
-        const limit = tryParseInt(res.headers.get('x-ratelimit-limit') || '');
-        const remaining = tryParseInt(res.headers.get('x-ratelimit-remaining') || '');
-        const reset = tryParseIso8601(res.headers.get('x-ratelimit-reset') || '');
+        const limitHeader = twitterEndpoint ? 'x-rate-limit-limit' : 'x-ratelimit-limit';
+        const remainingHeader = twitterEndpoint ? 'x-rate-limit-remaining' : 'x-ratelimit-remaining';
+        const resetHeader = twitterEndpoint ? 'x-rate-limit-reset' : 'x-ratelimit-reset';
+        const limit = tryParseInt(res.headers.get(limitHeader) || '');
+        const remaining = tryParseInt(res.headers.get(remainingHeader) || '');
+        const resetStr = res.headers.get(resetHeader) || '';
+        const reset = twitterEndpoint ? tryParseEpochSecondsAsIso8601(resetStr) : tryParseIso8601(resetStr);
         if (limit !== undefined && remaining !== undefined && reset !== undefined) {
-            hostLimits.set(hostname, {
+            endpointLimits.set(endpoint, {
                 limit,
                 remaining,
                 reset
@@ -528,6 +748,11 @@ function makeRateLimitedFetcher(fetcher, opts1 = {}) {
         }
         return res;
     };
+}
+function computeTwitterEndpoint(hostname, pathname) {
+    if (hostname === 'api.twitter.com') {
+        return pathname.replaceAll(/\d{4,}/g, ':id');
+    }
 }
 function makeFetcherWithUserAgent(fetcher, userAgent) {
     userAgent = userAgent.trim();
@@ -552,7 +777,8 @@ function computeProtocolImplementation(protocol) {
         return TwitterProtocolImplementation;
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
-async function processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks, implementation) {
+async function processNode(id, processReplies, threadcap, implementation, opts) {
+    const { updateTime, callbacks } = opts;
     let node = threadcap.nodes[id];
     if (!node) {
         node = {};
@@ -561,11 +787,11 @@ async function processNode(id, processReplies, threadcap, updateTime, fetcher, c
     const updateComment = !node.commentAsof || node.commentAsof < updateTime;
     if (updateComment) {
         try {
-            node.comment = await implementation.fetchComment(id, updateTime, fetcher, cache, callbacks);
+            node.comment = await implementation.fetchComment(id, opts);
             const { attributedTo } = node.comment;
             const existingCommenter = threadcap.commenters[attributedTo];
             if (!existingCommenter || existingCommenter.asof < updateTime) {
-                threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, updateTime, fetcher, cache);
+                threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, opts);
             }
             node.commentError = undefined;
         }
@@ -585,7 +811,7 @@ async function processNode(id, processReplies, threadcap, updateTime, fetcher, c
         const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
         if (updateReplies) {
             try {
-                node.replies = await implementation.fetchReplies(id, updateTime, fetcher, cache, callbacks);
+                node.replies = await implementation.fetchReplies(id, opts);
                 node.repliesError = undefined;
             }
             catch (e) {
@@ -617,6 +843,11 @@ function tryParseInt(value) {
 function tryParseIso8601(value) {
     return isValidIso8601(value) ? value : undefined;
 }
+function tryParseEpochSecondsAsIso8601(value) {
+    const seconds = tryParseInt(value);
+    return seconds && seconds > 0 ? new Date(seconds * 1000).toISOString() : undefined;
+}
+export { isValidProtocol as isValidProtocol };
 export { MAX_LEVELS as MAX_LEVELS };
 export { makeThreadcap as makeThreadcap };
 export { updateThreadcap as updateThreadcap };

@@ -9,11 +9,11 @@
  */
 export interface Threadcap {
     /**
-     * ActivityPub id of the root object url.
+     * One or more id urls of the root-level nodes.
      *
-     * Use this to lookup the corresponding root {@link Node} when starting to recurse down a reply tree.
+     * Use these to lookup the corresponding root {@link Node} when starting to recurse down a reply tree.
     */
-    readonly root: string;
+    readonly roots: readonly string[];
     /**
      * Comment data nodes captured so far, keyed by ActivityPub id.
      *
@@ -39,6 +39,7 @@ export interface Threadcap {
 export declare type Instant = string;
 /** Supported protocols for capturing comment threads: activitypub, lightningcomments, twitter */
 export declare type Protocol = 'activitypub' | 'lightningcomments' | 'twitter';
+export declare function isValidProtocol(protocol: string): protocol is Protocol;
 /**
  * Snapshot of a single comment inside of a larger {@link Threadcap}.
  *
@@ -119,9 +120,9 @@ export interface Commenter {
     /** Display name of the commenter. */
     readonly name: string;
     /** Web link to the commenter profile. */
-    readonly url: string;
+    readonly url?: string;
     /** Fully-qualified fediverse username, e.g. `@user@example.com` */
-    readonly fqUsername: string;
+    readonly fqUsername?: string;
     /** Time this information was last fetched */
     readonly asof: Instant;
 }
@@ -173,7 +174,7 @@ export interface TextResponse {
 }
 /** If customizing the rate-limiter wait function used in {@link makeRateLimitedFetcher}, these are the inputs you have to work with. */
 export declare type RateLimiterInput = {
-    hostname: string;
+    endpoint: string;
     limit: number;
     remaining: number;
     reset: string;
@@ -223,7 +224,7 @@ export interface NodeProcessedEvent {
 /** Fired when an update is waiting (sleeping) due to rate-limiting by the server. */
 export interface WaitingForRateLimitEvent {
     readonly kind: 'waiting-for-rate-limit';
-    readonly hostname: string;
+    readonly endpoint: string;
     readonly millisToWait: number;
     readonly millisTillReset: number;
     readonly limit: number;
@@ -245,6 +246,7 @@ export declare function makeThreadcap(url: string, opts: {
     fetcher: Fetcher;
     cache: Cache;
     protocol?: Protocol;
+    bearerToken?: string;
 }): Promise<Threadcap>;
 /**
  * Update or refresh a {@link Threadcap} in place by making underlying ActivityPub calls to enumerate the reply tree.
@@ -271,6 +273,7 @@ export declare function updateThreadcap(threadcap: Threadcap, opts: {
     fetcher: Fetcher;
     cache: Cache;
     callbacks?: Callbacks;
+    bearerToken?: string;
 }): Promise<void>;
 /** Simple implementation of {@link Cache} that keeps everything around in memory. */
 export declare class InMemoryCache implements Cache {
@@ -295,9 +298,3 @@ export declare function makeRateLimitedFetcher(fetcher: Fetcher, opts?: {
     callbacks?: Callbacks;
     computeMillisToWait?: (input: RateLimiterInput) => number;
 }): Fetcher;
-export interface ProtocolImplementation {
-    initThreadcap(url: string, fetcher: Fetcher, cache: Cache): Promise<Threadcap>;
-    fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment>;
-    fetchCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter>;
-    fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]>;
-}

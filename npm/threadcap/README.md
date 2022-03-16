@@ -106,7 +106,7 @@ You don't need this NPM package or to install anything, just remote-import `thre
 
 `example.ts`
 ```ts
-import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/v0.1.5/src/threadcap/threadcap.ts';
+import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/v0.1.6/src/threadcap/threadcap.ts';
 
 const userAgent = 'my-podcast-app/1.0';
 const cache = new InMemoryCache();
@@ -141,9 +141,9 @@ with the same documentation:
 // Create a new threadcap using the 'makeThreadcap' function.
 // Update an existing threadcap using the 'updateThreadcap' function.
 {
-  // ActivityPub id of the root object url.
-  // Use this to lookup the corresponding root Node in the 'nodes' property when starting to recurse down a reply tree.
-  "root": "https://example.social/users/alice/statuses/107939417586098696",
+  // One or more id urls of the root-level nodes.
+  // Use these to lookup the corresponding root node when starting to recurse down a reply tree.
+  "roots": [ "https://example.social/users/alice/statuses/107939417586098696" ],
 
   // Comment data nodes captured so far, keyed by ActivityPub id.
   // Each Node has information on any comment content or error found, and pointers to its direct replies or error found.
