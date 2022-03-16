@@ -1,6 +1,6 @@
 import { isValidIso8601 } from '../check.ts';
 import { ActivityPubProtocolImplementation } from './threadcap_activitypub.ts';
-import { ProtocolImplementation } from './threadcap_implementation.ts';
+import { ProtocolImplementation, ProtocolMethodOptions } from './threadcap_implementation.ts';
 import { LightningCommentsProtocolImplementation } from './threadcap_lightningcomments.ts';
 import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
 
@@ -292,11 +292,11 @@ export const MAX_LEVELS = 1000; // go down at most this many levels (this would 
  * 
  * @returns A new {@link Threadcap} structure, or throws if the input url does not respond to an ActivityPub request.
  */
-export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache, protocol?: Protocol }): Promise<Threadcap> {
-    const { cache, userAgent, protocol } = opts;
+export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache, protocol?: Protocol, bearerToken?: string }): Promise<Threadcap> {
+    const { cache, userAgent, protocol, bearerToken } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const implementation = computeProtocolImplementation(protocol);
-    return await implementation.initThreadcap(url, fetcher, cache);
+    return await implementation.initThreadcap(url, { fetcher, cache, bearerToken });
 }
 
 /**
@@ -316,8 +316,8 @@ export async function makeThreadcap(url: string, opts: { userAgent: string, fetc
  */
 export async function updateThreadcap(threadcap: Threadcap, opts: { 
         updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, keepGoing?: () => boolean, 
-        userAgent: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks }) {
-    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing } = opts;
+        userAgent: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks, bearerToken?: string }) {
+    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
@@ -337,7 +337,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
         const nextLevel = level + 1;
         for (const id of idsBylevel[level] || []) {
             const processReplies = nextLevel < maxLevel;
-            const node = await processNode(id, processReplies, threadcap, updateTime, fetcher, cache, callbacks, implementation);
+            const node = await processNode(id, processReplies, threadcap, updateTime, callbacks, implementation, { fetcher, cache, bearerToken });
             remaining--;
             processed++;
             if (maxNodes && processed >= maxNodes) return;
@@ -440,7 +440,7 @@ function computeProtocolImplementation(protocol?: Protocol): ProtocolImplementat
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
 
-async function processNode(id: string, processReplies: boolean, threadcap: Threadcap, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined, implementation: ProtocolImplementation): Promise<Node> {
+async function processNode(id: string, processReplies: boolean, threadcap: Threadcap, updateTime: Instant, callbacks: Callbacks | undefined, implementation: ProtocolImplementation, opts: ProtocolMethodOptions): Promise<Node> {
     // ensure node exists
     let node = threadcap.nodes[id];
     if (!node) {
@@ -452,11 +452,11 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
     const updateComment = !node.commentAsof || node.commentAsof < updateTime;
     if (updateComment) {
         try {
-            node.comment = await implementation.fetchComment(id, updateTime, fetcher, cache, callbacks);
+            node.comment = await implementation.fetchComment(id, updateTime, callbacks, opts);
             const { attributedTo } = node.comment;
             const existingCommenter = threadcap.commenters[attributedTo];
             if (!existingCommenter || existingCommenter.asof < updateTime) {
-                threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, updateTime, fetcher, cache);
+                threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, updateTime, opts);
             }
             node.commentError = undefined;
         } catch (e) {
@@ -473,7 +473,7 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
         const updateReplies = !node.repliesAsof || node.repliesAsof < updateTime;
         if (updateReplies) {
             try {
-                node.replies = await implementation.fetchReplies(id, updateTime, fetcher, cache, callbacks);
+                node.replies = await implementation.fetchReplies(id, updateTime, callbacks, opts);
                 node.repliesError = undefined;
             } catch (e) {
                 node.replies = undefined;

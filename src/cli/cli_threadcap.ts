@@ -1,4 +1,4 @@
-import { isPositiveInteger, isValidUrl } from '../check.ts';
+import { isNonEmpty, isPositiveInteger, isValidUrl } from '../check.ts';
 import { computeMinipubUserAgent } from '../fetcher.ts';
 import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from '../threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from '../version.ts';
@@ -10,7 +10,7 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const [ urlOrPath ] = args;
     if (typeof urlOrPath !== 'string') throw new Error('Provide url to root post (or local path to a saved threadcap) as an argument, e.g. minipub threadcap https://example.social/users/alice/statuses/123456');
-    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode } = options;
+    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode, 'bearer-token': bearerTokenOpt } = options;
     if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
     if (maxNodes !== undefined && (typeof maxNodes !== 'number' || !isPositiveInteger(maxNodes))) throw new Error(`'max-nodes' should be a positive integer, if provided`);
     if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
@@ -51,10 +51,18 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     cache.onReturningCachedResponse = id => { cacheHits++; console.log(`Returning CACHED response for ${id}`); };
 
     const userAgent = computeMinipubUserAgent();
-    const protocol = isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'api.fountain.fm' ? 'lightningcomments' : undefined;
-    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache, protocol }) : JSON.parse(await Deno.readTextFile(urlOrPath));
+    const protocol = isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'api.fountain.fm' ? 'lightningcomments' 
+        : isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'twitter.com' ? 'twitter'
+        : undefined;
+    let bearerToken: string | undefined = undefined;
+    if (protocol === 'twitter') {
+        if (typeof bearerTokenOpt !== 'string' || !isNonEmpty(bearerTokenOpt)) throw new Error(`'bearer-token' should be non-empty`);
+        bearerToken = bearerTokenOpt.startsWith('/') ? await Deno.readTextFile(bearerTokenOpt) : bearerTokenOpt;
+    }
+
+    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache, protocol, bearerToken }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     const updateTime = new Date().toISOString();
-    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, userAgent, fetcher, cache, callbacks });
+    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, userAgent, fetcher, cache, callbacks, bearerToken });
     const threadcapJson = JSON.stringify(threadcap, undefined, 2);
     console.log(threadcapJson);
     const outFile = out ? out : !isValidUrl(urlOrPath) ? urlOrPath : undefined;

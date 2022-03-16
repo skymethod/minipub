@@ -1,17 +1,19 @@
 // deno-lint-ignore-file no-unused-vars no-explicit-any
 import { isNonEmpty, isNonNegativeInteger, isStringRecord, isValidIso8601 } from '../check.ts';
 import { Cache, Callbacks, Comment, Commenter, Fetcher, Instant, Node, TextResponse, Threadcap } from './threadcap.ts';
-import { findOrFetchJson, ProtocolImplementation } from './threadcap_implementation.ts';
+import { findOrFetchJson, ProtocolImplementation, ProtocolMethodOptions } from './threadcap_implementation.ts';
 
 export const LightningCommentsProtocolImplementation: ProtocolImplementation = {
-    async initThreadcap(url: string, fetcher: Fetcher, cache: Cache): Promise<Threadcap> {
+    async initThreadcap(url: string, opts: ProtocolMethodOptions): Promise<Threadcap> {
+        const { fetcher, cache } = opts;
         const time: Instant = new Date().toISOString();
         const comments = await findOrFetchLightningComments(url, time, fetcher, cache); // will throw if invalid
         const roots = comments.filter(v => v.depth === 0).map(v => computeUrlWithHash(url, `comment-${v.id}`));
         return { protocol: 'lightningcomments', roots, nodes: {}, commenters: {} };
     },
     
-    async fetchComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment> {
+    async fetchComment(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<Comment> {
+        const { fetcher, cache } = opts;
         const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
         if (m) {
             const [ _, commentId] = m;
@@ -28,7 +30,8 @@ export const LightningCommentsProtocolImplementation: ProtocolImplementation = {
         throw new Error(`fetchComment: unexpected id=${id}`);
     },
     
-    async fetchCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
+    async fetchCommenter(attributedTo: string, updateTime: Instant, opts: ProtocolMethodOptions): Promise<Commenter> {
+        const { fetcher, cache } = opts;
         const m = /^#commenter-(.*?)$/.exec(new URL(attributedTo).hash);
         if (m) {
             const [ _, commenterId] = m;
@@ -43,7 +46,8 @@ export const LightningCommentsProtocolImplementation: ProtocolImplementation = {
         throw new Error(`fetchCommenter: unexpected attributedTo=${attributedTo}`);
     },
     
-    async fetchReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
+    async fetchReplies(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<readonly string[]> {
+        const { fetcher, cache } = opts;
         const m = /^#comment-(.*?)$/.exec(new URL(id).hash);
         if (m) {
             const [ _, commentId] = m;
@@ -60,7 +64,7 @@ export const LightningCommentsProtocolImplementation: ProtocolImplementation = {
 //
 
 async function findOrFetchLightningComments(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<readonly LightningComment[]> {
-    const obj = await findOrFetchJson(url, after, fetcher, cache, 'application/json');
+    const obj = await findOrFetchJson(url, after, fetcher, cache, { accept: 'application/json' });
     if (!isStringRecord(obj) || !isStringRecord(obj.data) || !Array.isArray(obj.data.comments)) throw new Error(`Unable to find obj.data.comments array: ${JSON.stringify(obj)}`);
     return obj.data.comments.map((v, i) => {
         if (!isValidLightningComment(v)) throw new Error(`Unexpected lightning comment at index ${i}: ${JSON.stringify(v)}`);

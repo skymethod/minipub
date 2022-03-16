@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { isReadonlyArray, isStringRecord } from '../check.ts';
 import { Attachment, Cache, Callbacks, Comment, Commenter, Fetcher, Icon, Instant, Threadcap } from './threadcap.ts';
-import { findOrFetchJson, ProtocolImplementation } from './threadcap_implementation.ts';
+import { findOrFetchJson, ProtocolImplementation, ProtocolMethodOptions } from './threadcap_implementation.ts';
 
 export const ActivityPubProtocolImplementation: ProtocolImplementation = {
     initThreadcap: initActivityPubThreadcap,
@@ -14,10 +14,11 @@ export const ActivityPubProtocolImplementation: ProtocolImplementation = {
 
 
 async function findOrFetchActivityPubObject(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<any> {
-    return await findOrFetchJson(url, after, fetcher, cache, 'application/activity+json');
+    return await findOrFetchJson(url, after, fetcher, cache, { accept: 'application/activity+json' });
 }
 
-async function initActivityPubThreadcap(url: string, fetcher: Fetcher, cache: Cache): Promise<Threadcap> {
+async function initActivityPubThreadcap(url: string, opts: ProtocolMethodOptions): Promise<Threadcap> {
+    const { fetcher, cache } = opts;
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id, type } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
@@ -26,17 +27,20 @@ async function initActivityPubThreadcap(url: string, fetcher: Fetcher, cache: Ca
     return { protocol: 'activitypub', roots: [ id ], nodes: { }, commenters: { } };
 }
 
-async function fetchActivityPubComment(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<Comment> {
+async function fetchActivityPubComment(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<Comment> {
+    const { fetcher, cache } = opts;
     const object = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     return computeComment(object, id, callbacks);
 }
 
-async function fetchActivityPubCommenter(attributedTo: string, updateTime: Instant, fetcher: Fetcher, cache: Cache): Promise<Commenter> {
+async function fetchActivityPubCommenter(attributedTo: string, updateTime: Instant, opts: ProtocolMethodOptions): Promise<Commenter> {
+    const { fetcher, cache } = opts;
     const object = await findOrFetchActivityPubObject(attributedTo, updateTime, fetcher, cache);
     return computeCommenter(object, updateTime);
 }
 
-async function fetchActivityPubReplies(id: string, updateTime: Instant, fetcher: Fetcher, cache: Cache, callbacks: Callbacks | undefined): Promise<readonly string[]> {
+async function fetchActivityPubReplies(id: string, updateTime: Instant, callbacks: Callbacks | undefined, opts: ProtocolMethodOptions): Promise<readonly string[]> {
+    const { fetcher, cache } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies; // castopod uses 'comments' url to an OrderedCollection
