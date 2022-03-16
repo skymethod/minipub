@@ -17,7 +17,9 @@ export type UserAgentOptions = { origin?: string, fetcher?: Fetcher };
 export function computeMinipubUserAgent(opts: UserAgentOptions = {}) {
     const { origin } = opts;
     const pieces: string[] = [];
-    const denoVersion = globalThis && globalThis.Deno && globalThis.Deno.version && typeof globalThis.Deno.version.deno === 'string' ? globalThis.Deno.version.deno : undefined;
+    // deno-lint-ignore no-explicit-any
+    const globalThisAny = globalThis as any;
+    const denoVersion = globalThisAny && globalThisAny.Deno && globalThisAny.Deno.version && typeof globalThisAny.Deno.version.deno === 'string' ? globalThisAny.Deno.version.deno : undefined;
     if (denoVersion) pieces.push(`Deno/${denoVersion}`);
     if (origin) pieces.push(`+${origin}`);
     return `minipub/${MINIPUB_VERSION} (${pieces.join('; ')})`;
