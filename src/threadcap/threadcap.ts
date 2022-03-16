@@ -327,7 +327,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
     if (maxNodes === 0) return;
 
     const implementation = computeProtocolImplementation(threadcap.protocol);
-    const state = new Map<string, unknown>();
+    const state: Record<string, unknown> = {};
 
     const idsBylevel: string[][] = [ startNode ? [ startNode ] : [...threadcap.roots] ];
     let remaining = 1;

@@ -64,17 +64,13 @@ export const TwitterProtocolImplementation: ProtocolImplementation = {
     },
     
     async fetchReplies(id: string, opts: ProtocolUpdateMethodOptions): Promise<readonly string[]> {
-        const { updateTime } = opts;
         const m = /^https:\/\/api\.twitter\.com\/2\/tweets\/(.*?)$/.exec(id);
         if (!m) throw new Error(`Unexpected tweet id: ${id}`);
         const [ _, tweetId ] = m;
-        const url = new URL('https://api.twitter.com/2/tweets/search/recent');
-        url.searchParams.set('query', `conversation_id:${tweetId}`);
-        url.searchParams.set('expansions', `referenced_tweets.id`);
-        const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
-        if (DEBUG) console.log('fetchReplies', JSON.stringify(obj, undefined, 2));
-        // deno-lint-ignore no-explicit-any
-        return obj.data.filter((v: any) => v.referenced_tweets.some((w: any) => w.type === 'replied_to' && w.id === tweetId)).map((v: any) => v.id).map((v: any) => `https://api.twitter.com/2/tweets/${v}`);
+        const convo = await findOrFetchConversation(tweetId, opts);
+        return Object.values(convo.tweets)
+            .filter(v => v.referenced_tweets.some(w => w.type === 'replied_to' && w.id === tweetId))
+            .map(v => `https://api.twitter.com/2/tweets/${v.id}`);
     },
 };
 
@@ -90,4 +86,61 @@ async function findOrFetchTwitter(url: string, after: Instant, opts: ProtocolMet
 // x-rate-limit-remaining: 299
 // x-rate-limit-reset: 1647396188
     return obj;
+}
+
+async function findOrFetchConversation(tweetId: string, opts: ProtocolUpdateMethodOptions): Promise<Conversation> {
+    const { updateTime, state } = opts;
+    let { conversation } = state;
+    if (!conversation) {
+        const conversationId = await findOrFetchConversationId(tweetId, opts);
+        const url = new URL('https://api.twitter.com/2/tweets/search/recent');
+        url.searchParams.set('query', `conversation_id:${conversationId}`);
+        url.searchParams.set('expansions', `referenced_tweets.id`);
+        url.searchParams.set('tweet.fields', `author_id,lang,created_at`);
+        const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+        if (DEBUG) console.log('findOrFetchConversation', JSON.stringify(obj, undefined, 2));
+
+        const tweets: Record<string, Tweet> = {};
+        for (const tweetObj of obj.data) {
+            const tweet = tweetObj as Tweet;
+            tweets[tweet.id] = tweet;
+        }
+        conversation = { tweets };
+        state.conversation = conversation;
+    }
+    return conversation as Conversation;
+}
+
+async function findOrFetchConversationId(tweetId: string, opts: ProtocolUpdateMethodOptions): Promise<string> {
+    const { updateTime, state } = opts;
+    let { conversationId } = state;
+    if (typeof conversationId === 'string') return conversationId;
+    const url = new URL(`https://api.twitter.com/2/tweets/${tweetId}`);
+    url.searchParams.set('tweet.fields', 'conversation_id');
+    const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+    if (DEBUG) console.log('findOrFetchConversation', JSON.stringify(obj, undefined, 2));
+    conversationId = obj.data.conversation_id;
+    if (typeof conversationId !== 'string') throw new Error(`Unexpected conversationId in payload: ${JSON.stringify(obj, undefined, 2)}`);
+    state.conversationId = conversationId;
+    return conversationId;
+}
+
+//
+
+interface Conversation {
+    readonly tweets: Record<string, Tweet>;
+}
+
+interface TweetReference {
+    readonly type: string;
+    readonly id: string;
+}
+
+interface Tweet {
+    readonly id: string;
+    readonly text: string;
+    readonly created_at?: Instant;
+    readonly author_id?: string;
+    readonly lang?: string;
+    readonly referenced_tweets: readonly TweetReference[];
 }

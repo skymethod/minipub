@@ -10,7 +10,7 @@ export interface ProtocolMethodOptions {
 export interface ProtocolUpdateMethodOptions extends ProtocolMethodOptions {
     readonly updateTime: Instant;
     readonly callbacks?: Callbacks;
-    readonly state: Map<string, unknown>;
+    readonly state: Record<string, unknown>;
 }
 
 export interface ProtocolImplementation {
