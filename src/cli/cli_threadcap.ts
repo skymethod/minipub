@@ -1,6 +1,6 @@
 import { isNonEmpty, isPositiveInteger, isValidUrl } from '../check.ts';
 import { computeMinipubUserAgent } from '../fetcher.ts';
-import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap } from '../threadcap/threadcap.ts';
+import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap, isValidProtocol } from '../threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from '../version.ts';
 
 export const threadcapDescription = 'Enumerates an ActivityPub reply thread for a given root post url';
@@ -10,12 +10,12 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const [ urlOrPath ] = args;
     if (typeof urlOrPath !== 'string') throw new Error('Provide url to root post (or local path to a saved threadcap) as an argument, e.g. minipub threadcap https://example.social/users/alice/statuses/123456');
-    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode, 'bearer-token': bearerTokenOpt } = options;
+    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode, 'bearer-token': bearerTokenOpt, protocol: protocolOpt } = options;
     if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
     if (maxNodes !== undefined && (typeof maxNodes !== 'number' || !isPositiveInteger(maxNodes))) throw new Error(`'max-nodes' should be a positive integer, if provided`);
     if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
     if (startNode !== undefined && (typeof startNode !== 'string' || !isValidUrl(startNode))) throw new Error(`'start-node' should be a valid node id for where to start updating the threadcap, if provided`);
-
+    if (protocolOpt !== undefined && (typeof protocolOpt !== 'string' || !isValidProtocol(protocolOpt))) throw new Error(`'protocol' should be one of: activitypub, twitter, lightningcomments, if provided`);
     let maxLevelProcessed = 0;
     let nodesProcessed = 0;
     const callbacks: Callbacks = {
@@ -51,7 +51,8 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     cache.onReturningCachedResponse = id => { cacheHits++; console.log(`Returning CACHED response for ${id}`); };
 
     const userAgent = computeMinipubUserAgent();
-    const protocol = isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'api.fountain.fm' ? 'lightningcomments' 
+    const protocol = protocolOpt ? protocolOpt
+        : isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'api.fountain.fm' ? 'lightningcomments' 
         : isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'twitter.com' ? 'twitter'
         : undefined;
     let bearerToken: string | undefined = undefined;
@@ -88,15 +89,17 @@ function dumpHelp() {
         '    minipub threadcap [ARGS] [OPTIONS]',
         '',
         'ARGS:',
-        '    <url>           Url to fetch, e.g. https://example.social/users/alice/statuses/123456',
+        '    <url>             Url to fetch, e.g. https://example.social/users/alice/statuses/123456',
         '',
         'OPTIONS:',
-        `    --max-levels    If provided, stop processing the thread after descending this many levels (positive integer, default: ${MAX_LEVELS})`,
-        `    --max-nodes     If provided, stop processing the thread after processing this many nodes (positive integer, default: unlimited)`,
-        `    --out           If provided, save the threadcap out to this file (local path)`,
+        `    --max-levels      If provided, stop processing the thread after descending this many levels (positive integer, default: ${MAX_LEVELS})`,
+        `    --max-nodes       If provided, stop processing the thread after processing this many nodes (positive integer, default: unlimited)`,
+        `    --out             If provided, save the threadcap out to this file (local path)`,
+        `    --protocol        If provided, use this protocol to capture the thread (activitypub, twitter, lightningcomments, default: activitypub)`,
+        `    --bearer-token    If provided, bearer token to use for api calls needing auth (string value or /path/to/token.txt)`,
         '',
-        '    --help          Prints help information',
-        '    --verbose       Toggle verbose output (when applicable)',
+        '    --help            Prints help information',
+        '    --verbose         Toggle verbose output (when applicable)',
     ];
     for (const line of lines) {
         console.log(line);

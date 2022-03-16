@@ -52,6 +52,10 @@ export type Instant = string;
 /** Supported protocols for capturing comment threads: activitypub, lightningcomments, twitter */
 export type Protocol = 'activitypub' | 'lightningcomments' | 'twitter';
 
+export function isValidProtocol(protocol: string): protocol is Protocol {
+    return protocol === 'activitypub' || protocol === 'lightningcomments' || protocol === 'twitter';
+}
+
 /**
  * Snapshot of a single comment inside of a larger {@link Threadcap}.
  * 
