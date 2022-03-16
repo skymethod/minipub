@@ -21,8 +21,8 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     const callbacks: Callbacks = {
         onEvent: event => {
             if (event.kind === 'waiting-for-rate-limit') {
-                const { millisToWait, hostname, limit, remaining, reset, millisTillReset } = event;
-                console.log(`Waiting ${(millisToWait / 1000).toFixed(2)}s before calling ${hostname}, ${JSON.stringify({ limit, remaining, reset, millisTillReset })}`);
+                const { millisToWait, endpoint, limit, remaining, reset, millisTillReset } = event;
+                console.log(`Waiting ${(millisToWait / 1000).toFixed(2)}s before calling ${endpoint}, ${JSON.stringify({ limit, remaining, reset, millisTillReset })}`);
             } else if (event.kind === 'node-processed') {
                 nodesProcessed++;
             } else if (event.kind === 'process-level') {

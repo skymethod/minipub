@@ -217,7 +217,7 @@ export interface TextResponse {
 }
 
 /** If customizing the rate-limiter wait function used in {@link makeRateLimitedFetcher}, these are the inputs you have to work with. */
-export type RateLimiterInput = { hostname: string, limit: number, remaining: number, reset: string, millisTillReset: number };
+export type RateLimiterInput = { endpoint: string, limit: number, remaining: number, reset: string, millisTillReset: number };
 
 /** 
  * Real-time callbacks fired when running {@link updateThreadcap}.
@@ -271,7 +271,7 @@ export interface NodeProcessedEvent {
 /** Fired when an update is waiting (sleeping) due to rate-limiting by the server. */
 export interface WaitingForRateLimitEvent {
     readonly kind: 'waiting-for-rate-limit';
-    readonly hostname: string;
+    readonly endpoint: string;
     readonly millisToWait: number;
     readonly millisTillReset: number;
     readonly limit: number;
@@ -381,7 +381,7 @@ export class InMemoryCache implements Cache {
 /** If no custom function is passed to {@link makeRateLimitedFetcher}, this is the function that is used to determine how long to wait (sleep) before making a rate-limited fetch call. */
 export function computeDefaultMillisToWait(input: RateLimiterInput): number {
     const { remaining, millisTillReset } = input;
-    if (remaining >= 100) return 0; // allow bursting, mastodon gives you 300 per period
+    if (remaining >= 100) return 0; // allow bursting, mastodon and twitter give you 300 per period
     return remaining > 0 ? Math.round(millisTillReset / remaining) : millisTillReset;
 }
 
@@ -398,32 +398,45 @@ export function computeDefaultMillisToWait(input: RateLimiterInput): number {
 export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Callbacks, computeMillisToWait?: (input: RateLimiterInput) => number } = {}): Fetcher {
     const { callbacks } = opts;
     const computeMillisToWait = opts.computeMillisToWait || computeDefaultMillisToWait;
-    const hostLimits = new Map<string, { limit: number, remaining: number, reset: string }>();
+    const endpointLimits = new Map<string, { limit: number, remaining: number, reset: string }>();
     
     return async (url, opts) => {
-        const hostname = new URL(url).hostname;
-        const limits = hostLimits.get(hostname);
+        const { hostname, pathname } = new URL(url);
+        const twitterEndpoint = computeTwitterEndpoint(hostname, pathname);
+        const endpoint = twitterEndpoint || hostname;
+        const limits = endpointLimits.get(endpoint);
         if (limits) {
             const { limit, remaining, reset } = limits;
             const millisTillReset = new Date(reset).getTime() - Date.now();
-            const millisToWait = computeMillisToWait({ hostname, limit, remaining, reset, millisTillReset });
+            const millisToWait = computeMillisToWait({ endpoint, limit, remaining, reset, millisTillReset });
             if (millisToWait > 0) {
-                callbacks?.onEvent({ kind: 'waiting-for-rate-limit', hostname, millisToWait, millisTillReset, limit, remaining, reset });
+                callbacks?.onEvent({ kind: 'waiting-for-rate-limit', endpoint, millisToWait, millisTillReset, limit, remaining, reset });
                 await sleep(millisToWait);
             }
         }
         const res = await fetcher(url, opts);
-        const limit = tryParseInt(res.headers.get('x-ratelimit-limit') || '');
-        const remaining = tryParseInt(res.headers.get('x-ratelimit-remaining') || '');
-        const reset = tryParseIso8601(res.headers.get('x-ratelimit-reset') || '');
+
+        const limitHeader = twitterEndpoint ? 'x-rate-limit-limit' : 'x-ratelimit-limit';
+        const remainingHeader = twitterEndpoint ? 'x-rate-limit-remaining' : 'x-ratelimit-remaining';
+        const resetHeader = twitterEndpoint ? 'x-rate-limit-reset' : 'x-ratelimit-reset';
+        const limit = tryParseInt(res.headers.get(limitHeader) || '');
+        const remaining = tryParseInt(res.headers.get(remainingHeader) || '');
+        const resetStr = res.headers.get(resetHeader) || '';
+        const reset = twitterEndpoint ? tryParseEpochSecondsAsIso8601(resetStr): tryParseIso8601(resetStr);
         if (limit !== undefined && remaining !== undefined && reset !== undefined) {
-            hostLimits.set(hostname, { limit, remaining, reset });
+            endpointLimits.set(endpoint, { limit, remaining, reset });
         }
         return res;
     }
 }
 
 //
+
+function computeTwitterEndpoint(hostname: string, pathname: string): string | undefined {
+    if (hostname === 'api.twitter.com') {
+        return pathname.replaceAll(/\d{4,}/g, ':id');
+    }
+}
 
 function makeFetcherWithUserAgent(fetcher: Fetcher, userAgent: string): Fetcher {
     userAgent = userAgent.trim();
@@ -503,4 +516,9 @@ function tryParseInt(value: string): number | undefined {
 
 function tryParseIso8601(value: string): Instant | undefined {
     return isValidIso8601(value) ? value : undefined;
+}
+
+function tryParseEpochSecondsAsIso8601(value: string): Instant | undefined {
+    const seconds = tryParseInt(value);
+    return seconds && seconds > 0 ? new Date(seconds * 1000).toISOString() : undefined;
 }
