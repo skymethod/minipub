@@ -7,7 +7,7 @@ export const TwitterProtocolImplementation: ProtocolImplementation = {
         // https://twitter.com/Alice/status/1503123431766512353
         const { hostname, pathname } = new URL(url);
         const m = /^\/.*?\/status\/(\d+)$/.exec(pathname);
-        if (hostname !== 'twitter.com' || !m) throw new Error(`Unexpected tweet url: ${url}`);
+        if (!/^(mobile\.)twitter\.com$/.test(hostname) || !m) throw new Error(`Unexpected tweet url: ${url}`);
         const [ _, id] = m;
         const tweetApiUrl = `https://api.twitter.com/2/tweets/${id}`;
         const obj = await findOrFetchTwitter(tweetApiUrl, new Date().toISOString(), opts);
