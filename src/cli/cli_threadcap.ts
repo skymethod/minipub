@@ -16,6 +16,7 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
     if (startNode !== undefined && (typeof startNode !== 'string' || !isValidUrl(startNode))) throw new Error(`'start-node' should be a valid node id for where to start updating the threadcap, if provided`);
     if (protocolOpt !== undefined && (typeof protocolOpt !== 'string' || !isValidProtocol(protocolOpt))) throw new Error(`'protocol' should be one of: activitypub, twitter, lightningcomments, if provided`);
+    const verbose = !!options.verbose;
     let maxLevelProcessed = 0;
     let nodesProcessed = 0;
     const callbacks: Callbacks = {
@@ -61,9 +62,10 @@ export async function threadcap(args: (string | number)[], options: Record<strin
         bearerToken = bearerTokenOpt.startsWith('/') ? await Deno.readTextFile(bearerTokenOpt) : bearerTokenOpt;
     }
 
-    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache, protocol, bearerToken }) : JSON.parse(await Deno.readTextFile(urlOrPath));
+    const debug = verbose;
+    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache, protocol, bearerToken, debug }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     const updateTime = new Date().toISOString();
-    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, userAgent, fetcher, cache, callbacks, bearerToken });
+    await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, userAgent, fetcher, cache, callbacks, bearerToken, debug });
     const threadcapJson = JSON.stringify(threadcap, undefined, 2);
     console.log(threadcapJson);
     const outFile = out ? out : !isValidUrl(urlOrPath) ? urlOrPath : undefined;

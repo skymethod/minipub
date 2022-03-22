@@ -296,11 +296,11 @@ export const MAX_LEVELS = 1000; // go down at most this many levels (this would 
  * 
  * @returns A new {@link Threadcap} structure, or throws if the input url does not respond to an ActivityPub request.
  */
-export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache, protocol?: Protocol, bearerToken?: string }): Promise<Threadcap> {
-    const { cache, userAgent, protocol, bearerToken } = opts;
+export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache, protocol?: Protocol, bearerToken?: string, debug?: boolean }): Promise<Threadcap> {
+    const { cache, userAgent, protocol, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const implementation = computeProtocolImplementation(protocol);
-    return await implementation.initThreadcap(url, { fetcher, cache, bearerToken });
+    return await implementation.initThreadcap(url, { fetcher, cache, bearerToken, debug });
 }
 
 /**
@@ -320,8 +320,8 @@ export async function makeThreadcap(url: string, opts: { userAgent: string, fetc
  */
 export async function updateThreadcap(threadcap: Threadcap, opts: { 
         updateTime: Instant, maxLevels?: number, maxNodes?: number, startNode?: string, keepGoing?: () => boolean, 
-        userAgent: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks, bearerToken?: string }) {
-    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken } = opts;
+        userAgent: string, fetcher: Fetcher, cache: Cache, callbacks?: Callbacks, bearerToken?: string, debug?: boolean }) {
+    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? MAX_LEVELS : Math.round(maxLevels), 0), MAX_LEVELS);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
@@ -342,7 +342,7 @@ export async function updateThreadcap(threadcap: Threadcap, opts: {
         const nextLevel = level + 1;
         for (const id of idsBylevel[level] || []) {
             const processReplies = nextLevel < maxLevel;
-            const node = await processNode(id, processReplies, threadcap, implementation, { updateTime, callbacks, state, fetcher, cache, bearerToken });
+            const node = await processNode(id, processReplies, threadcap, implementation, { updateTime, callbacks, state, fetcher, cache, bearerToken, debug });
             remaining--;
             processed++;
             if (maxNodes && processed >= maxNodes) return;

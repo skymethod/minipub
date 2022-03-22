@@ -5,6 +5,7 @@ export interface ProtocolMethodOptions {
     readonly bearerToken?: string;
     readonly fetcher: Fetcher;
     readonly cache: Cache;
+    readonly debug?: boolean;
 }
 
 export interface ProtocolUpdateMethodOptions extends ProtocolMethodOptions {
