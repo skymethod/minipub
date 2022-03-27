@@ -66,10 +66,14 @@ async function fetchActivityPubReplies(id: string, opts: ProtocolUpdateMethodOpt
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies; // castopod uses 'comments' url to an OrderedCollection
     if (replies === undefined) {
-        const message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
+        let message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
+        const tryPleromaWorkaround = id.includes('/objects/');
+        if (tryPleromaWorkaround) {
+            message += ', trying Pleroma workaround';
+        }
         callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message, object });
 
-        if (id.includes('/objects/')) {
+        if (tryPleromaWorkaround) {
             // pleroma doesn't currently implement 'replies', so fallback to the mastodon api
             return await mastodonFindReplies(id, { after: updateTime, fetcher, cache, debug });
         }
