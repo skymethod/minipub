@@ -23,6 +23,8 @@ import { updateNote, updateNoteDescription } from './cli/cli_update_note.ts';
 import { deleteNote, deleteNoteDescription } from './cli/cli_delete_note.ts';
 import { generateAdminToken, generateAdminTokenDescription } from './cli/cli_generate_admin_token.ts';
 import { revokeAdminToken, revokeAdminTokenDescription } from './cli/cli_revoke_admin_token.ts';
+import { mastodonFindReplies } from './threadcap/threadcap_activitypub.ts';
+import { InMemoryCache } from './threadcap/threadcap.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -100,6 +102,11 @@ async function tmp(_args: (string | number)[], options: Record<string, unknown>)
     const { origin, token } = options;
     if (typeof origin === 'string' && typeof token === 'string') {
         await sendRpc({ kind: 'delete-note', objectUuid: newUuid() }, origin, { bearerToken: token });
+    }
+    const { 'mastodon-replies': mastodonReplies } = options;
+    if (typeof mastodonReplies === 'string') {
+        const replies = await mastodonFindReplies(mastodonReplies, { after: new Date().toISOString(), fetcher: fetch, cache: new InMemoryCache(), debug: true });
+        console.log(replies);
     }
 }
 

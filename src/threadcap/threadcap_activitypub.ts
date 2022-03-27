@@ -10,6 +10,28 @@ export const ActivityPubProtocolImplementation: ProtocolImplementation = {
     fetchReplies: fetchActivityPubReplies,
 };
 
+export async function mastodonFindReplies(id: string, opts: { after: Instant, fetcher: Fetcher, cache: Cache, debug?: boolean }): Promise<readonly string[]> {
+    const { after, fetcher, cache, debug } = opts;
+    const statusId = await mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, debug);
+    if (!statusId) return [];
+
+    // https://pleroma.example/api/v1/statuses/ADEfV123Q7oXygK123/context
+    const { origin } = new URL(id);
+    const url = new URL(origin);
+    url.pathname = `/api/v1/statuses/${statusId}/context`;
+    const obj = await findOrFetchJson(url.toString(), after, fetcher, cache, { accept: 'application/json' });
+    if (debug) console.log(JSON.stringify(obj, undefined, 2));
+    const rt: string[] = [];
+    if (isStringRecord(obj) && Array.isArray(obj.descendants)) {
+        for (const descendant of obj.descendants) {
+            if (isStringRecord(descendant) && typeof descendant.uri === 'string' && descendant.in_reply_to_id === statusId) {
+                rt.push(descendant.uri);
+            }
+        }
+    }
+    return rt;
+}
+
 //
 
 async function findOrFetchActivityPubObject(url: string, after: Instant, fetcher: Fetcher, cache: Cache): Promise<any> {
@@ -39,13 +61,18 @@ async function fetchActivityPubCommenter(attributedTo: string, opts: ProtocolUpd
 }
 
 async function fetchActivityPubReplies(id: string, opts: ProtocolUpdateMethodOptions): Promise<readonly string[]> {
-    const { fetcher, cache, updateTime, callbacks } = opts;
+    const { fetcher, cache, updateTime, callbacks, debug } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies; // castopod uses 'comments' url to an OrderedCollection
     if (replies === undefined) {
         const message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
         callbacks?.onEvent({ kind: 'warning', url: id, nodeId: id, message, object });
+
+        if (id.includes('/objects/')) {
+            // pleroma doesn't currently implement 'replies', so fallback to the mastodon api
+            return await mastodonFindReplies(id, { after: updateTime, fetcher, cache, debug });
+        }
         return [];
     }
 
@@ -252,4 +279,22 @@ function computeFqUsername(url: string, preferredUsername: string | undefined): 
     const username = m ? m[1] : preferredUsername;
     if (!username) throw new Error(`Unable to compute username from url: ${url}`);
     return `${username}@${u.hostname}`;
+}
+
+async function mastodonFindStatusIdForActivityPubId(id: string, after: Instant, fetcher: Fetcher, cache: Cache, debug?: boolean): Promise<string | undefined> {
+    // https://pleroma.example/api/v2/search?q=https://pleroma.example/notice/ADEfV123Q7oXygK123
+    const { origin } = new URL(id);
+    const url = new URL(origin);
+    url.pathname = '/api/v2/search';
+    url.searchParams.set('q', id);
+    url.searchParams.set('type', 'statuses');
+    const obj = await findOrFetchJson(url.toString(), after, fetcher, cache, { accept: 'application/json' });
+    if (debug) console.log(JSON.stringify(obj, undefined, 2));
+    if (isStringRecord(obj) && Array.isArray(obj.statuses) && obj.statuses.length === 1) {
+        const status = obj.statuses[0];
+        if (isStringRecord(status) && typeof status.id === 'string' && status.id !== '') {
+            return status.id;
+        }
+    }
+    return undefined;
 }
