@@ -31,14 +31,14 @@ export interface Threadcap {
     /**
      * Underlying protocol used to capture the thread.
      *
-     * Supported protocols: activitypub (default), lightningcomments, twitter
+     * Supported protocols: activitypub (default), twitter, lightning
      */
     readonly protocol?: Protocol;
 }
 /** An ISO-8601 date at GMT, including optional milliseconds, e.g. `1970-01-01T00:00:00Z` or `1970-01-01T00:00:00.123Z` */
 export declare type Instant = string;
-/** Supported protocols for capturing comment threads: activitypub, lightningcomments, twitter */
-export declare type Protocol = 'activitypub' | 'lightningcomments' | 'twitter';
+/** Supported protocols for capturing comment threads: activitypub, twitter, lightning (aka lightningcomments) */
+export declare type Protocol = 'activitypub' | 'twitter' | 'lightning' | 'lightningcomments';
 export declare function isValidProtocol(protocol: string): protocol is Protocol;
 /**
  * Snapshot of a single comment inside of a larger {@link Threadcap}.
@@ -247,6 +247,7 @@ export declare function makeThreadcap(url: string, opts: {
     cache: Cache;
     protocol?: Protocol;
     bearerToken?: string;
+    debug?: boolean;
 }): Promise<Threadcap>;
 /**
  * Update or refresh a {@link Threadcap} in place by making underlying ActivityPub calls to enumerate the reply tree.
@@ -274,6 +275,7 @@ export declare function updateThreadcap(threadcap: Threadcap, opts: {
     cache: Cache;
     callbacks?: Callbacks;
     bearerToken?: string;
+    debug?: boolean;
 }): Promise<void>;
 /** Simple implementation of {@link Cache} that keeps everything around in memory. */
 export declare class InMemoryCache implements Cache {

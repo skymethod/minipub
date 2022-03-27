@@ -52,6 +52,29 @@ const ActivityPubProtocolImplementation = {
     fetchCommenter: fetchActivityPubCommenter,
     fetchReplies: fetchActivityPubReplies
 };
+async function mastodonFindReplies(id, opts) {
+    const { after, fetcher, cache, debug } = opts;
+    const statusId = await mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, debug);
+    if (!statusId)
+        return [];
+    const { origin } = new URL(id);
+    const url = new URL(origin);
+    url.pathname = `/api/v1/statuses/${statusId}/context`;
+    const obj = await findOrFetchJson(url.toString(), after, fetcher, cache, {
+        accept: 'application/json'
+    });
+    if (debug)
+        console.log(JSON.stringify(obj, undefined, 2));
+    const rt = [];
+    if (isStringRecord(obj) && Array.isArray(obj.descendants)) {
+        for (const descendant of obj.descendants) {
+            if (isStringRecord(descendant) && typeof descendant.uri === 'string' && descendant.in_reply_to_id === statusId) {
+                rt.push(descendant.uri);
+            }
+        }
+    }
+    return rt;
+}
 async function findOrFetchActivityPubObject(url, after, fetcher, cache) {
     return await findOrFetchJson(url, after, fetcher, cache, {
         accept: 'application/activity+json'
@@ -87,7 +110,7 @@ async function fetchActivityPubCommenter(attributedTo, opts) {
     return computeCommenter(object, updateTime);
 }
 async function fetchActivityPubReplies(id, opts) {
-    const { fetcher, cache, updateTime, callbacks } = opts;
+    const { fetcher, cache, updateTime, callbacks, debug } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies;
@@ -100,6 +123,14 @@ async function fetchActivityPubReplies(id, opts) {
             message,
             object
         });
+        if (id.includes('/objects/')) {
+            return await mastodonFindReplies(id, {
+                after: updateTime,
+                fetcher,
+                cache,
+                debug
+            });
+        }
         return [];
     }
     const rt = [];
@@ -369,6 +400,25 @@ function computeFqUsername(url, preferredUsername) {
         throw new Error(`Unable to compute username from url: ${url}`);
     return `${username}@${u.hostname}`;
 }
+async function mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, debug) {
+    const { origin } = new URL(id);
+    const url = new URL(origin);
+    url.pathname = '/api/v2/search';
+    url.searchParams.set('q', id);
+    url.searchParams.set('type', 'statuses');
+    const obj = await findOrFetchJson(url.toString(), after, fetcher, cache, {
+        accept: 'application/json'
+    });
+    if (debug)
+        console.log(JSON.stringify(obj, undefined, 2));
+    if (isStringRecord(obj) && Array.isArray(obj.statuses) && obj.statuses.length === 1) {
+        const status = obj.statuses[0];
+        if (isStringRecord(status) && typeof status.id === 'string' && status.id !== '') {
+            return status.id;
+        }
+    }
+    return undefined;
+}
 const LightningCommentsProtocolImplementation = {
     async initThreadcap(url, opts) {
         const { fetcher, cache } = opts;
@@ -376,7 +426,7 @@ const LightningCommentsProtocolImplementation = {
         const comments = await findOrFetchLightningComments(url, time, fetcher, cache);
         const roots = comments.filter((v) => v.depth === 0).map((v) => computeUrlWithHash(url, `comment-${v.id}`));
         return {
-            protocol: 'lightningcomments',
+            protocol: 'lightning',
             roots,
             nodes: {},
             commenters: {}
@@ -461,14 +511,15 @@ function isValidLightningSender(obj) {
 }
 const TwitterProtocolImplementation = {
     async initThreadcap(url, opts) {
+        const { debug } = opts;
         const { hostname, pathname } = new URL(url);
         const m = /^\/.*?\/status\/(\d+)$/.exec(pathname);
-        if (hostname !== 'twitter.com' || !m)
+        if (!/^(mobile\.)?twitter\.com$/.test(hostname) || !m)
             throw new Error(`Unexpected tweet url: ${url}`);
         const [_, id] = m;
         const tweetApiUrl = `https://api.twitter.com/2/tweets/${id}`;
         const obj = await findOrFetchTwitter(tweetApiUrl, new Date().toISOString(), opts);
-        if (DEBUG)
+        if (debug)
             console.log(JSON.stringify(obj, undefined, 2));
         return {
             protocol: 'twitter',
@@ -480,52 +531,38 @@ const TwitterProtocolImplementation = {
         };
     },
     async fetchComment(id, opts) {
-        const { updateTime } = opts;
+        const { updateTime, debug, state } = opts;
+        if (typeof state.conversationId === 'string') {
+            const conversation = await findOrFetchConversation(state.conversationId, opts);
+            const tweetId = id.split('/').pop();
+            const tweet = conversation.tweets[tweetId];
+            if (!tweet)
+                throw new Error(`fetchComment: tweet ${tweetId} not found in conversation`);
+            return computeCommentFromTweetObj(tweet);
+        }
         const url = new URL(id);
         url.searchParams.set('tweet.fields', 'author_id,lang,created_at');
         const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
-        if (DEBUG)
+        if (debug)
             console.log(JSON.stringify(obj, undefined, 2));
-        const tweetId = obj.data.id;
-        const text = obj.data.text;
-        const authorId = obj.data.author_id;
-        const lang = obj.data.lang;
-        const createdAt = obj.data.created_at;
-        const content = {};
-        content[lang] = text;
-        const tweetUrl = `https://twitter.com/i/web/status/${tweetId}`;
-        return {
-            attachments: [],
-            attributedTo: `https://api.twitter.com/2/users/${authorId}`,
-            content,
-            published: createdAt,
-            url: tweetUrl
-        };
+        return computeCommentFromTweetObj(obj.data);
     },
     async fetchCommenter(attributedTo, opts) {
-        const { updateTime } = opts;
+        const { updateTime, debug, state } = opts;
+        if (typeof state.conversationId === 'string') {
+            const conversation = await findOrFetchConversation(state.conversationId, opts);
+            const userId = attributedTo.split('/').pop();
+            const user = conversation.users[userId];
+            if (!user)
+                throw new Error(`fetchCommenter: user ${userId} not found in conversation`);
+            return computeCommenterFromUserObj(user, updateTime);
+        }
         const url = new URL(attributedTo);
-        url.searchParams.set('user.fields', 'url,profile_image_url');
+        url.searchParams.set('user.fields', 'profile_image_url');
         const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
-        if (DEBUG)
+        if (debug)
             console.log('fetchCommenter', JSON.stringify(obj, undefined, 2));
-        const name = obj.data.name;
-        const fqUsername = '@' + obj.data.username;
-        const userUrl = `https://twitter.com/${obj.data.username}`;
-        const iconUrl = obj.data.profile_image_url;
-        const iconUrlLower = (iconUrl || '').toLowerCase();
-        const iconMediaType = iconUrlLower.endsWith('.jpg') ? 'image/jpeg' : iconUrlLower.endsWith('.png') ? 'image/png' : undefined;
-        const icon = iconUrl ? {
-            url: iconUrl,
-            mediaType: iconMediaType
-        } : undefined;
-        return {
-            asof: updateTime,
-            name,
-            fqUsername,
-            url: userUrl,
-            icon
-        };
+        return computeCommenterFromUserObj(obj.data, updateTime);
     },
     async fetchReplies(id, opts) {
         const m = /^https:\/\/api\.twitter\.com\/2\/tweets\/(.*?)$/.exec(id);
@@ -536,7 +573,42 @@ const TwitterProtocolImplementation = {
         return Object.values(convo.tweets).filter((v) => v.referenced_tweets.some((w) => w.type === 'replied_to' && w.id === tweetId)).map((v) => `https://api.twitter.com/2/tweets/${v.id}`);
     }
 };
-const DEBUG = false;
+function computeCommenterFromUserObj(obj, asof) {
+    const name = obj.name;
+    const fqUsername = '@' + obj.username;
+    const userUrl = `https://twitter.com/${obj.username}`;
+    const iconUrl = obj.profile_image_url;
+    const iconUrlLower = (iconUrl || '').toLowerCase();
+    const iconMediaType = iconUrlLower.endsWith('.jpg') ? 'image/jpeg' : iconUrlLower.endsWith('.png') ? 'image/png' : undefined;
+    const icon = iconUrl ? {
+        url: iconUrl,
+        mediaType: iconMediaType
+    } : undefined;
+    return {
+        asof,
+        name,
+        fqUsername,
+        url: userUrl,
+        icon
+    };
+}
+function computeCommentFromTweetObj(obj) {
+    const tweetId = obj.id;
+    const text = obj.text;
+    const authorId = obj.author_id;
+    const lang = obj.lang;
+    const createdAt = obj.created_at;
+    const content = {};
+    content[lang] = text;
+    const tweetUrl = `https://twitter.com/i/web/status/${tweetId}`;
+    return {
+        attachments: [],
+        attributedTo: `https://api.twitter.com/2/users/${authorId}`,
+        content,
+        published: createdAt,
+        url: tweetUrl
+    };
+}
 async function findOrFetchTwitter(url, after, opts) {
     const { fetcher, cache, bearerToken } = opts;
     const obj = await findOrFetchJson(url, after, fetcher, cache, {
@@ -546,35 +618,68 @@ async function findOrFetchTwitter(url, after, opts) {
     return obj;
 }
 async function findOrFetchConversation(tweetId, opts) {
-    const { updateTime, state } = opts;
+    const { updateTime, state, debug } = opts;
     let { conversation } = state;
     if (!conversation) {
         const conversationId = await findOrFetchConversationId(tweetId, opts);
+        state.conversationId = conversationId;
         const url = new URL('https://api.twitter.com/2/tweets/search/recent');
         url.searchParams.set('query', `conversation_id:${conversationId}`);
-        url.searchParams.set('expansions', `referenced_tweets.id`);
+        url.searchParams.set('expansions', `referenced_tweets.id,author_id`);
         url.searchParams.set('tweet.fields', `author_id,lang,created_at`);
-        const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+        url.searchParams.set('user.fields', `id,name,username,profile_image_url`);
+        url.searchParams.set('max_results', `100`);
         const tweets = {};
-        for (const tweetObj of obj.data) {
-            const tweet = tweetObj;
-            tweets[tweet.id] = tweet;
+        const users = {};
+        let nextToken;
+        let i = 0;
+        while (++i) {
+            if (nextToken) {
+                url.searchParams.set('next_token', nextToken);
+            }
+            else {
+                url.searchParams.delete('next_token');
+            }
+            const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+            if (debug)
+                console.log(`findOrFetchConversation nextToken=${nextToken}`, JSON.stringify(obj, undefined, 2));
+            for (const tweetObj of obj.data) {
+                const tweet = tweetObj;
+                tweets[tweet.id] = tweet;
+            }
+            if (obj.includes && Array.isArray(obj.includes.users)) {
+                for (const userObj of obj.includes.users) {
+                    const user = userObj;
+                    users[user.id] = user;
+                }
+            }
+            if (obj.meta && typeof obj.meta.next_token === 'string') {
+                nextToken = obj.meta.next_token;
+                if (i === 50)
+                    break;
+            }
+            else {
+                break;
+            }
         }
         conversation = {
-            tweets
+            tweets,
+            users
         };
         state.conversation = conversation;
     }
     return conversation;
 }
 async function findOrFetchConversationId(tweetId, opts) {
-    const { updateTime, state } = opts;
+    const { updateTime, state, debug } = opts;
     let { conversationId } = state;
     if (typeof conversationId === 'string')
         return conversationId;
     const url = new URL(`https://api.twitter.com/2/tweets/${tweetId}`);
     url.searchParams.set('tweet.fields', 'conversation_id');
     const obj = await findOrFetchTwitter(url.toString(), updateTime, opts);
+    if (debug)
+        console.log('findOrFetchConversation', JSON.stringify(obj, undefined, 2));
     conversationId = obj.data.conversation_id;
     if (typeof conversationId !== 'string')
         throw new Error(`Unexpected conversationId in payload: ${JSON.stringify(obj, undefined, 2)}`);
@@ -582,21 +687,22 @@ async function findOrFetchConversationId(tweetId, opts) {
     return conversationId;
 }
 function isValidProtocol(protocol) {
-    return protocol === 'activitypub' || protocol === 'lightningcomments' || protocol === 'twitter';
+    return protocol === 'activitypub' || protocol === 'twitter' || protocol === 'lightning' || protocol === 'lightningcomments';
 }
 const MAX_LEVELS = 1000;
 async function makeThreadcap(url, opts) {
-    const { cache, userAgent, protocol, bearerToken } = opts;
+    const { cache, userAgent, protocol, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const implementation = computeProtocolImplementation(protocol);
     return await implementation.initThreadcap(url, {
         fetcher,
         cache,
-        bearerToken
+        bearerToken,
+        debug
     });
 }
 async function updateThreadcap(threadcap, opts) {
-    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken } = opts;
+    const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const maxLevel = Math.min(Math.max(maxLevels === undefined ? 1000 : Math.round(maxLevels), 0), 1000);
     const maxNodes = maxNodesInput === undefined ? undefined : Math.max(Math.round(maxNodesInput), 0);
@@ -632,7 +738,8 @@ async function updateThreadcap(threadcap, opts) {
                 state,
                 fetcher,
                 cache,
-                bearerToken
+                bearerToken,
+                debug
             });
             remaining--;
             processed++;
@@ -771,7 +878,7 @@ function makeFetcherWithUserAgent(fetcher, userAgent) {
 function computeProtocolImplementation(protocol) {
     if (protocol === undefined || protocol === 'activitypub')
         return ActivityPubProtocolImplementation;
-    if (protocol === 'lightningcomments')
+    if (protocol === 'lightning' || protocol === 'lightningcomments')
         return LightningCommentsProtocolImplementation;
     if (protocol === 'twitter')
         return TwitterProtocolImplementation;
