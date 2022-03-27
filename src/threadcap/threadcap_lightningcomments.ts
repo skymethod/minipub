@@ -8,7 +8,7 @@ export const LightningCommentsProtocolImplementation: ProtocolImplementation = {
         const time: Instant = new Date().toISOString();
         const comments = await findOrFetchLightningComments(url, time, fetcher, cache); // will throw if invalid
         const roots = comments.filter(v => v.depth === 0).map(v => computeUrlWithHash(url, `comment-${v.id}`));
-        return { protocol: 'lightningcomments', roots, nodes: {}, commenters: {} };
+        return { protocol: 'lightning', roots, nodes: {}, commenters: {} };
     },
     
     async fetchComment(id: string, opts: ProtocolUpdateMethodOptions): Promise<Comment> {
