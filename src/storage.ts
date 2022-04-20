@@ -9,6 +9,7 @@ export type BackendStorageValue = Record<string, unknown> | Uint8Array;
 export interface BackendStorageTransaction {
     rollback(): void;
     get(domain: string, key: string): Promise<BackendStorageValue | undefined>;
+    getAll(domain: string, keys: string[]): Promise<Map<string, BackendStorageValue>>;
     put(domain: string, key: string, value: BackendStorageValue): Promise<void>;
     delete(domain: string, key: string): Promise<boolean>; // returns existed
     putAll(domainsToKeysToValues: Record<string, Record<string, BackendStorageValue>>): Promise<void>;

@@ -60,6 +60,24 @@ class SqliteStorageTransaction implements BackendStorageTransaction {
         return Promise.resolve(unpackValue(entries[0]));
     }
 
+    getAll(domain: string, keys: string[]): Promise<Map<string, BackendStorageValue>> {
+        if (this.rolledBack) throw new Error('rollback() was called');
+        const rt = new Map<string, BackendStorageValue>();
+        if (keys.length > 0) {
+            const dbKeys = keys.map(v => packKey(domain, v));
+            const params = dbKeys.map(_ => '?').join(', ');
+            const entries = this.db.queryEntries(`select key, text_value, blob_value from ${STORAGE} where key in (${params})`, dbKeys);
+            for (const entry of entries) {
+                const { key } = entry;
+                if (typeof key === 'string') {
+                    const value = unpackValue(entry);
+                    rt.set(key.substring(domain.length + 1), value);
+                }
+            }
+        }
+        return Promise.resolve(rt);
+    }
+
     put(domain: string, key: string, value: BackendStorageValue): Promise<void> {
         if (this.rolledBack) throw new Error('rollback() was called');
         const dbKey = packKey(domain, key);

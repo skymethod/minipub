@@ -49,6 +49,18 @@ class DurableObjectBackendStorageTransaction implements BackendStorageTransactio
         return value ? unpackValue(value) : undefined;
     }
 
+    async getAll(domain: string, keys: string[]): Promise<Map<string, BackendStorageValue>> {
+        const rt = new Map<string, BackendStorageValue>();
+        if (keys.length > 0) {
+            const packedKeys = keys.map(v => packKey(domain, v));
+            const values = await this.transaction.get(packedKeys);
+            for (const [ key, value ] of values) {
+                rt.set(key.substring(domain.length + 1), unpackValue(value));
+            }
+        }
+        return rt;
+    }
+
     async put(domain: string, key: string, value: BackendStorageValue): Promise<void> {
         await this.transaction.put(packKey(domain, key), value);
     }
