@@ -1,1 +1,1 @@
-export const MINIPUB_VERSION = '0.1.7+';
+export const MINIPUB_VERSION = '0.1.8';
