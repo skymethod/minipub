@@ -19,7 +19,8 @@ async function findOrFetchJson(url, after, fetcher, cache, opts) {
     if (status !== 200)
         throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
     const contentType = headers['content-type'] || '<none>';
-    if (!contentType.toLowerCase().includes('json'))
+    const foundJson = contentType.toLowerCase().includes('json') || contentType === '<none>' && bodyText.startsWith('{"');
+    if (!foundJson)
         throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
     return JSON.parse(bodyText);
 }
@@ -110,12 +111,17 @@ async function fetchActivityPubCommenter(attributedTo, opts) {
     return computeCommenter(object, updateTime);
 }
 async function fetchActivityPubReplies(id, opts) {
+    var _a;
     const { fetcher, cache, updateTime, callbacks, debug } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
-    const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies;
+    const replies = object.type === 'PodcastEpisode' ? object.comments : (_a = object.replies) !== null && _a !== void 0 ? _a : object.comments;
     if (replies === undefined) {
-        const message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
+        let message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
+        const tryPleromaWorkaround = id.includes('/objects/');
+        if (tryPleromaWorkaround) {
+            message += ', trying Pleroma workaround';
+        }
         callbacks === null || callbacks === void 0 ? void 0 : callbacks.onEvent({
             kind: 'warning',
             url: id,
@@ -123,7 +129,7 @@ async function fetchActivityPubReplies(id, opts) {
             message,
             object
         });
-        if (id.includes('/objects/')) {
+        if (tryPleromaWorkaround) {
             return await mastodonFindReplies(id, {
                 after: updateTime,
                 fetcher,
@@ -137,7 +143,7 @@ async function fetchActivityPubReplies(id, opts) {
     const fetched = new Set();
     if (typeof replies === 'string') {
         const obj = await findOrFetchActivityPubObject(replies, updateTime, fetcher, cache);
-        if (obj.type === 'OrderedCollection') {
+        if (obj.type === 'OrderedCollection' || obj.type === 'OrderedCollectionPage') {
             return await collectRepliesFromOrderedCollection(obj, updateTime, id, fetcher, cache, callbacks, fetched);
         }
         else {

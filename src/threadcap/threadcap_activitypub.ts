@@ -64,7 +64,9 @@ async function fetchActivityPubReplies(id: string, opts: ProtocolUpdateMethodOpt
     const { fetcher, cache, updateTime, callbacks, debug } = opts;
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
-    const replies = object.type === 'PodcastEpisode' ? object.comments : object.replies; // castopod uses 'comments' url to an OrderedCollection
+    // castopod uses 'comments' url to an OrderedCollection
+    // also found 'comments' url to an OrderedCollectionPage (no 'replies')
+    const replies = object.type === 'PodcastEpisode' ? object.comments : (object.replies ?? object.comments); 
     if (replies === undefined) {
         let message = object.type === 'PodcastEpisode' ? `No 'comments' found on PodcastEpisode object` : `No 'replies' found on object`;
         const tryPleromaWorkaround = id.includes('/objects/');
@@ -84,7 +86,7 @@ async function fetchActivityPubReplies(id: string, opts: ProtocolUpdateMethodOpt
     const fetched = new Set<string>();
     if (typeof replies === 'string') {
         const obj = await findOrFetchActivityPubObject(replies, updateTime, fetcher, cache);
-        if (obj.type === 'OrderedCollection') {
+        if (obj.type === 'OrderedCollection' || obj.type === 'OrderedCollectionPage') {
             return await collectRepliesFromOrderedCollection(obj, updateTime, id, fetcher, cache, callbacks, fetched);
         } else {
             throw new Error(`Expected 'replies' to point to an OrderedCollection, found ${JSON.stringify(obj)}`);

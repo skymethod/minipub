@@ -27,7 +27,8 @@ export async function findOrFetchJson(url: string, after: Instant, fetcher: Fetc
     const { status, headers, bodyText } = response;
     if (status !== 200) throw new Error(`Expected 200 response for ${url}, found ${status} body=${bodyText}`);
     const contentType = headers['content-type'] || '<none>';
-    if (!contentType.toLowerCase().includes('json')) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
+    const foundJson = contentType.toLowerCase().includes('json') || contentType === '<none>' && bodyText.startsWith('{"');
+    if (!foundJson) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
     return JSON.parse(bodyText);
 }
 
