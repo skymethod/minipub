@@ -1,7 +1,6 @@
 import { isValidIso8601 } from '../check.ts';
 import { ActivityPubProtocolImplementation } from './threadcap_activitypub.ts';
 import { ProtocolImplementation, ProtocolUpdateMethodOptions } from './threadcap_implementation.ts';
-import { LightningCommentsProtocolImplementation } from './threadcap_lightningcomments.ts';
 import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
 
 /**
@@ -41,7 +40,7 @@ export interface Threadcap {
     /**
      * Underlying protocol used to capture the thread.
      * 
-     * Supported protocols: activitypub (default), twitter, lightning
+     * Supported protocols: activitypub (default), twitter
      */
     readonly protocol?: Protocol;
 }
@@ -49,11 +48,11 @@ export interface Threadcap {
 /** An ISO-8601 date at GMT, including optional milliseconds, e.g. `1970-01-01T00:00:00Z` or `1970-01-01T00:00:00.123Z` */
 export type Instant = string;
 
-/** Supported protocols for capturing comment threads: activitypub, twitter, lightning (aka lightningcomments) */
-export type Protocol = 'activitypub' | 'twitter' | 'lightning' | 'lightningcomments';
+/** Supported protocols for capturing comment threads: activitypub, twitter */
+export type Protocol = 'activitypub' | 'twitter';
 
 export function isValidProtocol(protocol: string): protocol is Protocol {
-    return protocol === 'activitypub' || protocol === 'twitter' || protocol === 'lightning' || protocol === 'lightningcomments';
+    return protocol === 'activitypub' || protocol === 'twitter';
 }
 
 /**
@@ -453,7 +452,6 @@ function makeFetcherWithUserAgent(fetcher: Fetcher, userAgent: string): Fetcher 
 
 function computeProtocolImplementation(protocol?: Protocol): ProtocolImplementation {
     if (protocol === undefined || protocol === 'activitypub') return ActivityPubProtocolImplementation;
-    if (protocol === 'lightning' || protocol === 'lightningcomments') return LightningCommentsProtocolImplementation;
     if (protocol === 'twitter') return TwitterProtocolImplementation;
     throw new Error(`Unsupported protocol: ${protocol}`);
 }

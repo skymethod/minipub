@@ -15,7 +15,7 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     if (maxNodes !== undefined && (typeof maxNodes !== 'number' || !isPositiveInteger(maxNodes))) throw new Error(`'max-nodes' should be a positive integer, if provided`);
     if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
     if (startNode !== undefined && (typeof startNode !== 'string' || !isValidUrl(startNode))) throw new Error(`'start-node' should be a valid node id for where to start updating the threadcap, if provided`);
-    if (protocolOpt !== undefined && (typeof protocolOpt !== 'string' || !isValidProtocol(protocolOpt))) throw new Error(`'protocol' should be one of: activitypub, twitter, lightning, if provided`);
+    if (protocolOpt !== undefined && (typeof protocolOpt !== 'string' || !isValidProtocol(protocolOpt))) throw new Error(`'protocol' should be one of: 'activitypub' or 'twitter', if provided`);
     const verbose = !!options.verbose;
     let maxLevelProcessed = 0;
     let nodesProcessed = 0;
@@ -53,7 +53,6 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const userAgent = computeMinipubUserAgent();
     const protocol = protocolOpt ? protocolOpt
-        : isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'api.fountain.fm' ? 'lightning' 
         : isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'twitter.com' ? 'twitter'
         : undefined;
     let bearerToken: string | undefined = undefined;
@@ -97,7 +96,7 @@ function dumpHelp() {
         `    --max-levels      If provided, stop processing the thread after descending this many levels (positive integer, default: ${MAX_LEVELS})`,
         `    --max-nodes       If provided, stop processing the thread after processing this many nodes (positive integer, default: unlimited)`,
         `    --out             If provided, save the threadcap out to this file (local path)`,
-        `    --protocol        If provided, use this protocol to capture the thread (activitypub, twitter, lightning, default: activitypub)`,
+        `    --protocol        If provided, use this protocol to capture the thread (activitypub, twitter, default: activitypub)`,
         `    --bearer-token    If provided, bearer token to use for api calls needing auth (string value or /path/to/token.txt)`,
         '',
         '    --help            Prints help information',
