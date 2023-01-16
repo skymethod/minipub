@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.131.0/testing/asserts.ts';
+import { assert, assertEquals, assertStrictEquals, assertThrows } from 'https://deno.land/std@0.172.0/testing/asserts.ts';
 import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' assert { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' assert { type: 'json' };
@@ -20,7 +20,7 @@ Deno.test('ApObject', () => {
         (() => { const e = new Error(); (e as any).type = 'foo'; return e; })(),
     ];
     for (const invalid of invalids) {
-        assertThrows(() => ApObject.parseObj(invalid), undefined, undefined, `ApObject.parseObj(${JSON.stringify(invalid)})`);
+        assertThrows(() => ApObject.parseObj(invalid), Error, undefined, `ApObject.parseObj(${JSON.stringify(invalid)})`);
     }
 
     // slightly more lenient property policy

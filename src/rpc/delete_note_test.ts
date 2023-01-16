@@ -1,4 +1,4 @@
-import { assert, assertStrictEquals } from 'https://deno.land/std@0.131.0/testing/asserts.ts';
+import { assert, assertStrictEquals } from 'https://deno.land/std@0.172.0/testing/asserts.ts';
 import { CreateNoteRequest, DeleteNoteRequest } from '../rpc_model.ts';
 import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeCreateNote } from './create_note.ts';
@@ -95,7 +95,7 @@ Deno.test('computeDeleteNote', async () => {
     const privateKeyPem = await exportKeyToPem(privateKey, 'private');
     const actorRecord: ActorRecord =  { actorUuid, privateKeyPem, blobReferences: {}, activityPub: {} };
     await storage.transaction(async tx => await tx.put('actor', actorUuid, actorRecord));
-    const { record, recipientLogs } = await computeFederateActivity({ kind: 'federate-activity', activityUuid: deleteActivityUuid }, origin, storage, async (url, opts) => {
+    const { record, recipientLogs } = await computeFederateActivity({ kind: 'federate-activity', activityUuid: deleteActivityUuid }, origin, storage, async (url, _opts) => {
         await Promise.resolve();
         const inbox = 'https://another.social/users/bob/inbox';
         if (url === 'https://another.social/users/bob') {

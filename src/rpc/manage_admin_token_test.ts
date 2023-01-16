@@ -1,4 +1,4 @@
-import { assert, assertStrictEquals } from 'https://deno.land/std@0.131.0/testing/asserts.ts';
+import { assert, assertStrictEquals } from 'https://deno.land/std@0.172.0/testing/asserts.ts';
 import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeGenerateAdminToken, computeRevokeAdminToken } from './manage_admin_token.ts';
 import { getRecord } from '../storage.ts';
