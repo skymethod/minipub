@@ -1,4 +1,4 @@
-import { assertStrictEquals } from 'https://deno.land/std@0.172.0/testing/asserts.ts';
+import { assertStrictEquals } from 'https://deno.land/std@0.173.0/testing/asserts.ts';
 import { checkMatches } from '../check.ts';
 import { computeTimestamp } from './timestamp.ts';
 

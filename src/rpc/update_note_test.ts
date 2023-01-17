@@ -1,4 +1,4 @@
-import { assert, assertStrictEquals } from 'https://deno.land/std@0.172.0/testing/asserts.ts';
+import { assert, assertStrictEquals } from 'https://deno.land/std@0.173.0/testing/asserts.ts';
 import { CreateNoteRequest, UpdateNoteRequest } from '../rpc_model.ts';
 import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeCreateNote } from './create_note.ts';
