@@ -1,13 +1,21 @@
 import { Bytes, chunk, toIMF } from './deps.ts';
 
-export async function computeHttpSignatureHeaders(opts: { method: string, url: string, body: string, privateKey: CryptoKey, keyId: string }): Promise<{ signature: string, date: string, digest: string, stringToSign: string }> {
+export async function computeHttpSignatureHeaders(opts: { method: string, url: string, privateKey: CryptoKey, keyId: string }): Promise<{ signature: string, date: string, stringToSign: string }>;
+export async function computeHttpSignatureHeaders(opts: { method: string, url: string, body: string, privateKey: CryptoKey, keyId: string }): Promise<{ signature: string, date: string, digest: string, stringToSign: string }>;
+export async function computeHttpSignatureHeaders(opts: { method: string, url: string, body?: string, privateKey: CryptoKey, keyId: string }): Promise<{ signature: string, date: string, digest: string | undefined, stringToSign: string }> {
     const { method, url, body, privateKey, keyId } = opts;
     const { pathname, hostname } = new URL(url);
-    const digest = `SHA-256=${(await Bytes.ofUtf8(body).sha256()).base64()}`;
+    const digest = body ? `SHA-256=${(await Bytes.ofUtf8(body).sha256()).base64()}` : undefined;
     const date = toIMF(new Date());
-    const stringToSign = `(request-target): ${method.toLowerCase()} ${pathname}\nhost: ${hostname}\ndate: ${date}\ndigest: ${digest}`;
+    const signed: Record<string, string> = {
+        '(request-target)': `${method.toLowerCase()} ${pathname}`,
+        host: hostname,
+        date,
+        ...(digest ? { digest } : {}),
+    };
+    const stringToSign = Object.entries(signed).map(v => v.join(': ')).join('\n');
     const signatureBytes = await rsaSign(privateKey, Bytes.ofUtf8(stringToSign));
-    const signature = `keyId="${keyId}",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="${signatureBytes.base64()}"`;
+    const signature = `keyId="${keyId}",algorithm="rsa-sha256",headers="${Object.keys(signed).join(' ')}",signature="${signatureBytes.base64()}"`;
     return { signature, date, digest, stringToSign };
 }
 

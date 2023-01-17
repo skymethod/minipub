@@ -1,4 +1,5 @@
 import { isNonEmpty, isPositiveInteger, isValidUrl } from '../check.ts';
+import { computeHttpSignatureHeaders, importKeyFromPem } from '../crypto.ts';
 import { computeMinipubUserAgent } from '../fetcher.ts';
 import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap, isValidProtocol } from '../threadcap/threadcap.ts';
 import { MINIPUB_VERSION } from '../version.ts';
@@ -10,12 +11,16 @@ export async function threadcap(args: (string | number)[], options: Record<strin
 
     const [ urlOrPath ] = args;
     if (typeof urlOrPath !== 'string') throw new Error('Provide url to root post (or local path to a saved threadcap) as an argument, e.g. minipub threadcap https://example.social/users/alice/statuses/123456');
-    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode, 'bearer-token': bearerTokenOpt, protocol: protocolOpt } = options;
+    const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode, 'bearer-token': bearerTokenOpt, protocol: protocolOpt, 'key-id': keyId, 'private-key-pem': privateKeyPemPath } = options;
     if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
     if (maxNodes !== undefined && (typeof maxNodes !== 'number' || !isPositiveInteger(maxNodes))) throw new Error(`'max-nodes' should be a positive integer, if provided`);
     if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
     if (startNode !== undefined && (typeof startNode !== 'string' || !isValidUrl(startNode))) throw new Error(`'start-node' should be a valid node id for where to start updating the threadcap, if provided`);
     if (protocolOpt !== undefined && (typeof protocolOpt !== 'string' || !isValidProtocol(protocolOpt))) throw new Error(`'protocol' should be one of: 'activitypub' or 'twitter', if provided`);
+    if (keyId !== undefined && (typeof keyId !== 'string' || !isValidUrl(keyId))) throw new Error(`'key-id' should be a url with a hash fragment, e.g. https://social.example/actor#main-key`);
+    if (privateKeyPemPath !== undefined && typeof privateKeyPemPath !== 'string') throw new Error(`'private-key-pem' should be a path to the system actor private key pem text file`);
+    if (keyId && !privateKeyPemPath || !keyId && privateKeyPemPath) throw new Error(`Either specify both 'key-id' and 'private-key-pem', or neither`);
+    const privateKey = privateKeyPemPath ? await importKeyFromPem(await Deno.readTextFile(privateKeyPemPath), 'private') : undefined;
     const verbose = !!options.verbose;
     let maxLevelProcessed = 0;
     let nodesProcessed = 0;
@@ -38,9 +43,15 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     };
 
     let fetches = 0;
-    const loggedFetcher = async (url: string, opts?: { headers?: Record<string, string>}) => {
+    const loggedFetcher = async (url: string, { headers = {} }: { headers?: Record<string, string> } = {}) => {
+        if (keyId && privateKey) {
+            const { signature, stringToSign, date } = await computeHttpSignatureHeaders({ method: 'GET', url, keyId, privateKey });
+            if (verbose) console.log(`stringToSign: ${stringToSign}`);
+            headers.signature = signature;
+            headers.date = date;
+        }
         console.log(`fetching: ${url}`);
-        const res = await fetch(url, opts);
+        const res = await fetch(url, { headers });
         fetches++;
         console.log(`${res.status} ${res.url}`);
         console.log([...res.headers].map(v => v.join(': ')).join('\n') + '\n');

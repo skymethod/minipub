@@ -25,6 +25,7 @@ import { generateAdminToken, generateAdminTokenDescription } from './cli/cli_gen
 import { revokeAdminToken, revokeAdminTokenDescription } from './cli/cli_revoke_admin_token.ts';
 import { mastodonFindReplies } from './threadcap/threadcap_activitypub.ts';
 import { InMemoryCache } from './threadcap/threadcap.ts';
+import { systemActorServer, systemActorServerDescription } from './cli/cli_system_actor_server.ts';
 
 export async function parseRpcOptions(options: Record<string, unknown>) {
     const { origin, pem } = options;
@@ -81,6 +82,7 @@ async function minipub(args: (string | number)[], options: Record<string, unknow
         'generate-npm': generateNpm, gn: generateNpm,
         'like-object': likeObject, lo: likeObject,
         'revoke-admin-token': revokeAdminToken, rat: revokeAdminToken,
+        'system-actor-server': systemActorServer, sas: systemActorServer,
         'undo-like': undoLike, ul: undoLike,
         'update-note': updateNote, un: updateNote,
         'update-user': updateUser, uu: updateUser,
@@ -134,6 +136,7 @@ function dumpHelp() {
         `    like-object             ${likeObjectDescription}`,
         `    revoke-admin-token      ${revokeAdminTokenDescription}`,
         `    server                  ${serverDescription}`,
+        `    system-actor-server     ${systemActorServerDescription}`,
         `    threadcap               ${threadcapDescription}`,
         `    undo-like               ${undoLikeDescription}`,
         `    update-note             ${updateNoteDescription}`,
