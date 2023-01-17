@@ -1,5 +1,6 @@
 import { check, isValidOrigin } from '../check.ts';
 import { importKeyFromPem } from '../crypto.ts';
+import { computeSystemActorResponse, computeWebfingerResponse, computeWebfingerSubject } from '../system_actor.ts';
 import { MINIPUB_VERSION } from '../version.ts';
 import { ConnInfo, serve } from './deps_cli.ts';
 
@@ -19,24 +20,26 @@ export async function systemActorServer(_args: (string | number)[], options: Rec
     const publicKeyPem = await Deno.readTextFile(publicKeyPemPath);
     await importKeyFromPem(publicKeyPem, 'public'); // validation
 
-    const preferredUsername = 'System';
+    const actorUsername = 'system';
+    const actorSubject = computeWebfingerSubject({ origin, actorUsername });
+    const actorPathname = '/actor';
 
     const handler = async (request: Request, _connInfo: ConnInfo): Promise<Response> => {
         const { method, url, headers } = request;
         console.log(`${method} ${url}\n${[...headers].map(v => v.join(': ')).join(', ')}`);
         if (method !== 'GET') return new Response(`${method} not supported`, { status: 405 });
         const { pathname, searchParams } = new URL(url);
-        if (pathname === '/actor') {
+        if (pathname === actorPathname) {
             console.log(`returning actor`);
-            const json = JSON.stringify(systemActorJson({ origin, preferredUsername, url: origin, publicKeyPem }), undefined, 2);
-            return new Response(json, { headers: { 'content-type': 'application/activity+json; charset=utf-8' } });
+            const { body, contentType } = computeSystemActorResponse({ origin, actorUsername, actorPathname, url: origin, publicKeyPem });
+            return new Response(JSON.stringify(body, undefined, 2), { headers: { 'content-type': contentType } });
         }
         if (pathname === `/.well-known/webfinger`) {
             const resource = searchParams.get('resource') ?? undefined;
-            if (resource === `acct:${preferredUsername}@${new URL(origin).host}`) {
+            if (resource === actorSubject) {
                 console.log(`returning webfinger`);
-                const json = JSON.stringify(webfingerJson({ origin, preferredUsername }), undefined, 2);
-                return new Response(json, { headers: { 'content-type': 'application/jrd+json; charset=utf-8' } });
+                const { body, contentType } = computeWebfingerResponse({ origin, actorUsername, actorPathname });
+                return new Response(JSON.stringify(body, undefined, 2), { headers: { 'content-type': contentType } });
             }
         }
         await Promise.resolve();
@@ -47,61 +50,6 @@ export async function systemActorServer(_args: (string | number)[], options: Rec
     console.log(`Local server: http://localhost:${port}, assuming public access at ${origin}`);
     await serve(handler, { port });
 }
-
-//
-
-const webfingerJson = ({ origin, preferredUsername }: { origin: string, preferredUsername: string }) => ({
-    'subject': `acct:${preferredUsername}@${new URL(origin).host}`,
-    'aliases': [`${origin}/actor`],
-    'links': [
-        { 'rel': 'self', 'type': 'application/activity+json', 'href': `${origin}/actor` }
-    ]
-});
-
-const systemActorJson = ({ origin, preferredUsername, url, publicKeyPem }: { origin: string, preferredUsername: string, url: string, publicKeyPem: string }) => ({
-    '@context': [
-        'https://www.w3.org/ns/activitystreams', 
-        'https://w3id.org/security/v1', 
-        { 
-            'manuallyApprovesFollowers': 'as:manuallyApprovesFollowers', 
-            'toot': 'http://joinmastodon.org/ns#', 
-            'featured': { '@id': 'toot:featured', '@type': '@id' }, 
-            'featuredTags': { '@id': 'toot:featuredTags', '@type': '@id' }, 
-            'alsoKnownAs': { '@id': 'as:alsoKnownAs', '@type': '@id' }, 
-            'movedTo': { '@id': 'as:movedTo', '@type': '@id' }, 
-            'schema': 'http://schema.org#', 
-            'PropertyValue': 'schema:PropertyValue', 
-            'value': 'schema:value', 
-            'discoverable': 'toot:discoverable', 
-            'Device': 'toot:Device', 
-            'Ed25519Signature': 'toot:Ed25519Signature', 
-            'Ed25519Key': 'toot:Ed25519Key', 
-            'Curve25519Key': 'toot:Curve25519Key', 
-            'EncryptedMessage': 'toot:EncryptedMessage', 
-            'publicKeyBase64': 'toot:publicKeyBase64', 
-            'deviceId': 'toot:deviceId', 
-            'claim': { '@type': '@id', '@id': 'toot:claim' }, 
-            'fingerprintKey': { '@type': '@id', '@id': 'toot:fingerprintKey' }, 
-            'identityKey': { '@type': '@id', '@id': 'toot:identityKey' }, 
-            'devices': { '@type': '@id', '@id': 'toot:devices' }, 
-            'messageFranking': 'toot:messageFranking', 
-            'messageType': 'toot:messageType', 
-            'cipherText': 'toot:cipherText', 
-            'suspended': 'toot:suspended' 
-        }
-    ], 
-    'id': `${origin}/actor`, 
-    'type': 'Application', 
-    'inbox': `${origin}/actor/inbox`, // required, but never called
-    preferredUsername,
-    url,
-    'manuallyApprovesFollowers': true, 
-    'publicKey': { 
-        'id': `${origin}/actor#main-key`, 
-        'owner': `${origin}/actor`, 
-        publicKeyPem,
-    }, 
-});
 
 //
 
