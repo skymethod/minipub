@@ -1,4 +1,5 @@
 import { isValidIso8601 } from '../check.ts';
+import { computeHttpSignatureHeaders, importKeyFromPem } from '../crypto.ts';
 import { ActivityPubProtocolImplementation } from './threadcap_activitypub.ts';
 import { ProtocolImplementation, ProtocolUpdateMethodOptions } from './threadcap_implementation.ts';
 import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
@@ -428,6 +429,46 @@ export function makeRateLimitedFetcher(fetcher: Fetcher, opts: { callbacks?: Cal
         const reset = twitterEndpoint ? tryParseEpochSecondsAsIso8601(resetStr): tryParseIso8601(resetStr);
         if (limit !== undefined && remaining !== undefined && reset !== undefined) {
             endpointLimits.set(endpoint, { limit, remaining, reset });
+        }
+        return res;
+    }
+}
+
+/**
+ * Creates a {@link Fetcher} that supports request signing for ActivityPub requests out of an underlying {@link Fetcher}.
+ * 
+ * By default, it will only sign requests for target hosts that require it.  To sign all requests, set `mode` to `'always'`.
+ * 
+ * @param fetcher Underlying fetcher.
+ * @param opts Public keyId URL (e.g. `'https://my-social.example/actor#main-key'`) and private key text (usually starts with `-----BEGIN PRIVATE KEY-----`)
+ * 
+ * @returns A fetcher that supports request signing for ActivityPub requests
+ */
+export async function makeSigningAwareFetcher(fetcher: Fetcher, opts: { keyId: string, privateKeyPemText: string, mode?: 'always' | 'when-needed' }): Promise<Fetcher> {
+    const { keyId, privateKeyPemText, mode = 'when-needed' } = opts;
+    const privateKey = await importKeyFromPem(privateKeyPemText, 'private');
+    const hostsNeedingSignedRequests = new Set<string>();
+    const always = mode === 'always';
+    return async (url, opts) => {
+        const { host } = new URL(url);
+        const { headers = {} } = opts ?? {};
+        const accept = Object.entries(headers).filter(v => /^accept$/i.test(v[0])).map(v => v[1]).at(0);
+        const isActivityPubRequest = accept && /activity\+json/.test(accept);
+        if (!isActivityPubRequest) return await fetcher(url, opts);
+
+        const signedFetch = async () => {
+            const { signature, date } = await computeHttpSignatureHeaders({ method: 'GET', url, keyId, privateKey });
+            headers.signature = signature;
+            headers.date = date;
+            return await fetcher(url, { headers });
+        }
+
+        if (always || hostsNeedingSignedRequests.has(host)) return await signedFetch();
+
+        const res = await fetcher(url, opts);
+        if (res.status === 401) {
+           hostsNeedingSignedRequests.add(host);
+           return await signedFetch();
         }
         return res;
     }
