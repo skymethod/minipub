@@ -20,6 +20,7 @@ Written using Deno, so also can be used without this NPM package at all (see Den
 - Tested with Pleroma, but replies under any Pleroma comment node will always be empty (since Pleroma does not implement the ActivityPub `replies` property)
 - Internal comment fetching respects rate-limit headers coming back from remote hosts (can also define a custom wait function)
 - Callback events for interesting events that occur while updating the threadcap
+- Supports [request signing](https://docs.joinmastodon.org/spec/security/#http-sign) for fetching comments from Mastodon instances in "secure mode"
 
 ## Documentation
 See the API docs in [threadcap.ts](https://github.com/skymethod/minipub/blob/master/src/threadcap/threadcap.ts) for now. 
@@ -106,7 +107,7 @@ You don't need this NPM package or to install anything, just remote-import `thre
 
 `example.ts`
 ```ts
-import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/v0.1.6/src/threadcap/threadcap.ts';
+import { makeThreadcap, InMemoryCache, updateThreadcap, makeRateLimitedFetcher, Callbacks } from 'https://raw.githubusercontent.com/skymethod/minipub/v0.1.9/src/threadcap/threadcap.ts';
 
 const userAgent = 'my-podcast-app/1.0';
 const cache = new InMemoryCache();

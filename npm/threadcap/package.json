@@ -1,6 +1,6 @@
 {
   "name": "threadcap",
-  "version": "0.1.8+",
+  "version": "0.1.9",
   "description": "Threadcap helps you take and update snapshots of a public ActivityPub comment thread, given a root post url.",
   "repository": {
     "type": "git",
