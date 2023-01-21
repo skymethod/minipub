@@ -1,10 +1,9 @@
-// deno-lint-ignore-file no-explicit-any
-import { fromFileUrl, resolve, basename } from './deps_cli.ts';
+import { fromFileUrl, resolve, basename, join } from './deps_cli.ts';
 
 export async function generateNpm(_args: (string | number)[], _options: Record<string, unknown>) {
     await generateEsmMainJs();
     await generateCjsMainJs();
-    // await generateMainTypes();
+    await generateMainTypes();
 }
 
 //
@@ -13,7 +12,6 @@ async function generateEsbuildBundle({ format, target }: { format: 'esm' | 'cjs'
     const res = await fetch(`https://esb.deno.dev/format=${format},target=${target}/https://raw.githubusercontent.com/skymethod/minipub/master/src/threadcap/threadcap.ts`);
     if (res.status !== 200) throw new Error();
     return await res.text();
-
 }
 
 async function generateEsmMainJs() {
@@ -27,38 +25,20 @@ async function generateCjsMainJs() {
 }
 
 async function generateMainTypes() {
-    // requires --unstable
-    const result = await (Deno as any).emit(resolveRelativeFile('../../threadcap/threadcap.ts'), { 
-        // bundle: 'classic', 
-        compilerOptions: { 
-            declaration: true, // doesn't work with bundle: module
-            emitDeclarationOnly: true,
-            removeComments: false,
+    let outDir: string | undefined;
+    try {
+        outDir = await Deno.makeTempDir({ prefix: 'minipub-generate-npm-main-types'});
 
-        },
-    });
-    const declaration = Object.entries(result.files).filter(v => v[0].endsWith('/threadcap.ts.d.ts'))[0][1] as string;
-    const contents = declaration.replaceAll(/\/\/\/ <amd-module name=".*?" \/>\s+/g, '');
-    await saveContentsIfChanged('../../../npm/threadcap/main.d.ts', contents);
-}
-
-async function generateBundleContents(opts: { target?: string }): Promise<string> {
-    const { target } = opts;
-
-    // requires --unstable
-    const result = await (Deno as any).emit(resolveRelativeFile('../../threadcap/threadcap.ts'), { 
-        bundle: 'module'
-    });
-    const js = result.files['deno:///bundle.js'];
-    if (!target) return js;
-
-    // transpilation
-    // https://github.com/denoland/deno/issues/9638#issuecomment-982748670
-    const transpiled = await (Deno as any).emit('/src.ts', {
-        sources: { '/src.ts': js },
-        compilerOptions: { target },
-    });
-    return transpiled.files['file:///src.ts.js'];
+        const threadcapDir = resolveRelativeFile('../../threadcap');
+        const p = Deno.run({ cmd: [ '/usr/local/bin/tsc', '--emitDeclarationOnly', '--declaration', '--outDir', outDir, 'threadcap.ts' ], cwd: threadcapDir, stderr: 'piped', stdout: 'piped' });
+        const [ _status, _stdout, _stderr ] = await Promise.all([ p.status(), p.output(), p.stderrOutput() ]);
+        const contents = await Deno.readTextFile(join(outDir, 'threadcap.d.ts'));
+        await saveContentsIfChanged('../../../npm/threadcap/main.d.ts', contents);
+    } finally {
+        if (outDir) {
+            await Deno.remove(outDir, { recursive: true });
+        }
+    }
 }
 
 function resolveRelativeFile(relativePath: string): string {
