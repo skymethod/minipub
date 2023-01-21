@@ -4,19 +4,25 @@ import { fromFileUrl, resolve, basename } from './deps_cli.ts';
 export async function generateNpm(_args: (string | number)[], _options: Record<string, unknown>) {
     await generateEsmMainJs();
     await generateCjsMainJs();
-    await generateMainTypes();
+    // await generateMainTypes();
 }
 
 //
 
+async function generateEsbuildBundle({ format, target }: { format: 'esm' | 'cjs', target: string }) {
+    const res = await fetch(`https://esb.deno.dev/format=${format},target=${target}/https://raw.githubusercontent.com/skymethod/minipub/master/src/threadcap/threadcap.ts`);
+    if (res.status !== 200) throw new Error();
+    return await res.text();
+
+}
+
 async function generateEsmMainJs() {
-    const contents = await generateBundleContents({ target: 'es2019' }); // remove optional chaining for esm too, to support folks using modules, but still on older environments
+    const contents = await generateEsbuildBundle({ format: 'esm', target: 'es2019' }); // remove optional chaining for esm too, to support folks using modules, but still on older environments
     await saveContentsIfChanged('../../../npm/threadcap/esm/main.js', contents);
 }
 
 async function generateCjsMainJs() {
-    const contents = (await generateBundleContents({ target: 'es2019' })) // remove optional chaining
-        .replaceAll(/export { ([A-Z0-9a-z_]+) as ([A-Z0-9a-z_]+) };/g, 'exports.$2 = $1;');
+    const contents = await generateEsbuildBundle({ format: 'cjs', target: 'es2019' }); // remove optional chaining
     await saveContentsIfChanged('../../../npm/threadcap/cjs/main.js', contents);
 }
 

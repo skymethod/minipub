@@ -43,9 +43,16 @@ async function findOrFetchTextResponse(url: string, after: Instant, fetcher: Fet
     const res = await fetcher(url, { headers });
     const response: TextResponse = {
         status: res.status,
-        headers: Object.fromEntries([...res.headers]),
+        headers: objectFromEntries([...res.headers]),
         bodyText: await res.text(),
     }
     await cache.put(url, new Date().toISOString(), response);
     return response;
+}
+
+function objectFromEntries<T>(entries: [ string, T ][]): Record<string, T> { // for < es2019
+    return [...entries].reduce((obj, [ key, value ]) => {
+        obj[key] = value;
+        return obj;
+    }, {} as Record<string, T>);
 }

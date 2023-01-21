@@ -452,7 +452,7 @@ export async function makeSigningAwareFetcher(fetcher: Fetcher, opts: { keyId: s
     return async (url, opts) => {
         const { host } = new URL(url);
         const { headers = {} } = opts ?? {};
-        const accept = Object.entries(headers).filter(v => /^accept$/i.test(v[0])).map(v => v[1]).at(0);
+        const accept = Object.entries(headers).filter(v => /^accept$/i.test(v[0])).map(v => v[1])[0];
         const isActivityPubRequest = accept && /activity\+json/.test(accept);
         if (!isActivityPubRequest) return await fetcher(url, opts);
 
