@@ -101,6 +101,16 @@ export interface Comment {
      * Look up the full {@link Commenter} info using {@link Threadcap#commenters }, with this value as the index.
      */
     readonly attributedTo: string;
+    /**
+     * Summary (which may include html) for this comment, broken out by language code.
+     *
+     * ActivityPub technically supports multiple translations of a single summary, though most servers will capture only one in their user interface.
+     *
+     * A language code of `und` indicates the server did not specify a language.
+     *
+     * One way to get the summary html for the first (and usually only) language is `Object.values(summary)[0]`.
+     */
+    readonly summary?: Record<string, string>;
 }
 /** Media attachments to a comment */
 export interface Attachment {

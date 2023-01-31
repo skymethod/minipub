@@ -936,13 +936,14 @@ function collectRepliesFromItems(items, outReplies, nodeId, url, callbacks) {
 function computeComment(object, id, callbacks) {
   object = unwrapActivityIfNecessary(object, id, callbacks);
   const content = computeContent(object);
+  const summary = computeSummary(object);
   const attachments = computeAttachments(object);
   const url = computeUrl(object.url) || id;
   const { published } = object;
   const attributedTo = computeAttributedTo(object.attributedTo);
   if (typeof published !== "string")
     throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
-  return { url, published, attachments, content, attributedTo };
+  return { url, published, attachments, content, attributedTo, summary };
 }
 function computeUrl(url) {
   if (url === void 0 || url === null)
@@ -974,18 +975,27 @@ function computeAttributedTo(attributedTo) {
   throw new Error(`Expected 'attributedTo' to be a string or non-empty string/object array, found ${JSON.stringify(attributedTo)}`);
 }
 function computeContent(obj) {
+  const rt = computeLanguageTaggedValues(obj, "content", "contentMap");
+  if (!rt)
+    throw new Error(`Expected either 'contentMap' or 'content' to be present ${JSON.stringify(obj)}`);
+  return rt;
+}
+function computeSummary(obj) {
+  return computeLanguageTaggedValues(obj, "summary", "summaryMap");
+}
+function computeLanguageTaggedValues(obj, stringProp, mapProp) {
   if (obj.type === "PodcastEpisode" && isStringRecord(obj.description) && obj.description.type === "Note")
     obj = obj.description;
-  const { content, contentMap } = obj;
-  if (content !== void 0 && typeof content !== "string")
-    throw new Error(`Expected 'content' to be a string, found ${JSON.stringify(content)}`);
-  if (contentMap !== void 0 && !isStringRecord(contentMap))
-    throw new Error(`Expected 'contentMap' to be a string record, found ${JSON.stringify(contentMap)}`);
-  if (contentMap !== void 0)
-    return contentMap;
-  if (content !== void 0)
-    return { und: content };
-  throw new Error(`Expected either 'contentMap' or 'content' to be present ${JSON.stringify(obj)}`);
+  const stringVal = obj[stringProp];
+  const mapVal = obj[mapProp];
+  if (stringVal !== void 0 && typeof stringVal !== "string")
+    throw new Error(`Expected '${stringProp}' to be a string, found ${JSON.stringify(stringVal)}`);
+  if (mapVal !== void 0 && !(isStringRecord(mapVal) && Object.values(mapVal).every((v) => typeof v === "string")))
+    throw new Error(`Expected '${mapProp}' to be a string record, found ${JSON.stringify(mapVal)}`);
+  if (mapVal !== void 0)
+    return mapVal;
+  if (stringVal !== void 0)
+    return { und: stringVal };
 }
 function computeAttachments(object) {
   const rt = [];
