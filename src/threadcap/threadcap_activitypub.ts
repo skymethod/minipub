@@ -189,12 +189,13 @@ function collectRepliesFromItems(items: readonly any[], outReplies: string[], no
 function computeComment(object: any, id: string, callbacks: Callbacks | undefined): Comment {
     object = unwrapActivityIfNecessary(object, id, callbacks);
     const content = computeContent(object);
+    const summary = computeSummary(object);
     const attachments = computeAttachments(object);
     const url = computeUrl(object.url) || id; // pleroma: id is viewable (redirects to notice), no url returned
     const { published } = object;
     const attributedTo = computeAttributedTo(object.attributedTo);
     if (typeof published !== 'string') throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
-    return { url, published, attachments, content, attributedTo }
+    return { url, published, attachments, content, attributedTo, summary }
 }
 
 function computeUrl(url: unknown): string | undefined {
@@ -224,13 +225,23 @@ function computeAttributedTo(attributedTo: unknown): string {
 }
 
 function computeContent(obj: any): Record<string, string> {
+    const rt = computeLanguageTaggedValues(obj, 'content', 'contentMap');
+    if (!rt) throw new Error(`Expected either 'contentMap' or 'content' to be present ${JSON.stringify(obj)}`);
+    return rt;
+}
+
+function computeSummary(obj: any): Record<string, string> | undefined {
+    return computeLanguageTaggedValues(obj, 'summary', 'summaryMap');
+}
+
+function computeLanguageTaggedValues(obj: any, stringProp: string, mapProp: string): Record<string, string> | undefined {
     if (obj.type === 'PodcastEpisode' && isStringRecord(obj.description) && obj.description.type === 'Note') obj = obj.description; // castopod embeds the Note object inline as the 'description'
-    const { content, contentMap } = obj;
-    if (content !== undefined && typeof content !== 'string') throw new Error(`Expected 'content' to be a string, found ${JSON.stringify(content)}`);
-    if (contentMap !== undefined && !isStringRecord(contentMap)) throw new Error(`Expected 'contentMap' to be a string record, found ${JSON.stringify(contentMap)}`);
-    if (contentMap !== undefined) return contentMap;
-    if (content !== undefined) return { und: content };
-    throw new Error(`Expected either 'contentMap' or 'content' to be present ${JSON.stringify(obj)}`);
+    const stringVal = obj[stringProp];
+    const mapVal = obj[mapProp];
+    if (stringVal !== undefined && typeof stringVal !== 'string') throw new Error(`Expected '${stringProp}' to be a string, found ${JSON.stringify(stringVal)}`);
+    if (mapVal !== undefined && !(isStringRecord(mapVal) && Object.values(mapVal).every(v => typeof v === 'string'))) throw new Error(`Expected '${mapProp}' to be a string record, found ${JSON.stringify(mapVal)}`);
+    if (mapVal !== undefined) return mapVal;
+    if (stringVal !== undefined) return { und: stringVal };
 }
 
 function computeAttachments(object: any): Attachment[] {
