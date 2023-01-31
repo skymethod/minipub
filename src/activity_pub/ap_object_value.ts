@@ -53,13 +53,13 @@ export class ApObjectValue {
         throw new Error(`Bad ${property}: expected Iri, found ${value}`);
     }
 
-    get(property: string): Iri | readonly Iri[] | string | boolean | ApObjectValue | LanguageMap {
+    get(property: string): Iri | readonly Iri[] | string | boolean | ApObjectValue | readonly ApObjectValue[] | LanguageMap {
         const value = this.opt(property);
         if (value === undefined) throw new Error(`Property not found: ${property}`);
         return value;
     }
 
-    opt(property: string): Iri | readonly Iri[] | string | boolean | ApObjectValue | LanguageMap | undefined {
+    opt(property: string): Iri | readonly Iri[] | string | boolean | ApObjectValue | readonly ApObjectValue[] | LanguageMap | undefined {
         const prop = findProperty(property, this.context, this.record);
         if (!prop) return undefined;
 
@@ -73,9 +73,13 @@ export class ApObjectValue {
                 // {"sharedInbox":"https://example.social/inbox"}
                 // assume object values have been checked recursively prior to this
                 return new ApObjectValue(this.context, value);
-            } else if (Array.isArray(value)) {
+            } else if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
                 // ["https://another.social/users/bob"]
                 return value.map(v => this.context.resolveIri(v));
+            } else if (Array.isArray(value) && value.every(isStringRecord)) {
+                // array of inline objects
+                // "attachment": [{ "type": "Document", ... }]
+                return value.map(v => new ApObjectValue(this.context, v));
             } else {
                 throw new Error(`get: Unimplemented iri value ${JSON.stringify(value)}`);
             }
