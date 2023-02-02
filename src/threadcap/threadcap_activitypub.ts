@@ -236,8 +236,8 @@ function computeSummary(obj: any): Record<string, string> | undefined {
 
 function computeLanguageTaggedValues(obj: any, stringProp: string, mapProp: string): Record<string, string> | undefined {
     if (obj.type === 'PodcastEpisode' && isStringRecord(obj.description) && obj.description.type === 'Note') obj = obj.description; // castopod embeds the Note object inline as the 'description'
-    const stringVal = obj[stringProp];
-    const mapVal = obj[mapProp];
+    const stringVal = obj[stringProp] ?? undefined;
+    const mapVal = obj[mapProp] ?? undefined;
     if (stringVal !== undefined && typeof stringVal !== 'string') throw new Error(`Expected '${stringProp}' to be a string, found ${JSON.stringify(stringVal)}`);
     if (mapVal !== undefined && !(isStringRecord(mapVal) && Object.values(mapVal).every(v => typeof v === 'string'))) throw new Error(`Expected '${mapProp}' to be a string record, found ${JSON.stringify(mapVal)}`);
     if (mapVal !== undefined) return mapVal;
