@@ -307,9 +307,6 @@ async function mastodonFindStatusIdForActivityPubId(id: string, after: Instant, 
     url.searchParams.set('type', 'statuses');
     const obj = await findOrFetchJson(url.toString(), after, fetcher, cache, { accept: 'application/json' });
     if (debug) console.log(JSON.stringify(obj, undefined, 2));
-    if (isStringRecord(obj) && typeof obj.error === 'string') {
-        throw new Error(`Error searching for status id: ${obj.error}`);
-    }
     if (isStringRecord(obj) && Array.isArray(obj.statuses) && obj.statuses.length === 1) {
         const status = obj.statuses[0];
         if (isStringRecord(status) && typeof status.id === 'string' && status.id !== '') {
