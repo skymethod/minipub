@@ -1015,10 +1015,11 @@ function computeSummary(obj) {
   return computeLanguageTaggedValues(obj, "summary", "summaryMap");
 }
 function computeLanguageTaggedValues(obj, stringProp, mapProp) {
+  var _a, _b;
   if (obj.type === "PodcastEpisode" && isStringRecord(obj.description) && obj.description.type === "Note")
     obj = obj.description;
-  const stringVal = obj[stringProp];
-  const mapVal = obj[mapProp];
+  const stringVal = (_a = obj[stringProp]) != null ? _a : void 0;
+  const mapVal = (_b = obj[mapProp]) != null ? _b : void 0;
   if (stringVal !== void 0 && typeof stringVal !== "string")
     throw new Error(`Expected '${stringProp}' to be a string, found ${JSON.stringify(stringVal)}`);
   if (mapVal !== void 0 && !(isStringRecord(mapVal) && Object.values(mapVal).every((v) => typeof v === "string")))
