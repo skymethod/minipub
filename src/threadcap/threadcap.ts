@@ -140,6 +140,11 @@ export interface Comment {
      * One way to get the summary html for the first (and usually only) language is `Object.values(summary)[0]`.
      */
     readonly summary?: Record<string, string>;
+
+    /**
+     * Choices for polls, found in ActivityPub Question objects.
+     */
+    readonly questionOptions?: string[]; 
 }
 
 /** Media attachments to a comment */

@@ -43,7 +43,7 @@ async function initActivityPubThreadcap(url: string, opts: ProtocolMethodOptions
     const object = await findOrFetchActivityPubObject(url, new Date().toISOString(), fetcher, cache);
     const { id, type } = object;
     if (typeof type !== 'string') throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
-    if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type)) throw new Error(`Unexpected type: ${type}`); // PodcastEpisode = castopod, handled below, non-standard AP
+    if (!/^(Note|Article|Video|PodcastEpisode|Question)$/.test(type)) throw new Error(`Unexpected type: ${type}`); // PodcastEpisode = castopod, handled below, non-standard AP
     if (typeof id !== 'string') throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
     return { protocol: 'activitypub', roots: [ id ], nodes: { }, commenters: { } };
 }
@@ -195,7 +195,8 @@ function computeComment(object: any, id: string, callbacks: Callbacks | undefine
     const { published } = object;
     const attributedTo = computeAttributedTo(object.attributedTo);
     if (typeof published !== 'string') throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
-    return { url, published, attachments, content, attributedTo, summary }
+    const questionOptions = computeQuestionOptions(object);
+    return { url, published, attachments, content, attributedTo, summary, questionOptions }
 }
 
 function computeUrl(url: unknown): string | undefined {
@@ -206,6 +207,29 @@ function computeUrl(url: unknown): string | undefined {
         if (v) return v.href;
     }
     throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
+}
+
+function computeQuestionOptions(obj: any): string[] | undefined {
+    let rt: string[] | undefined;
+    if (obj.type === 'Question') {
+        for (const prop of [ 'oneOf', 'anyOf' ]) {
+            const val = obj[prop];
+            if (Array.isArray(val)) {
+                for (const item of val) {
+                    if (isStringRecord(item) && item.type === 'Note' && typeof item.name === 'string') {
+                        if (!rt) rt = [];
+                        rt.push(item.name);
+                    } else {
+                        throw new Error(`Unsupported Question '${prop}' item: ${JSON.stringify(item)}`);
+                    }
+                }
+                return rt;
+            } else if (val !== undefined) {
+                throw new Error(`Unsupported Question '${prop}' value: ${JSON.stringify(val)}`);
+            }
+        }
+    }
+    return rt;
 }
 
 function computeAttributedTo(attributedTo: unknown): string {
