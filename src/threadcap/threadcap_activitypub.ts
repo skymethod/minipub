@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { isReadonlyArray, isStringRecord } from '../check.ts';
+import { isNonEmpty, isReadonlyArray, isStringRecord } from '../check.ts';
 import { Attachment, Cache, Callbacks, Comment, Commenter, Fetcher, Icon, Instant, Threadcap } from './threadcap.ts';
 import { findOrFetchJson, ProtocolImplementation, ProtocolMethodOptions, ProtocolUpdateMethodOptions } from './threadcap_implementation.ts';
 
@@ -65,6 +65,7 @@ async function fetchActivityPubReplies(id: string, opts: ProtocolUpdateMethodOpt
     const fetchedObject = await findOrFetchActivityPubObject(id, updateTime, fetcher, cache);
     const object = unwrapActivityIfNecessary(fetchedObject, id, callbacks);
     // castopod uses 'comments' url to an OrderedCollection
+    // so does PeerTube
     // also found 'comments' url to an OrderedCollectionPage (no 'replies')
     const replies = object.type === 'PodcastEpisode' ? object.comments : (object.replies ?? object.comments); 
     if (replies === undefined) {
@@ -266,6 +267,7 @@ function computeLanguageTaggedValues(obj: any, stringProp: string, mapProp: stri
     if (mapVal !== undefined && !(isStringRecord(mapVal) && Object.values(mapVal).every(v => typeof v === 'string'))) throw new Error(`Expected '${mapProp}' to be a string record, found ${JSON.stringify(mapVal)}`);
     if (mapVal !== undefined) return mapVal;
     if (stringVal !== undefined) return { und: stringVal };
+    if (obj.type === 'Video' && typeof obj.name === 'string' && isNonEmpty(obj.name)) return { und: obj.name }; // workaround for PeerTube
 }
 
 function computeAttachments(object: any): Attachment[] {
