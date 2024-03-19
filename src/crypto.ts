@@ -1,4 +1,4 @@
-import { Bytes, chunk, toIMF } from './deps.ts';
+import { Bytes, chunk } from './deps.ts';
 
 export async function computeHttpSignatureHeaders(opts: { method: string, url: string, privateKey: CryptoKey, keyId: string }): Promise<{ signature: string, date: string, stringToSign: string }>;
 export async function computeHttpSignatureHeaders(opts: { method: string, url: string, body: string, privateKey: CryptoKey, keyId: string }): Promise<{ signature: string, date: string, digest: string, stringToSign: string }>;
@@ -6,7 +6,7 @@ export async function computeHttpSignatureHeaders(opts: { method: string, url: s
     const { method, url, body, privateKey, keyId } = opts;
     const { pathname, hostname } = new URL(url);
     const digest = body ? `SHA-256=${(await Bytes.ofUtf8(body).sha256()).base64()}` : undefined;
-    const date = toIMF(new Date());
+    const date = new Date().toUTCString();
     const signed: Record<string, string> = {
         '(request-target)': `${method.toLowerCase()} ${pathname}`,
         host: hostname,

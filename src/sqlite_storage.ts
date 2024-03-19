@@ -1,5 +1,5 @@
 import { BackendStorage, BackendStorageListOptions, BackendStorageTransaction, BackendStorageValue } from './storage.ts';
-import { DB, RowObject } from 'https://deno.land/x/sqlite@v3.7.0/mod.ts';
+import { DB, RowObject } from 'https://deno.land/x/sqlite@v3.8/mod.ts';
 import { isStringRecord } from './check.ts';
 
 export function makeSqliteStorage(path = ':memory:'): BackendStorage {

@@ -1,6 +1,6 @@
 import { APPLICATION_JSON_UTF8 } from './media_types.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem } from './crypto.ts';
-import { parseFlags } from './cli/deps_cli.ts';
+import { parseArgs } from './cli/deps_cli.ts';
 import { RpcRequest } from './rpc_model.ts';
 import { activityPub, activityPubDescription } from './cli/cli_activity_pub.ts';
 import { createUser, createUserDescription } from './cli/cli_create_user.ts';
@@ -158,7 +158,7 @@ function dumpHelp() {
 }
 
 if (import.meta.main) {
-    const args = parseFlags(Deno.args);
+    const args = parseArgs(Deno.args);
     if (args._.length > 0) {
         await minipub(args._, args);
         Deno.exit(0);

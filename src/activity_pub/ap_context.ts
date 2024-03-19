@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
 import { Iri } from './iri.ts';
-import activityStreams from './activitystreams.json' assert { type: 'json' };
-import security from './security.json' assert { type: 'json' };
-import litepub from './litepub.json' assert { type: 'json' };
-import mastodon from './mastodon.json' assert { type: 'json' };
+import activityStreams from './activitystreams.json' with { type: 'json' };
+import security from './security.json' with { type: 'json' };
+import litepub from './litepub.json' with { type: 'json' };
+import mastodon from './mastodon.json' with { type: 'json' };
 import { isStringRecord } from '../check.ts';
 
 export class ApContext {
