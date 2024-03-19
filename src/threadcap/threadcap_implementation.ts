@@ -6,6 +6,7 @@ export interface ProtocolMethodOptions {
     readonly fetcher: Fetcher;
     readonly cache: Cache;
     readonly debug?: boolean;
+    readonly updateTime?: Instant;
 }
 
 export interface ProtocolUpdateMethodOptions extends ProtocolMethodOptions {
@@ -30,6 +31,24 @@ export async function findOrFetchJson(url: string, after: Instant, fetcher: Fetc
     const foundJson = contentType.toLowerCase().includes('json') || contentType === '<none>' && bodyText.startsWith('{"');
     if (!foundJson) throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
     return JSON.parse(bodyText);
+}
+
+export function isValidThreadcapUrl(url: string): boolean {
+    try {
+        const { protocol } = destructureThreadcapUrl(url);
+        return [ 'http:', 'https:', 'nostr:', 'at:' ].includes(protocol);
+    } catch {
+        return false;
+    }
+}
+
+export function destructureThreadcapUrl(url: string): { protocol: string, hostname: string, pathname: string, searchParams: URLSearchParams } {
+    // need to tunnel invalid hostname for at://did:plc:something/path
+    const m = /^(at:\/\/)([^/]+)(\/.*?)$/.exec(url);
+    const tmpUrl = m ? `${m[1]}${m[2].replaceAll(':', '%3A')}${m[3]}` : undefined;
+    const { protocol, hostname: tmpHostname, pathname, searchParams } = new URL(tmpUrl ?? url);
+    const hostname = tmpUrl ? tmpHostname.replaceAll('%3A', ':') : tmpHostname;
+    return { protocol, hostname, pathname, searchParams };
 }
 
 //

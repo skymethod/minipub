@@ -1,6 +1,7 @@
 import { isNonEmpty, isPositiveInteger, isValidUrl } from '../check.ts';
 import { computeMinipubUserAgent } from '../fetcher.ts';
 import { InMemoryCache, Callbacks, makeRateLimitedFetcher, makeThreadcap, MAX_LEVELS, Threadcap, updateThreadcap, isValidProtocol, makeSigningAwareFetcher } from '../threadcap/threadcap.ts';
+import { isValidThreadcapUrl, destructureThreadcapUrl } from '../threadcap/threadcap_implementation.ts';
 import { MINIPUB_VERSION } from '../version.ts';
 
 export const threadcapDescription = 'Enumerates an ActivityPub reply thread for a given root post url';
@@ -13,8 +14,8 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     const { 'max-levels': maxLevels, 'max-nodes': maxNodes, out, 'start-node': startNode, 'bearer-token': bearerTokenOpt, protocol: protocolOpt, 'key-id': keyId, 'private-key-pem': privateKeyPemPath, 'signing-mode': signingMode } = options;
     if (maxLevels !== undefined && (typeof maxLevels !== 'number' || !isPositiveInteger(maxLevels))) throw new Error(`'max-levels' should be a positive integer, if provided`);
     if (maxNodes !== undefined && (typeof maxNodes !== 'number' || !isPositiveInteger(maxNodes))) throw new Error(`'max-nodes' should be a positive integer, if provided`);
-    if (out !== undefined && (typeof out !== 'string' || isValidUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
-    if (startNode !== undefined && (typeof startNode !== 'string' || !isValidUrl(startNode))) throw new Error(`'start-node' should be a valid node id for where to start updating the threadcap, if provided`);
+    if (out !== undefined && (typeof out !== 'string' || isValidThreadcapUrl(out))) throw new Error(`'out' should be a valid path for where to save the threadcap, if provided`);
+    if (startNode !== undefined && (typeof startNode !== 'string' || !isValidThreadcapUrl(startNode))) throw new Error(`'start-node' should be a valid node id for where to start updating the threadcap, if provided`);
     if (protocolOpt !== undefined && (typeof protocolOpt !== 'string' || !isValidProtocol(protocolOpt))) throw new Error(`'protocol' should be one of: 'activitypub' or 'twitter', if provided`);
     if (keyId !== undefined && (typeof keyId !== 'string' || !isValidUrl(keyId))) throw new Error(`'key-id' should be a url with a hash fragment, e.g. https://social.example/actor#main-key`);
     if (privateKeyPemPath !== undefined && typeof privateKeyPemPath !== 'string') throw new Error(`'private-key-pem' should be a path to the system actor private key pem text file`);
@@ -59,8 +60,12 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     cache.onReturningCachedResponse = id => { cacheHits++; console.log(`Returning CACHED response for ${id}`); };
 
     const userAgent = computeMinipubUserAgent();
+    const u = isValidThreadcapUrl(urlOrPath) ? destructureThreadcapUrl(urlOrPath) : undefined;
     const protocol = protocolOpt ? protocolOpt
-        : isValidUrl(urlOrPath) && new URL(urlOrPath).hostname === 'twitter.com' ? 'twitter'
+        : u?.hostname === 'twitter.com' ? 'twitter'
+        : u?.hostname === 'bsky.app' ? 'bluesky'
+        : u?.protocol === 'at:' ? 'bluesky'
+        : u?.protocol === 'nostr:' ? 'nostr'
         : undefined;
     let bearerToken: string | undefined = undefined;
     if (protocol === 'twitter') {
@@ -69,12 +74,12 @@ export async function threadcap(args: (string | number)[], options: Record<strin
     }
 
     const debug = verbose;
-    const threadcap = isValidUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, cache, protocol, bearerToken, debug }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     const updateTime = new Date().toISOString();
+    const threadcap = isValidThreadcapUrl(urlOrPath) ? await makeThreadcap(urlOrPath, { userAgent, fetcher, updateTime, cache, protocol, bearerToken, debug }) : JSON.parse(await Deno.readTextFile(urlOrPath));
     await updateThreadcap(threadcap, { updateTime, maxLevels, maxNodes, startNode, userAgent, fetcher, cache, callbacks, bearerToken, debug });
     const threadcapJson = JSON.stringify(threadcap, undefined, 2);
     console.log(threadcapJson);
-    const outFile = out ? out : !isValidUrl(urlOrPath) ? urlOrPath : undefined;
+    const outFile = out ? out : !isValidThreadcapUrl(urlOrPath) ? urlOrPath : undefined;
     if (outFile) {
         await Deno.writeTextFile(outFile, threadcapJson);
     }

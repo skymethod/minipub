@@ -1,7 +1,9 @@
 import { isValidIso8601 } from '../check.ts';
 import { computeHttpSignatureHeaders, importKeyFromPem } from '../crypto.ts';
 import { ActivityPubProtocolImplementation } from './threadcap_activitypub.ts';
+import { BlueskyProtocolImplementation } from './threadcap_bluesky.ts';
 import { ProtocolImplementation, ProtocolUpdateMethodOptions } from './threadcap_implementation.ts';
+import { NostrProtocolImplementation } from './threadcap_nostr.ts';
 import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
 
 /**
@@ -49,11 +51,11 @@ export interface Threadcap {
 /** An ISO-8601 date at GMT, including optional milliseconds, e.g. `1970-01-01T00:00:00Z` or `1970-01-01T00:00:00.123Z` */
 export type Instant = string;
 
-/** Supported protocols for capturing comment threads: activitypub, twitter */
-export type Protocol = 'activitypub' | 'twitter';
+/** Supported protocols for capturing comment threads: activitypub, twitter, nostr, bluesky */
+export type Protocol = 'activitypub' | 'twitter' | 'nostr' | 'bluesky';
 
 export function isValidProtocol(protocol: string): protocol is Protocol {
-    return protocol === 'activitypub' || protocol === 'twitter';
+    return protocol === 'activitypub' || protocol === 'twitter' || protocol === 'nostr' || protocol === 'bluesky';
 }
 
 /**
@@ -312,11 +314,11 @@ export const MAX_LEVELS = 1000; // go down at most this many levels (this would 
  * 
  * @returns A new {@link Threadcap} structure, or throws if the input url does not respond to an ActivityPub request.
  */
-export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache, protocol?: Protocol, bearerToken?: string, debug?: boolean }): Promise<Threadcap> {
-    const { cache, userAgent, protocol, bearerToken, debug } = opts;
+export async function makeThreadcap(url: string, opts: { userAgent: string, fetcher: Fetcher, cache: Cache, updateTime?: Instant, protocol?: Protocol, bearerToken?: string, debug?: boolean }): Promise<Threadcap> {
+    const { cache, updateTime, userAgent, protocol, bearerToken, debug } = opts;
     const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
     const implementation = computeProtocolImplementation(protocol);
-    return await implementation.initThreadcap(url, { fetcher, cache, bearerToken, debug });
+    return await implementation.initThreadcap(url, { fetcher, cache, updateTime, bearerToken, debug });
 }
 
 /**
@@ -510,6 +512,8 @@ function makeFetcherWithUserAgent(fetcher: Fetcher, userAgent: string): Fetcher 
 function computeProtocolImplementation(protocol?: Protocol): ProtocolImplementation {
     if (protocol === undefined || protocol === 'activitypub') return ActivityPubProtocolImplementation;
     if (protocol === 'twitter') return TwitterProtocolImplementation;
+    if (protocol === 'nostr') return NostrProtocolImplementation;
+    if (protocol === 'bluesky') return BlueskyProtocolImplementation;
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
 
@@ -524,10 +528,14 @@ async function processNode(id: string, processReplies: boolean, threadcap: Threa
 
     // update the comment + commenter
     const updateComment = !node.commentAsof || node.commentAsof < updateTime;
-    if (updateComment) {
+    const existingCommenter = node.comment ? threadcap.commenters[node.comment.attributedTo] : undefined;
+    const updateCommenter = !existingCommenter || existingCommenter.asof < updateTime
+    if (updateComment || updateCommenter) {
         try {
-            node.comment = await implementation.fetchComment(id, opts);
-            const { attributedTo } = node.comment;
+            if (updateComment) {
+                node.comment = await implementation.fetchComment(id, opts);
+            }
+            const { attributedTo } = node.comment!;
             const existingCommenter = threadcap.commenters[attributedTo];
             if (!existingCommenter || existingCommenter.asof < updateTime) {
                 threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, opts);
