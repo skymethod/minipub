@@ -9,38 +9,67 @@ export const BlueskyProtocolImplementation: ProtocolImplementation = {
 
         // https://bsky.app/profile/did/post/postId => at://did/app.bsky.feed.post/postId
         const { protocol, pathname } = destructureThreadcapUrl(url);
-        const atUri = (() => {
+
+        const resolveDid = async (handleOrDid: string): Promise<string> => {
+            if (handleOrDid.startsWith('did:')) return handleOrDid;
+            const res = await findOrFetchJson(makeUrl('https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile', { actor: handleOrDid }), updateTime, fetcher, cache, { accept: 'application/json' });
+            if (!isGetProfileResponse(res))  throw new Error(JSON.stringify(res, undefined, 2));
+            return res.did;
+        }
+        const atUri = await (async () => {
             if (protocol === 'at:') return url;
             if (protocol === 'https:')  {
-                const [ _, did, postId ] = /^\/profile\/([^/]+)\/post\/([^/]+)$/.exec(pathname) ?? [];
-                if (did && postId) return `at://${did}/app.bsky.feed.post/${postId}`;
+                const [ _, handleOrDid, postId ] = /^\/profile\/([^/]+)\/post\/([^/]+)$/.exec(pathname) ?? [];
+                if (handleOrDid && postId) return `at://${await resolveDid(handleOrDid)}/app.bsky.feed.post/${postId}`;
             }
             throw new Error(`Unexpected bluesky url: ${url}`);
         })();
 
-        const res = await findOrFetchJson(makeUrl('https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread', { uri: atUri, depth: 0, parentHeight: 0 }), updateTime, fetcher, cache, { accept: 'application/json' });
-        if (!isGetPostThreadResponse(res)) throw new Error(`Expected GetPostThreadResponse: ${JSON.stringify(res)}`);
+        const res = await findOrFetchJson(makeUrl('https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread', { uri: atUri, depth: 1000 /* max 1000 */, parentHeight: 0 }), updateTime, fetcher, cache, { accept: 'application/json' });
+        if (!isGetPostThreadResponse(res)) throw new Error(`Expected GetPostThreadResponse: ${JSON.stringify(res, undefined, 2)}`);
         if (debug) console.log(JSON.stringify(res, undefined, 2));
-        const { uri, author } = res.thread.post;
+
         const nodes: Record<string, Node> = {};
-        nodes[uri] = {
-            replies: [],
-            repliesAsof: updateTime,
-            comment: {
-                attachments: [],
-                content: { und: res.thread.post.record.text },
-                attributedTo: author.did,
-            },
-            commentAsof: updateTime,
-        };
         const commenters: Record<string, Commenter> = {};
-        commenters[author.did] = {
-            asof: updateTime,
-            name: author.displayName,
-            icon: {
-                url: author.avatar,
+
+        function processThread(thread: ThreadViewPost): string {
+            const { uri, author, replyCount } = thread.post;
+       
+            let replies: string[] | undefined;
+            if (replyCount === undefined) {
+                if (thread.replies !== undefined) throw new Error(`Expected no thread.replies for undefined replyCount`);
+            } else {
+                const diff = replyCount - (thread.replies?.length ?? 0);
+                if (diff < 0 || diff > 1) throw new Error(`Expected thread.replies.length ${thread.replies?.length} for replyCount ${replyCount}`);
+                replies = [];
+                for (const reply of thread.replies ?? []) {
+                    const replyUri = processThread(reply);
+                    replies.push(replyUri);
+                }
             }
-        };
+            nodes[uri] = {
+                replies,
+                repliesAsof: updateTime,
+                comment: {
+                    attachments: [],
+                    content: { und: thread.post.record.text },
+                    attributedTo: author.did,
+                },
+                commentAsof: updateTime,
+            };
+            
+            commenters[author.did] = {
+                asof: updateTime,
+                name: author.displayName ?? author.handle,
+                fqUsername: author.handle,
+                icon: author.avatar ? { url: author.avatar } : undefined,
+            };
+
+            return uri;
+        }
+
+        const uri = processThread(res.thread);
+
         return { protocol: 'bluesky', roots: [ uri ], nodes, commenters };
     },
     
@@ -68,42 +97,71 @@ function makeUrl(url: string, queryParams: Record<string, string | number>): str
     return u.toString();
 }
 
+
 type GetPostThreadResponse = {
-    thread: {
-        '$type': 'app.bsky.feed.defs#threadViewPost',
-        post: {
-            uri: string, // at://...
-            cid: string,
-            author: {
-                did: string,
-                handle: string,
-                displayName: string,
-                avatar: string,
-                labels: unknown[],
-            },
-            record: {
-                '$type': 'app.bsky.feed.post',
-                // others
-                text: string,
-            },
-        }
-    }
-}
+    thread: ThreadViewPost,
+};
 
 function isGetPostThreadResponse(obj: unknown): obj is GetPostThreadResponse {
     return isStringRecord(obj)
-        && isStringRecord(obj.thread)
-        && obj.thread['$type'] === 'app.bsky.feed.defs#threadViewPost'
-        && isStringRecord(obj.thread.post)
-        && typeof obj.thread.post.uri === 'string'
-        && isStringRecord(obj.thread.post.author)
-        && typeof obj.thread.post.author.did === 'string'
-        && typeof obj.thread.post.author.handle === 'string'
-        && typeof obj.thread.post.author.displayName === 'string'
-        && typeof obj.thread.post.author.avatar === 'string'
-        && Array.isArray(obj.thread.post.author.labels)
-        && isStringRecord(obj.thread.post.record)
-        && obj.thread.post.record['$type'] === 'app.bsky.feed.post'
-        && typeof obj.thread.post.record.text === 'string'
+        && isThreadViewPost(obj.thread)
+        ;
+}
+
+type ThreadViewPost = {
+    '$type': 'app.bsky.feed.defs#threadViewPost',
+    post: {
+        uri: string, // at://...
+        cid: string,
+        author: {
+            did: string,
+            handle: string,
+            displayName?: string,
+            avatar?: string,
+            labels: unknown[],
+        },
+        record: {
+            '$type': 'app.bsky.feed.post',
+            // others
+            text: string,
+        },
+        replyCount?: number,
+    },
+    replies?: ThreadViewPost[],
+};
+
+function isThreadViewPost(obj: unknown): obj is ThreadViewPost {
+    return isStringRecord(obj)
+        && obj['$type'] === 'app.bsky.feed.defs#threadViewPost'
+        && isStringRecord(obj.post)
+        && typeof obj.post.uri === 'string'
+        && isStringRecord(obj.post.author)
+        && typeof obj.post.author.did === 'string'
+        && typeof obj.post.author.handle === 'string'
+        && (obj.post.author.displayName === undefined || typeof obj.post.author.displayName === 'string')
+        && (obj.post.author.avatar === undefined || typeof obj.post.author.avatar === 'string')
+        && Array.isArray(obj.post.author.labels)
+        && isStringRecord(obj.post.record)
+        && obj.post.record['$type'] === 'app.bsky.feed.post'
+        && typeof obj.post.record.text === 'string'
+        && (obj.post.replyCount === undefined || typeof obj.post.replyCount === 'number')
+        && (obj.replies === undefined || Array.isArray(obj.replies) && obj.replies.every(isThreadViewPost))
+        ;
+}
+
+type GetProfileResponse = {
+    did: string,
+    handle: string,
+    displayName: string,
+    avatar?: string,
+    // others
+}
+
+function isGetProfileResponse(obj: unknown): obj is GetProfileResponse {
+    return isStringRecord(obj)
+        && typeof obj.did === 'string'
+        && typeof obj.handle === 'string'
+        && typeof obj.displayName === 'string'
+        && (obj.avatar === undefined || typeof obj.avatar === 'string')
         ;
 }
