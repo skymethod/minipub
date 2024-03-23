@@ -50,9 +50,10 @@ export const computeSystemActorResponse = ({ origin, actorUsername, actorPathnam
         id: `${origin}${actorPathname}`, 
         type: 'Application', 
         inbox: `${origin}${actorPathname}/inbox`, // required, but never called
+        outbox: `${origin}${actorPathname}/outbox`, // required, but never called
         preferredUsername: actorUsername,
         url,
-        manuallyApprovesFollowers: true, 
+        manuallyApprovesFollowers: true,
         publicKey: { 
             id: `${origin}${actorPathname}#main-key`, 
             owner: `${origin}${actorPathname}`, 
