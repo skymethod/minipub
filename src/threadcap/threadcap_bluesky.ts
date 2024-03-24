@@ -156,8 +156,6 @@ async function getThread(url: string, opts: ProtocolMethodOptions, depth: number
          if (replyCount === undefined) {
              if (thread.replies !== undefined) throw new Error(`Expected no thread.replies for undefined replyCount`);
          } else {
-             const diff = replyCount - (thread.replies?.length ?? 0);
-             if (diff < 0 || diff > 1) throw new Error(`Expected thread.replies.length ${thread.replies?.length} for replyCount ${replyCount}`);
              if (thread.replies !== undefined) {
                 replies = [];
                 for (const reply of thread.replies) {
