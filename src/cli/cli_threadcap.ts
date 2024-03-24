@@ -65,7 +65,6 @@ export async function threadcap(args: (string | number)[], options: Record<strin
         : u?.hostname === 'twitter.com' ? 'twitter'
         : u?.hostname === 'bsky.app' ? 'bluesky'
         : u?.protocol === 'at:' ? 'bluesky'
-        : u?.protocol === 'nostr:' ? 'nostr'
         : undefined;
     let bearerToken: string | undefined = undefined;
     if (protocol === 'twitter') {

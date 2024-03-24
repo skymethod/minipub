@@ -36,7 +36,7 @@ export async function findOrFetchJson(url: string, after: Instant, fetcher: Fetc
 export function isValidThreadcapUrl(url: string): boolean {
     try {
         const { protocol } = destructureThreadcapUrl(url);
-        return [ 'http:', 'https:', 'nostr:', 'at:' ].includes(protocol);
+        return [ 'http:', 'https:', 'at:' ].includes(protocol);
     } catch {
         return false;
     }
