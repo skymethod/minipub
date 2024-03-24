@@ -15,24 +15,6 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-var __accessCheck = (obj, member, msg) => {
-  if (!member.has(obj))
-    throw TypeError("Cannot " + msg);
-};
-var __privateGet = (obj, member, getter) => {
-  __accessCheck(obj, member, "read from private field");
-  return getter ? getter.call(obj) : member.get(obj);
-};
-var __privateAdd = (obj, member, value) => {
-  if (member.has(obj))
-    throw TypeError("Cannot add the same private member more than once");
-  member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
-};
-var __privateSet = (obj, member, value, setter) => {
-  __accessCheck(obj, member, "write to private field");
-  setter ? setter.call(obj, value) : member.set(obj, value);
-  return value;
-};
 
 // https://raw.githubusercontent.com/skymethod/minipub/master/src/threadcap/threadcap.ts
 var threadcap_exports = {};
@@ -49,6 +31,9 @@ __export(threadcap_exports, {
 module.exports = __toCommonJS(threadcap_exports);
 
 // https:/raw.githubusercontent.com/skymethod/minipub/master/src/check.ts
+function isNonEmpty(value) {
+  return value.trim().length > 0;
+}
 function isStringRecord(obj) {
   return typeof obj === "object" && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
@@ -59,7 +44,7 @@ function isValidIso8601(text) {
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(text);
 }
 
-// https:/raw.githubusercontent.com/skymethod/denoflare/171f4cdb1266928d2ff67f8a851827ab51bae937/common/bytes.ts
+// https:/raw.githubusercontent.com/skymethod/denoflare/v0.5.12/common/bytes.ts
 var _Bytes = class {
   constructor(bytes) {
     this._bytes = bytes;
@@ -169,563 +154,15 @@ function cryptoSubtle() {
   return crypto.subtle;
 }
 
-// https:/deno.land/std@0.173.0/datetime/constants.ts
-var SECOND = 1e3;
-var MINUTE = SECOND * 60;
-var HOUR = MINUTE * 60;
-var DAY = HOUR * 24;
-var WEEK = DAY * 7;
-
-// https:/deno.land/std@0.173.0/datetime/_common.ts
-var Tokenizer = class {
-  constructor(rules = []) {
-    this.rules = rules;
-  }
-  addRule(test, fn) {
-    this.rules.push({ test, fn });
-    return this;
-  }
-  tokenize(string, receiver = (token) => token) {
-    function* generator(rules) {
-      let index = 0;
-      for (const rule of rules) {
-        const result = rule.test(string);
-        if (result) {
-          const { value, length } = result;
-          index += length;
-          string = string.slice(length);
-          const token = { ...rule.fn(value), index };
-          yield receiver(token);
-          yield* generator(rules);
-        }
-      }
-    }
-    const tokenGenerator = generator(this.rules);
-    const tokens = [];
-    for (const token of tokenGenerator) {
-      tokens.push(token);
-    }
-    if (string.length) {
-      throw new Error(`parser error: string not fully parsed! ${string.slice(0, 25)}`);
-    }
-    return tokens;
-  }
-};
-function digits(value, count = 2) {
-  return String(value).padStart(count, "0");
-}
-function createLiteralTestFunction(value) {
-  return (string) => {
-    return string.startsWith(value) ? { value, length: value.length } : void 0;
-  };
-}
-function createMatchTestFunction(match) {
-  return (string) => {
-    const result = match.exec(string);
-    if (result)
-      return { value: result, length: result[0].length };
-  };
-}
-var defaultRules = [
-  {
-    test: createLiteralTestFunction("yyyy"),
-    fn: () => ({ type: "year", value: "numeric" })
-  },
-  {
-    test: createLiteralTestFunction("yy"),
-    fn: () => ({ type: "year", value: "2-digit" })
-  },
-  {
-    test: createLiteralTestFunction("MM"),
-    fn: () => ({ type: "month", value: "2-digit" })
-  },
-  {
-    test: createLiteralTestFunction("M"),
-    fn: () => ({ type: "month", value: "numeric" })
-  },
-  {
-    test: createLiteralTestFunction("dd"),
-    fn: () => ({ type: "day", value: "2-digit" })
-  },
-  {
-    test: createLiteralTestFunction("d"),
-    fn: () => ({ type: "day", value: "numeric" })
-  },
-  {
-    test: createLiteralTestFunction("HH"),
-    fn: () => ({ type: "hour", value: "2-digit" })
-  },
-  {
-    test: createLiteralTestFunction("H"),
-    fn: () => ({ type: "hour", value: "numeric" })
-  },
-  {
-    test: createLiteralTestFunction("hh"),
-    fn: () => ({
-      type: "hour",
-      value: "2-digit",
-      hour12: true
-    })
-  },
-  {
-    test: createLiteralTestFunction("h"),
-    fn: () => ({
-      type: "hour",
-      value: "numeric",
-      hour12: true
-    })
-  },
-  {
-    test: createLiteralTestFunction("mm"),
-    fn: () => ({ type: "minute", value: "2-digit" })
-  },
-  {
-    test: createLiteralTestFunction("m"),
-    fn: () => ({ type: "minute", value: "numeric" })
-  },
-  {
-    test: createLiteralTestFunction("ss"),
-    fn: () => ({ type: "second", value: "2-digit" })
-  },
-  {
-    test: createLiteralTestFunction("s"),
-    fn: () => ({ type: "second", value: "numeric" })
-  },
-  {
-    test: createLiteralTestFunction("SSS"),
-    fn: () => ({ type: "fractionalSecond", value: 3 })
-  },
-  {
-    test: createLiteralTestFunction("SS"),
-    fn: () => ({ type: "fractionalSecond", value: 2 })
-  },
-  {
-    test: createLiteralTestFunction("S"),
-    fn: () => ({ type: "fractionalSecond", value: 1 })
-  },
-  {
-    test: createLiteralTestFunction("a"),
-    fn: (value) => ({
-      type: "dayPeriod",
-      value
-    })
-  },
-  {
-    test: createMatchTestFunction(/^(')(?<value>\\.|[^\']*)\1/),
-    fn: (match) => ({
-      type: "literal",
-      value: match.groups.value
-    })
-  },
-  {
-    test: createMatchTestFunction(/^.+?\s*/),
-    fn: (match) => ({
-      type: "literal",
-      value: match[0]
-    })
-  }
-];
-var _format;
-var DateTimeFormatter = class {
-  constructor(formatString, rules = defaultRules) {
-    __privateAdd(this, _format, void 0);
-    const tokenizer = new Tokenizer(rules);
-    __privateSet(this, _format, tokenizer.tokenize(formatString, ({ type, value, hour12 }) => {
-      const result = {
-        type,
-        value
-      };
-      if (hour12)
-        result.hour12 = hour12;
-      return result;
-    }));
-  }
-  format(date, options = {}) {
-    let string = "";
-    const utc = options.timeZone === "UTC";
-    for (const token of __privateGet(this, _format)) {
-      const type = token.type;
-      switch (type) {
-        case "year": {
-          const value = utc ? date.getUTCFullYear() : date.getFullYear();
-          switch (token.value) {
-            case "numeric": {
-              string += value;
-              break;
-            }
-            case "2-digit": {
-              string += digits(value, 2).slice(-2);
-              break;
-            }
-            default:
-              throw Error(`FormatterError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "month": {
-          const value = (utc ? date.getUTCMonth() : date.getMonth()) + 1;
-          switch (token.value) {
-            case "numeric": {
-              string += value;
-              break;
-            }
-            case "2-digit": {
-              string += digits(value, 2);
-              break;
-            }
-            default:
-              throw Error(`FormatterError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "day": {
-          const value = utc ? date.getUTCDate() : date.getDate();
-          switch (token.value) {
-            case "numeric": {
-              string += value;
-              break;
-            }
-            case "2-digit": {
-              string += digits(value, 2);
-              break;
-            }
-            default:
-              throw Error(`FormatterError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "hour": {
-          let value = utc ? date.getUTCHours() : date.getHours();
-          value -= token.hour12 && date.getHours() > 12 ? 12 : 0;
-          switch (token.value) {
-            case "numeric": {
-              string += value;
-              break;
-            }
-            case "2-digit": {
-              string += digits(value, 2);
-              break;
-            }
-            default:
-              throw Error(`FormatterError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "minute": {
-          const value = utc ? date.getUTCMinutes() : date.getMinutes();
-          switch (token.value) {
-            case "numeric": {
-              string += value;
-              break;
-            }
-            case "2-digit": {
-              string += digits(value, 2);
-              break;
-            }
-            default:
-              throw Error(`FormatterError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "second": {
-          const value = utc ? date.getUTCSeconds() : date.getSeconds();
-          switch (token.value) {
-            case "numeric": {
-              string += value;
-              break;
-            }
-            case "2-digit": {
-              string += digits(value, 2);
-              break;
-            }
-            default:
-              throw Error(`FormatterError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "fractionalSecond": {
-          const value = utc ? date.getUTCMilliseconds() : date.getMilliseconds();
-          string += digits(value, Number(token.value));
-          break;
-        }
-        case "timeZoneName": {
-          break;
-        }
-        case "dayPeriod": {
-          string += token.value ? date.getHours() >= 12 ? "PM" : "AM" : "";
-          break;
-        }
-        case "literal": {
-          string += token.value;
-          break;
-        }
-        default:
-          throw Error(`FormatterError: { ${token.type} ${token.value} }`);
-      }
-    }
-    return string;
-  }
-  parseToParts(string) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q;
-    const parts = [];
-    for (const token of __privateGet(this, _format)) {
-      const type = token.type;
-      let value = "";
-      switch (token.type) {
-        case "year": {
-          switch (token.value) {
-            case "numeric": {
-              value = (_a = /^\d{1,4}/.exec(string)) == null ? void 0 : _a[0];
-              break;
-            }
-            case "2-digit": {
-              value = (_b = /^\d{1,2}/.exec(string)) == null ? void 0 : _b[0];
-              break;
-            }
-          }
-          break;
-        }
-        case "month": {
-          switch (token.value) {
-            case "numeric": {
-              value = (_c = /^\d{1,2}/.exec(string)) == null ? void 0 : _c[0];
-              break;
-            }
-            case "2-digit": {
-              value = (_d = /^\d{2}/.exec(string)) == null ? void 0 : _d[0];
-              break;
-            }
-            case "narrow": {
-              value = (_e = /^[a-zA-Z]+/.exec(string)) == null ? void 0 : _e[0];
-              break;
-            }
-            case "short": {
-              value = (_f = /^[a-zA-Z]+/.exec(string)) == null ? void 0 : _f[0];
-              break;
-            }
-            case "long": {
-              value = (_g = /^[a-zA-Z]+/.exec(string)) == null ? void 0 : _g[0];
-              break;
-            }
-            default:
-              throw Error(`ParserError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "day": {
-          switch (token.value) {
-            case "numeric": {
-              value = (_h = /^\d{1,2}/.exec(string)) == null ? void 0 : _h[0];
-              break;
-            }
-            case "2-digit": {
-              value = (_i = /^\d{2}/.exec(string)) == null ? void 0 : _i[0];
-              break;
-            }
-            default:
-              throw Error(`ParserError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "hour": {
-          switch (token.value) {
-            case "numeric": {
-              value = (_j = /^\d{1,2}/.exec(string)) == null ? void 0 : _j[0];
-              if (token.hour12 && parseInt(value) > 12) {
-                console.error(`Trying to parse hour greater than 12. Use 'H' instead of 'h'.`);
-              }
-              break;
-            }
-            case "2-digit": {
-              value = (_k = /^\d{2}/.exec(string)) == null ? void 0 : _k[0];
-              if (token.hour12 && parseInt(value) > 12) {
-                console.error(`Trying to parse hour greater than 12. Use 'HH' instead of 'hh'.`);
-              }
-              break;
-            }
-            default:
-              throw Error(`ParserError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "minute": {
-          switch (token.value) {
-            case "numeric": {
-              value = (_l = /^\d{1,2}/.exec(string)) == null ? void 0 : _l[0];
-              break;
-            }
-            case "2-digit": {
-              value = (_m = /^\d{2}/.exec(string)) == null ? void 0 : _m[0];
-              break;
-            }
-            default:
-              throw Error(`ParserError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "second": {
-          switch (token.value) {
-            case "numeric": {
-              value = (_n = /^\d{1,2}/.exec(string)) == null ? void 0 : _n[0];
-              break;
-            }
-            case "2-digit": {
-              value = (_o = /^\d{2}/.exec(string)) == null ? void 0 : _o[0];
-              break;
-            }
-            default:
-              throw Error(`ParserError: value "${token.value}" is not supported`);
-          }
-          break;
-        }
-        case "fractionalSecond": {
-          value = (_p = new RegExp(`^\\d{${token.value}}`).exec(string)) == null ? void 0 : _p[0];
-          break;
-        }
-        case "timeZoneName": {
-          value = token.value;
-          break;
-        }
-        case "dayPeriod": {
-          value = (_q = /^(A|P)M/.exec(string)) == null ? void 0 : _q[0];
-          break;
-        }
-        case "literal": {
-          if (!string.startsWith(token.value)) {
-            throw Error(`Literal "${token.value}" not found "${string.slice(0, 25)}"`);
-          }
-          value = token.value;
-          break;
-        }
-        default:
-          throw Error(`${token.type} ${token.value}`);
-      }
-      if (!value) {
-        throw Error(`value not valid for token { ${type} ${value} } ${string.slice(0, 25)}`);
-      }
-      parts.push({ type, value });
-      string = string.slice(value.length);
-    }
-    if (string.length) {
-      throw Error(`datetime string was not fully parsed! ${string.slice(0, 25)}`);
-    }
-    return parts;
-  }
-  sortDateTimeFormatPart(parts) {
-    let result = [];
-    const typeArray = [
-      "year",
-      "month",
-      "day",
-      "hour",
-      "minute",
-      "second",
-      "fractionalSecond"
-    ];
-    for (const type of typeArray) {
-      const current = parts.findIndex((el) => el.type === type);
-      if (current !== -1) {
-        result = result.concat(parts.splice(current, 1));
-      }
-    }
-    result = result.concat(parts);
-    return result;
-  }
-  partsToDate(parts) {
-    const date = new Date();
-    const utc = parts.find((part) => part.type === "timeZoneName" && part.value === "UTC");
-    const dayPart = parts.find((part) => part.type === "day");
-    utc ? date.setUTCHours(0, 0, 0, 0) : date.setHours(0, 0, 0, 0);
-    for (const part of parts) {
-      switch (part.type) {
-        case "year": {
-          const value = Number(part.value.padStart(4, "20"));
-          utc ? date.setUTCFullYear(value) : date.setFullYear(value);
-          break;
-        }
-        case "month": {
-          const value = Number(part.value) - 1;
-          if (dayPart) {
-            utc ? date.setUTCMonth(value, Number(dayPart.value)) : date.setMonth(value, Number(dayPart.value));
-          } else {
-            utc ? date.setUTCMonth(value) : date.setMonth(value);
-          }
-          break;
-        }
-        case "day": {
-          const value = Number(part.value);
-          utc ? date.setUTCDate(value) : date.setDate(value);
-          break;
-        }
-        case "hour": {
-          let value = Number(part.value);
-          const dayPeriod = parts.find((part2) => part2.type === "dayPeriod");
-          if ((dayPeriod == null ? void 0 : dayPeriod.value) === "PM")
-            value += 12;
-          utc ? date.setUTCHours(value) : date.setHours(value);
-          break;
-        }
-        case "minute": {
-          const value = Number(part.value);
-          utc ? date.setUTCMinutes(value) : date.setMinutes(value);
-          break;
-        }
-        case "second": {
-          const value = Number(part.value);
-          utc ? date.setUTCSeconds(value) : date.setSeconds(value);
-          break;
-        }
-        case "fractionalSecond": {
-          const value = Number(part.value);
-          utc ? date.setUTCMilliseconds(value) : date.setMilliseconds(value);
-          break;
-        }
-      }
-    }
-    return date;
-  }
-  parse(string) {
-    const parts = this.parseToParts(string);
-    const sortParts = this.sortDateTimeFormatPart(parts);
-    return this.partsToDate(sortParts);
-  }
-};
-_format = new WeakMap();
-
-// https:/deno.land/std@0.173.0/datetime/to_imf.ts
-function toIMF(date) {
-  function dtPad(v, lPad = 2) {
-    return v.padStart(lPad, "0");
-  }
-  const d = dtPad(date.getUTCDate().toString());
-  const h = dtPad(date.getUTCHours().toString());
-  const min = dtPad(date.getUTCMinutes().toString());
-  const s = dtPad(date.getUTCSeconds().toString());
-  const y = date.getUTCFullYear();
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec"
-  ];
-  return `${days[date.getUTCDay()]}, ${d} ${months[date.getUTCMonth()]} ${y} ${h}:${min}:${s} GMT`;
-}
+// https:/deno.land/std@0.220.1/encoding/_util.ts
+var encoder = new TextEncoder();
 
 // https:/raw.githubusercontent.com/skymethod/minipub/master/src/crypto.ts
 async function computeHttpSignatureHeaders(opts) {
   const { method, url, body, privateKey, keyId } = opts;
   const { pathname, hostname } = new URL(url);
   const digest = body ? `SHA-256=${(await Bytes.ofUtf8(body).sha256()).base64()}` : void 0;
-  const date = toIMF(new Date());
+  const date = new Date().toUTCString();
   const signed = {
     "(request-target)": `${method.toLowerCase()} ${pathname}`,
     host: hostname,
@@ -765,6 +202,13 @@ async function findOrFetchJson(url, after, fetcher, cache, opts) {
   if (!foundJson)
     throw new Error(`Expected json response for ${url}, found ${contentType} body=${bodyText}`);
   return JSON.parse(bodyText);
+}
+function destructureThreadcapUrl(url) {
+  const m = /^(at:\/\/)([^/]+)(\/.*?)$/.exec(url);
+  const tmpUrl = m ? `${m[1]}${m[2].replaceAll(":", "%3A")}${m[3]}` : void 0;
+  const { protocol, hostname: tmpHostname, pathname, searchParams } = new URL(tmpUrl != null ? tmpUrl : url);
+  const hostname = tmpUrl ? tmpHostname.replaceAll("%3A", ":") : tmpHostname;
+  return { protocol, hostname, pathname, searchParams };
 }
 async function findOrFetchTextResponse(url, after, fetcher, cache, opts) {
   const existing = await cache.get(url, after);
@@ -827,7 +271,7 @@ async function initActivityPubThreadcap(url, opts) {
   const { id, type } = object;
   if (typeof type !== "string")
     throw new Error(`Unexpected type for object: ${JSON.stringify(object)}`);
-  if (!/^(Note|Article|Video|PodcastEpisode)$/.test(type))
+  if (!/^(Note|Article|Video|PodcastEpisode|Question)$/.test(type))
     throw new Error(`Unexpected type: ${type}`);
   if (typeof id !== "string")
     throw new Error(`Unexpected id for object: ${JSON.stringify(object)}`);
@@ -974,7 +418,8 @@ function computeComment(object, id, callbacks) {
   const attributedTo = computeAttributedTo(object.attributedTo);
   if (typeof published !== "string")
     throw new Error(`Expected 'published' to be a string, found ${JSON.stringify(published)}`);
-  return { url, published, attachments, content, attributedTo, summary };
+  const questionOptions = computeQuestionOptions(object);
+  return { url, published, attachments, content, attributedTo, summary, questionOptions };
 }
 function computeUrl(url) {
   if (url === void 0 || url === null)
@@ -987,6 +432,29 @@ function computeUrl(url) {
       return v.href;
   }
   throw new Error(`Expected 'url' to be a string, found ${JSON.stringify(url)}`);
+}
+function computeQuestionOptions(obj) {
+  let rt;
+  if (obj.type === "Question") {
+    for (const prop of ["oneOf", "anyOf"]) {
+      const val = obj[prop];
+      if (Array.isArray(val)) {
+        for (const item of val) {
+          if (isStringRecord(item) && item.type === "Note" && typeof item.name === "string") {
+            if (!rt)
+              rt = [];
+            rt.push(item.name);
+          } else {
+            throw new Error(`Unsupported Question '${prop}' item: ${JSON.stringify(item)}`);
+          }
+        }
+        return rt;
+      } else if (val !== void 0) {
+        throw new Error(`Unsupported Question '${prop}' value: ${JSON.stringify(val)}`);
+      }
+    }
+  }
+  return rt;
 }
 function computeAttributedTo(attributedTo) {
   if (typeof attributedTo === "string")
@@ -1028,6 +496,8 @@ function computeLanguageTaggedValues(obj, stringProp, mapProp) {
     return mapVal;
   if (stringVal !== void 0)
     return { und: stringVal };
+  if (obj.type === "Video" && typeof obj.name === "string" && isNonEmpty(obj.name))
+    return { und: obj.name };
 }
 function computeAttachments(object) {
   const rt = [];
@@ -1108,6 +578,129 @@ async function mastodonFindStatusIdForActivityPubId(id, after, fetcher, cache, d
     }
   }
   return void 0;
+}
+
+// https:/raw.githubusercontent.com/skymethod/minipub/master/src/threadcap/threadcap_bluesky.ts
+var BlueskyProtocolImplementation = {
+  async initThreadcap(url, opts) {
+    const { uri, nodes, commenters } = await getThread(url, opts, 1e3);
+    return { protocol: "bluesky", roots: [uri], nodes, commenters };
+  },
+  async fetchComment(id, opts) {
+    const { uri, nodes } = await getThread(id, opts, 0);
+    const node = nodes[uri];
+    if (!node)
+      throw new Error(`fetchComment: no node!`);
+    if (!node.comment)
+      throw new Error(`fetchComment: no node comment!`);
+    return node.comment;
+  },
+  async fetchCommenter(attributedTo, opts) {
+    const { updateTime, fetcher, cache, bearerToken } = opts;
+    const res = await getProfile(attributedTo, { updateTime, fetcher, cache, bearerToken });
+    return computeCommenter2(res, updateTime);
+  },
+  async fetchReplies(id, opts) {
+    const { uri, nodes } = await getThread(id, opts, 1);
+    const node = nodes[uri];
+    if (!node)
+      throw new Error(`fetchReplies: no node!`);
+    if (!node.replies)
+      throw new Error(`fetchReplies: no node replies!`);
+    return node.replies;
+  }
+};
+function makeUrl(url, queryParams) {
+  const u = new URL(url);
+  Object.entries(queryParams).forEach(([n, v]) => u.searchParams.set(n, v.toString()));
+  return u.toString();
+}
+function isGetPostThreadResponse(obj) {
+  return isStringRecord(obj) && isThreadViewPost(obj.thread);
+}
+function isThreadViewPost(obj) {
+  return isStringRecord(obj) && obj["$type"] === "app.bsky.feed.defs#threadViewPost" && isStringRecord(obj.post) && typeof obj.post.uri === "string" && isStringRecord(obj.post.author) && typeof obj.post.author.did === "string" && typeof obj.post.author.handle === "string" && (obj.post.author.displayName === void 0 || typeof obj.post.author.displayName === "string") && (obj.post.author.avatar === void 0 || typeof obj.post.author.avatar === "string") && Array.isArray(obj.post.author.labels) && isStringRecord(obj.post.record) && obj.post.record["$type"] === "app.bsky.feed.post" && typeof obj.post.record.text === "string" && (obj.post.replyCount === void 0 || typeof obj.post.replyCount === "number") && (obj.replies === void 0 || Array.isArray(obj.replies) && obj.replies.every(isThreadViewPost));
+}
+function isGetProfileResponse(obj) {
+  return isStringRecord(obj) && typeof obj.did === "string" && typeof obj.handle === "string" && typeof obj.displayName === "string" && (obj.avatar === void 0 || typeof obj.avatar === "string");
+}
+async function fetchAppviewJson(url, { updateTime, fetcher, cache, bearerToken }) {
+  return await findOrFetchJson(url, updateTime, fetcher, cache, { accept: "application/json", authorization: bearerToken ? `Bearer ${bearerToken}` : void 0 });
+}
+async function getProfile(handleOrDid, { updateTime, fetcher, cache, bearerToken }) {
+  const res = await fetchAppviewJson(makeUrl("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile", { actor: handleOrDid }), { updateTime, fetcher, cache, bearerToken });
+  if (!isGetProfileResponse(res))
+    throw new Error(JSON.stringify(res, void 0, 2));
+  return res;
+}
+async function getThread(url, opts, depth) {
+  const { debug, fetcher, updateTime = new Date().toISOString(), cache, bearerToken } = opts;
+  const { protocol, pathname } = destructureThreadcapUrl(url);
+  const resolveDid = async (handleOrDid) => {
+    if (handleOrDid.startsWith("did:"))
+      return handleOrDid;
+    const res2 = await getProfile(handleOrDid, { updateTime, fetcher, cache, bearerToken });
+    return res2.did;
+  };
+  const atUri = await (async () => {
+    var _a;
+    if (protocol === "at:")
+      return url;
+    if (protocol === "https:") {
+      const [_, handleOrDid, postId] = (_a = /^\/profile\/([^/]+)\/post\/([^/]+)$/.exec(pathname)) != null ? _a : [];
+      if (handleOrDid && postId)
+        return `at://${await resolveDid(handleOrDid)}/app.bsky.feed.post/${postId}`;
+    }
+    throw new Error(`Unexpected bluesky url: ${url}`);
+  })();
+  const res = await fetchAppviewJson(makeUrl("https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread", { uri: atUri, depth, parentHeight: 0 }), { updateTime, fetcher, cache, bearerToken });
+  if (!isGetPostThreadResponse(res))
+    throw new Error(`Expected GetPostThreadResponse: ${JSON.stringify(res, void 0, 2)}`);
+  if (debug)
+    console.log(JSON.stringify(res, void 0, 2));
+  const nodes = {};
+  const commenters = {};
+  const processThread = (thread) => {
+    const { uri: uri2, author, replyCount } = thread.post;
+    let replies;
+    let repliesAsof;
+    if (replyCount === void 0) {
+      if (thread.replies !== void 0)
+        throw new Error(`Expected no thread.replies for undefined replyCount`);
+    } else {
+      if (thread.replies !== void 0) {
+        replies = [];
+        for (const reply of thread.replies) {
+          const replyUri = processThread(reply);
+          replies.push(replyUri);
+        }
+        repliesAsof = updateTime;
+      }
+    }
+    nodes[uri2] = {
+      replies,
+      repliesAsof,
+      comment: {
+        attachments: [],
+        content: { und: thread.post.record.text },
+        attributedTo: author.did
+      },
+      commentAsof: updateTime
+    };
+    commenters[author.did] = computeCommenter2(author, updateTime);
+    return uri2;
+  };
+  const uri = processThread(res.thread);
+  return { uri, nodes, commenters };
+}
+function computeCommenter2(author, updateTime) {
+  var _a;
+  return {
+    asof: updateTime,
+    name: (_a = author.displayName) != null ? _a : author.handle,
+    fqUsername: author.handle,
+    icon: author.avatar ? { url: author.avatar } : void 0
+  };
 }
 
 // https:/raw.githubusercontent.com/skymethod/minipub/master/src/threadcap/threadcap_twitter.ts
@@ -1273,14 +866,14 @@ async function findOrFetchConversationId(tweetId, opts) {
 
 // https://raw.githubusercontent.com/skymethod/minipub/master/src/threadcap/threadcap.ts
 function isValidProtocol(protocol) {
-  return protocol === "activitypub" || protocol === "twitter";
+  return protocol === "activitypub" || protocol === "twitter" || protocol === "bluesky";
 }
 var MAX_LEVELS = 1e3;
 async function makeThreadcap(url, opts) {
-  const { cache, userAgent, protocol, bearerToken, debug } = opts;
+  const { cache, updateTime, userAgent, protocol, bearerToken, debug } = opts;
   const fetcher = makeFetcherWithUserAgent(opts.fetcher, userAgent);
   const implementation = computeProtocolImplementation(protocol);
-  return await implementation.initThreadcap(url, { fetcher, cache, bearerToken, debug });
+  return await implementation.initThreadcap(url, { fetcher, cache, updateTime, bearerToken, debug });
 }
 async function updateThreadcap(threadcap, opts) {
   const { userAgent, cache, updateTime, callbacks, maxLevels, maxNodes: maxNodesInput, startNode, keepGoing, bearerToken, debug } = opts;
@@ -1427,6 +1020,8 @@ function computeProtocolImplementation(protocol) {
     return ActivityPubProtocolImplementation;
   if (protocol === "twitter")
     return TwitterProtocolImplementation;
+  if (protocol === "bluesky")
+    return BlueskyProtocolImplementation;
   throw new Error(`Unsupported protocol: ${protocol}`);
 }
 async function processNode(id, processReplies, threadcap, implementation, opts) {
@@ -1437,12 +1032,16 @@ async function processNode(id, processReplies, threadcap, implementation, opts) 
     threadcap.nodes[id] = node;
   }
   const updateComment = !node.commentAsof || node.commentAsof < updateTime;
-  if (updateComment) {
+  const existingCommenter = node.comment ? threadcap.commenters[node.comment.attributedTo] : void 0;
+  const updateCommenter = !existingCommenter || existingCommenter.asof < updateTime;
+  if (updateComment || updateCommenter) {
     try {
-      node.comment = await implementation.fetchComment(id, opts);
+      if (updateComment) {
+        node.comment = await implementation.fetchComment(id, opts);
+      }
       const { attributedTo } = node.comment;
-      const existingCommenter = threadcap.commenters[attributedTo];
-      if (!existingCommenter || existingCommenter.asof < updateTime) {
+      const existingCommenter2 = threadcap.commenters[attributedTo];
+      if (!existingCommenter2 || existingCommenter2.asof < updateTime) {
         threadcap.commenters[attributedTo] = await implementation.fetchCommenter(attributedTo, opts);
       }
       node.commentError = void 0;

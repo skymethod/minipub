@@ -37,8 +37,8 @@ export interface Threadcap {
 }
 /** An ISO-8601 date at GMT, including optional milliseconds, e.g. `1970-01-01T00:00:00Z` or `1970-01-01T00:00:00.123Z` */
 export declare type Instant = string;
-/** Supported protocols for capturing comment threads: activitypub, twitter */
-export declare type Protocol = 'activitypub' | 'twitter';
+/** Supported protocols for capturing comment threads: activitypub, twitter, bluesky */
+export declare type Protocol = 'activitypub' | 'twitter' | 'bluesky';
 export declare function isValidProtocol(protocol: string): protocol is Protocol;
 /**
  * Snapshot of a single comment inside of a larger {@link Threadcap}.
@@ -111,6 +111,10 @@ export interface Comment {
      * One way to get the summary html for the first (and usually only) language is `Object.values(summary)[0]`.
      */
     readonly summary?: Record<string, string>;
+    /**
+     * Choices for polls, found in ActivityPub Question objects.
+     */
+    readonly questionOptions?: string[];
 }
 /** Media attachments to a comment */
 export interface Attachment {
@@ -255,6 +259,7 @@ export declare function makeThreadcap(url: string, opts: {
     userAgent: string;
     fetcher: Fetcher;
     cache: Cache;
+    updateTime?: Instant;
     protocol?: Protocol;
     bearerToken?: string;
     debug?: boolean;
