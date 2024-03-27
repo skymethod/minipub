@@ -23,7 +23,7 @@ export const NostrProtocolImplementation: ProtocolImplementation = {
             ws.send(json);
         }
         ws.onmessage = ({ data }) => {
-            if (debug) console.log(`onmessage: ${JSON.stringify(data)}`);
+            if (debug) console.log(`onmessage: ${typeof data === 'string' && data.startsWith('[') && data.endsWith(']') ? JSON.stringify(JSON.parse(data), undefined, 2) : JSON.stringify(data)}`);
             let parsed: unknown;
             try {
                 if (typeof data !== 'string') throw new Error(`Unexpected data type: ${typeof data} ${data}`);
@@ -52,7 +52,7 @@ export const NostrProtocolImplementation: ProtocolImplementation = {
             send([ 'REQ', subscriptionId, 
             { 
                 kinds: [ 1311, 30311 ],
-                '#d': [ identifier ],
+                limit: 100000,
             } ]);
         };
         await p;

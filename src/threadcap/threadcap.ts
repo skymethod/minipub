@@ -3,6 +3,7 @@ import { computeHttpSignatureHeaders, importKeyFromPem } from '../crypto.ts';
 import { ActivityPubProtocolImplementation } from './threadcap_activitypub.ts';
 import { BlueskyProtocolImplementation } from './threadcap_bluesky.ts';
 import { ProtocolImplementation, ProtocolUpdateMethodOptions } from './threadcap_implementation.ts';
+import { NostrProtocolImplementation } from './threadcap_nostr.ts';
 import { TwitterProtocolImplementation } from './threadcap_twitter.ts';
 
 /**
@@ -50,11 +51,11 @@ export interface Threadcap {
 /** An ISO-8601 date at GMT, including optional milliseconds, e.g. `1970-01-01T00:00:00Z` or `1970-01-01T00:00:00.123Z` */
 export type Instant = string;
 
-/** Supported protocols for capturing comment threads: activitypub, twitter, bluesky */
-export type Protocol = 'activitypub' | 'twitter' | 'bluesky';
+/** Supported protocols for capturing comment threads: activitypub, twitter, bluesky, nostr */
+export type Protocol = 'activitypub' | 'twitter' | 'bluesky' | 'nostr';
 
 export function isValidProtocol(protocol: string): protocol is Protocol {
-    return protocol === 'activitypub' || protocol === 'twitter' || protocol === 'bluesky';
+    return protocol === 'activitypub' || protocol === 'twitter' || protocol === 'bluesky' || protocol === 'nostr';
 }
 
 /**
@@ -512,6 +513,7 @@ function computeProtocolImplementation(protocol?: Protocol): ProtocolImplementat
     if (protocol === undefined || protocol === 'activitypub') return ActivityPubProtocolImplementation;
     if (protocol === 'twitter') return TwitterProtocolImplementation;
     if (protocol === 'bluesky') return BlueskyProtocolImplementation;
+    if (protocol === 'nostr') return NostrProtocolImplementation;
     throw new Error(`Unsupported protocol: ${protocol}`);
 }
 
