@@ -10,6 +10,7 @@ export const NostrProtocolImplementation: ProtocolImplementation = {
         if (protocol !== 'nostr:' || !m) throw new Error(`Threadcap nostr urls should be in this form: nostr://<relay-server>?space=30311:<64-hexchars>:<identifer>`);
         const [ space, _, identifier ] = m;
         const limit = parseInt(searchParams.get('limit') ?? '1000');
+        const dumpActivities = (searchParams.get('dump') ?? '').includes('activities');
         const nodes: Record<string, Node> = {};
         const commenters: Record<string, Commenter> = {};
         
@@ -51,10 +52,12 @@ export const NostrProtocolImplementation: ProtocolImplementation = {
         // query for the activity
         const activities = await query({ 
             kinds: [ 30311 ],
-            tags: {
+            limit: 1000,
+            tags: dumpActivities ? undefined : {
                 '#d': [ identifier ],
             }
         }, { hostname, debug, state });
+        if (dumpActivities) console.log(activities.map(v => `activity: ${v.tags.find(v => v[0] === 'd')?.at(1)}\t${v.tags.find(v => v[0] === 'title')?.at(1)}`).join('\n'))
         const activity = activities.find(v => v.tags.some(v => v[0] === 'd' && v[1] === identifier));
         const rootUri = makeUri({ message: undefined });
         nodes[rootUri] = {
@@ -217,8 +220,8 @@ async function query(filter: { kinds?: number[], limit?: number, tags?: Record<s
             if (!Array.isArray(parsed)) throw new Error(`Unexpected payload`);
             const [ first, ...rest ] = parsed;
             if (first === 'EOSE') {
-                const [ _sub ] = rest;
-                // if (sub === subscriptionId) send([ 'CLOSE', subscriptionId ]); // TODO when server supports this
+                const [ sub ] = rest;
+                if (sub === subscriptionId) send([ 'CLOSE', subscriptionId ]);
                 resolve(rt);
             } else if (first === 'CLOSED') {
                 const [ sub, reason ] = rest;
