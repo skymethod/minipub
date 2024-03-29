@@ -68,13 +68,13 @@ export const NostrProtocolImplementation: ProtocolImplementation = {
                 published: activity ? new Date(activity.created_at * 1000).toISOString() : undefined,
             },
             commentAsof: updateTime,
-            replies: Object.keys(nodes),
+            replies: Object.keys(nodes).sort((lhs, rhs) => nodes[lhs].comment!.published!.localeCompare(nodes[rhs].comment!.published!)),
             repliesAsof: updateTime,
         };
         if (activity) pubkeys.add(activity.pubkey);
 
         // resolve profiles for pubkeys
-        const relaysForProfiles = [ 'relay.primal.net', 'relay.damus.io', 'relay.snort.social' ];
+        const relaysForProfiles = [ hostname, 'relay.primal.net', 'relay.damus.io', 'relay.snort.social' ];
         const remainingPubkeys = new Set(pubkeys);
         const allProfiles: NostrEvent[] = [];
         const resolvedByHostname: Record<string, number> = {};
@@ -122,7 +122,10 @@ export const NostrProtocolImplementation: ProtocolImplementation = {
     
     async fetchCommenter(attributedTo: string, opts: ProtocolUpdateMethodOptions): Promise<Commenter> {
         await Promise.resolve();
-        throw new Error(`fetchCommenter(${JSON.stringify({ attributedTo, opts })}) not implemented`);
+        return {
+            name: attributedTo,
+            asof: opts.updateTime,
+        };
     },
     
     async fetchReplies(id: string, opts: ProtocolUpdateMethodOptions): Promise<readonly string[]> {

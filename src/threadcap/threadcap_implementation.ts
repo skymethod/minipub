@@ -46,8 +46,12 @@ export function destructureThreadcapUrl(url: string): { protocol: string, hostna
     // need to tunnel invalid hostname for at://did:plc:something/path
     const m = /^(at:\/\/)([^/]+)(\/.*?)$/.exec(url);
     const tmpUrl = m ? `${m[1]}${m[2].replaceAll(':', '%3A')}${m[3]}` : undefined;
-    const { protocol, hostname: tmpHostname, pathname, searchParams } = new URL(tmpUrl ?? url);
-    const hostname = tmpUrl ? tmpHostname.replaceAll('%3A', ':') : tmpHostname;
+    // need to tunnel nostr (browsers will remove hostname)
+    const m2 = /^(nostr:\/\/)(.+?)$/.exec(url);
+    const tmpUrl2 = m2 ? `https://${m2[2]}` : undefined;
+    const { protocol: tmpProtocol, hostname: tmpHostname, pathname, searchParams } = new URL(tmpUrl2 ?? tmpUrl ?? url);
+    const protocol = m2 ? 'nostr:' : tmpProtocol;
+    const hostname = tmpUrl2 ? tmpHostname : tmpUrl ? tmpHostname.replaceAll('%3A', ':') : tmpHostname;
     return { protocol, hostname, pathname, searchParams };
 }
 
