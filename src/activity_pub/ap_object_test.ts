@@ -1,7 +1,7 @@
-import { assertStrictEquals } from 'https://deno.land/std@0.220.1/assert/assert_strict_equals.ts';
-import { assert } from 'https://deno.land/std@0.220.1/assert/assert.ts';
-import { assertEquals } from 'https://deno.land/std@0.220.1/assert/assert_equals.ts';
-import { assertThrows } from 'https://deno.land/std@0.220.1/assert/assert_throws.ts';
+import { assertStrictEquals } from 'https://deno.land/std@0.224.0/assert/assert_strict_equals.ts';
+import { assert } from 'https://deno.land/std@0.224.0/assert/assert.ts';
+import { assertEquals } from 'https://deno.land/std@0.224.0/assert/assert_equals.ts';
+import { assertThrows } from 'https://deno.land/std@0.224.0/assert/assert_throws.ts';
 import { ApObject } from './ap_object.ts';
 import minipubActor from './ap_object_test_data/minipub_actor.json' with { type: 'json' };
 import mastodonActor from './ap_object_test_data/mastodon_actor.json' with { type: 'json' };

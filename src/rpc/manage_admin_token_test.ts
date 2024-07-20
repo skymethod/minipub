@@ -1,5 +1,5 @@
-import { assertStrictEquals } from 'https://deno.land/std@0.220.1/assert/assert_strict_equals.ts';
-import { assert } from 'https://deno.land/std@0.220.1/assert/assert.ts';
+import { assertStrictEquals } from 'https://deno.land/std@0.224.0/assert/assert_strict_equals.ts';
+import { assert } from 'https://deno.land/std@0.224.0/assert/assert.ts';
 import { makeSqliteStorage } from '../sqlite_storage.ts';
 import { computeGenerateAdminToken, computeRevokeAdminToken } from './manage_admin_token.ts';
 import { getRecord } from '../storage.ts';

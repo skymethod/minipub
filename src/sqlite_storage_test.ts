@@ -1,4 +1,4 @@
-import { assertStrictEquals } from 'https://deno.land/std@0.220.1/assert/assert_strict_equals.ts';
+import { assertStrictEquals } from 'https://deno.land/std@0.224.0/assert/assert_strict_equals.ts';
 import { makeSqliteStorage } from './sqlite_storage.ts';
 
 Deno.test('SqliteStorage', async () => {

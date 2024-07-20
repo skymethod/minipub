@@ -1,4 +1,4 @@
-import { assert } from 'https://deno.land/std@0.220.1/assert/assert.ts';
+import { assert } from 'https://deno.land/std@0.224.0/assert/assert.ts';
 import { isDeleteActorRequestBody } from './inbox_endpoint.ts';
 
 Deno.test('isDeleteActorRequestBody', () => {
