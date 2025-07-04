@@ -69,6 +69,7 @@ type ThreadViewPost = {
             '$type': 'app.bsky.feed.post',
             // others
             text: string,
+            createdAt: string, // 2025-07-04T20:17:56.475+00:00
         },
         replyCount?: number,
     },
@@ -124,39 +125,41 @@ async function getProfile(handleOrDid: string, { updateTime, fetcher, cache, bea
 async function getThread(url: string, opts: ProtocolMethodOptions, depth: number /* max 1000 */): Promise<{ uri: string, nodes: Record<string, Node>, commenters: Record<string, Commenter> }> {
     const { debug, fetcher, updateTime = new Date().toISOString(), cache, bearerToken } = opts;
 
-     // https://bsky.app/profile/did/post/postId => at://did/app.bsky.feed.post/postId
-     const { protocol, pathname } = destructureThreadcapUrl(url);
+    // https://bsky.app/profile/did/post/postId => at://did/app.bsky.feed.post/postId
+    const { protocol, pathname } = destructureThreadcapUrl(url);
 
-     const resolveDid = async (handleOrDid: string): Promise<string> => {
-         if (handleOrDid.startsWith('did:')) return handleOrDid;
-         const res = await getProfile(handleOrDid, { updateTime, fetcher, cache, bearerToken });
-         return res.did;
-     }
-     const atUri = await (async () => {
-         if (protocol === 'at:') return url;
-         if (protocol === 'https:')  {
-             const [ _, handleOrDid, postId ] = /^\/profile\/([^/]+)\/post\/([^/]+)$/.exec(pathname) ?? [];
-             if (handleOrDid && postId) return `at://${await resolveDid(handleOrDid)}/app.bsky.feed.post/${postId}`;
-         }
-         throw new Error(`Unexpected bluesky url: ${url}`);
-     })();
+    const resolveDid = async (handleOrDid: string): Promise<string> => {
+        if (handleOrDid.startsWith('did:')) return handleOrDid;
+        const res = await getProfile(handleOrDid, { updateTime, fetcher, cache, bearerToken });
+        return res.did;
+    }
+    const atUri = await (async () => {
+        if (protocol === 'at:') return url;
+        if (protocol === 'https:')  {
+            const [ _, handleOrDid, postId ] = /^\/profile\/([^/]+)\/post\/([^/]+)$/.exec(pathname) ?? [];
+            if (handleOrDid && postId) return `at://${await resolveDid(handleOrDid)}/app.bsky.feed.post/${postId}`;
+        }
+        throw new Error(`Unexpected bluesky url: ${url}`);
+    })();
 
-     const res = await fetchAppviewJson(makeUrl('https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread', { uri: atUri, depth, parentHeight: 0 }), { updateTime, fetcher, cache, bearerToken });
-     if (!isGetPostThreadResponse(res)) throw new Error(`Expected GetPostThreadResponse: ${JSON.stringify(res, undefined, 2)}`);
-     if (debug) console.log(JSON.stringify(res, undefined, 2));
+    const res = await fetchAppviewJson(makeUrl('https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread', { uri: atUri, depth, parentHeight: 0 }), { updateTime, fetcher, cache, bearerToken });
+    if (!isGetPostThreadResponse(res)) throw new Error(`Expected GetPostThreadResponse: ${JSON.stringify(res, undefined, 2)}`);
+    if (debug) console.log(JSON.stringify(res, undefined, 2));
 
-     const nodes: Record<string, Node> = {};
-     const commenters: Record<string, Commenter> = {};
+    const nodes: Record<string, Node> = {};
+    const commenters: Record<string, Commenter> = {};
 
-     const processThread = (thread: ThreadViewPost): string => {
-         const { uri, author, replyCount } = thread.post;
-    
-         let replies: string[] | undefined;
-         let repliesAsof: string | undefined;
-         if (replyCount === undefined) {
-             if (thread.replies !== undefined) throw new Error(`Expected no thread.replies for undefined replyCount`);
-         } else {
-             if (thread.replies !== undefined) {
+    const processThread = (thread: ThreadViewPost): string => {
+        const { uri, author, replyCount } = thread.post;
+        const uriParts = tryDestructureRecordUri(uri);
+        const url = uriParts ? `https://bsky.app/profile/${author.handle}/post/${uriParts.rkey}` : undefined;
+
+        let replies: string[] | undefined;
+        let repliesAsof: string | undefined;
+        if (replyCount === undefined) {
+            if (thread.replies !== undefined) throw new Error(`Expected no thread.replies for undefined replyCount`);
+        } else {
+            if (thread.replies !== undefined) {
                 replies = [];
                 for (const reply of thread.replies) {
                     const replyUri = processThread(reply);
@@ -164,25 +167,27 @@ async function getThread(url: string, opts: ProtocolMethodOptions, depth: number
                 }
                 repliesAsof = updateTime;
             }
-         }
-         nodes[uri] = {
-             replies,
-             repliesAsof,
-             comment: {
+        }
+        nodes[uri] = {
+            replies,
+            repliesAsof,
+            comment: {
                 attachments: [],
                 content: { und: thread.post.record.text },
                 attributedTo: author.did,
-             },
-             commentAsof: updateTime,
-         };
-         
-         commenters[author.did] = computeCommenter(author, updateTime);
+                url,
+                published: thread.post.record.createdAt,
+            },
+            commentAsof: updateTime,
+        };
+        
+        commenters[author.did] = computeCommenter(author, updateTime);
 
-         return uri;
+        return uri;
      }
 
-     const uri = processThread(res.thread);
-     return { uri, nodes, commenters };
+    const uri = processThread(res.thread);
+    return { uri, nodes, commenters };
 }
 
 function computeCommenter(author: Author | GetProfileResponse, updateTime: string): Commenter {
@@ -191,5 +196,14 @@ function computeCommenter(author: Author | GetProfileResponse, updateTime: strin
         name: author.displayName ?? author.handle,
         fqUsername: author.handle,
         icon: author.avatar ? { url: author.avatar } : undefined,
+        url: `https://bsky.app/profile/${author.handle}`,
     };
+}
+
+function tryDestructureRecordUri(atUri: string): { actor: string, collection: string, rkey: string } | undefined {
+    // at://actor/collection/rkey
+    const m = /^at:\/\/([^/]+)(\/([^/]+)(\/([^/]+))?)?$/.exec(typeof atUri === 'string' ? atUri : '');
+    if (!m) return undefined;
+    const [ _, actor, _1, collection, _2, rkey ] = m;
+    return { actor, collection, rkey };
 }
